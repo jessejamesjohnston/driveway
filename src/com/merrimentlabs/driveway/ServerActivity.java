@@ -172,6 +172,8 @@ public final class ServerActivity extends Activity implements Connection.Listene
     // What leaving a field put on the status line, so a later leave can clear it.
     String leftSaid;
     String urlSaid;
+    String urlSaidField;
+    boolean urlSaidNote;
     String addressNote;
     String addressNotePort;
     String initial;
@@ -275,6 +277,8 @@ public final class ServerActivity extends Activity implements Connection.Listene
       formStatus.setText(k.status);
       leftSaid = k.leftSaid;
       urlSaid = k.urlSaid;
+      urlSaidField = k.urlSaidField;
+      urlSaidNote = k.urlSaidNote;
       addressNote = k.addressNote;
       addressNotePort = k.addressNotePort;
       initial = k.initial;
@@ -340,6 +344,8 @@ public final class ServerActivity extends Activity implements Connection.Listene
     k.status = formStatus.getText();
     k.leftSaid = leftSaid;
     k.urlSaid = urlSaid;
+    k.urlSaidField = urlSaidField;
+    k.urlSaidNote = urlSaidNote;
     k.addressNote = addressNote;
     k.addressNotePort = addressNotePort;
     k.initial = initial;
@@ -1654,8 +1660,10 @@ public final class ServerActivity extends Activity implements Connection.Listene
     return key;
   }
 
-  /** What the status line was given when focus last left a text setting. */
+  /** What the status line was given when focus last left a text setting, about which setting, and whether it is a note. */
   private String urlSaid;
+  private String urlSaidField;
+  private boolean urlSaidNote;
 
   /**
    * Focus left the text setting key: the engine's address check
@@ -1667,9 +1675,6 @@ public final class ServerActivity extends Activity implements Connection.Listene
    * and Save ask again (collect), and a refusal stops them.
    */
   private void leftField(String key) {
-    // What the last time focus left a field said goes, unless it still holds.
-    if (urlSaid != null && urlSaid.contentEquals(formStatus.getText())) formStatus.setText("");
-    urlSaid = null;
     Kinds.AddressCheck a;
     try {
       a = Kinds.checkAddresses(kind, typedSettings());
@@ -1678,16 +1683,33 @@ public final class ServerActivity extends Activity implements Connection.Listene
       Logs.w("can't check the form's addresses", e);
       return;
     }
+    // A refusal is said on leaving its field, and stays while it holds
+    // (leaving another field doesn't take it away); a note, once, on
+    // leaving the field it is about.
     String said = null;
+    boolean note = false;
     if (a.problem != 0) {
-      if (key.equals(a.field)) said = addressSentence(a.problem, a.field);
+      if (key.equals(a.field) || !urlSaidNote && a.field != null && a.field.equals(urlSaidField)) {
+        said = addressSentence(a.problem, a.field);
+      }
     } else if (key.equals(a.noteField)) {
       said = applyAddressCheck(a);
+      note = true;
     }
     if (said != null) {
       formStatus.setText(said);
       urlSaid = said;
+      urlSaidField = note ? key : a.field;
+      urlSaidNote = note;
+      return;
     }
+    // Nothing new: what was said goes once it no longer holds (the refusal
+    // was put right, or the field a note is about was left again).
+    if (urlSaidNote && !key.equals(urlSaidField)) return;
+    if (urlSaid != null && urlSaid.contentEquals(formStatus.getText())) formStatus.setText("");
+    urlSaid = null;
+    urlSaidField = null;
+    urlSaidNote = false;
   }
 
   /** An address sentence (Kinds.addressProblem, or a note), with the field's and the sign-in fields' labels. */
