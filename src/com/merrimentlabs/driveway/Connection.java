@@ -323,11 +323,15 @@ final class Connection {
             outcome = Outcome.SAVED;
           }
         } catch (Exception e) {
-          // What went wrong goes to the log; the form says the settings weren't kept.
+          // What went wrong goes to the log; the form says the settings
+          // weren't kept, or, for settings the engine refused, which one
+          // and what to do (Errors names the field).
           Logs.w("can't keep the settings of " + server.label, e);
+          boolean refused = Errors.refusedSetting(e) != null;
+          String said = refused ? Errors.explain(app, server, e, true) : app.getString(R.string.save_failed);
           synchronized (lock) {
-            error = app.getString(R.string.save_failed);
-            errorKind = "save";
+            error = said;
+            errorKind = refused ? "savesettings" : "save";
             outcome = Outcome.FAILED;
           }
           return;

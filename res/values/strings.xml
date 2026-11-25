@@ -47,6 +47,7 @@
   <string name="problem_signin">Driveway is no longer signed in to %1$s</string>
   <string name="problem_signin_none">Driveway is no longer signed in to %1$s and can\'t sign in to it again. Removing it changes nothing in your %2$s account.</string>
   <string name="problem_identity">%1$s answered as a different server than before, so Driveway won\'t connect to it</string>
+  <string name="problem_settings">Driveway can\'t use the %2$s saved for %1$s. Choose Change and correct it.</string>
   <string name="check_identity">Check identity</string>
   <string name="problem_unconfirmed">Driveway won\'t connect to %1$s until you check its identity</string>
   <string name="sign_in_again_named">Sign in again to %1$s</string>
@@ -326,6 +327,7 @@
   <string name="err_short">%1$s didn\'t store the file as it was sent. Save it again.</string>
   <string name="err_other">Couldn\'t finish that on %1$s. Try again, and if it keeps happening, open Driveway and check its settings.</string>
   <string name="err_bad_settings">Driveway couldn\'t read the saved settings for %1$s. Open Driveway, choose Change on its card, and save it again.</string>
+  <string name="err_bad_address">Driveway can\'t use the %2$s saved for %1$s. Open Driveway, choose Change on its card, and correct %2$s.</string>
   <string name="err_bad_settings_form">Driveway couldn\'t read the settings for %1$s. Check each one and try again.</string>
   <string name="err_other_form">Driveway couldn\'t finish connecting to %1$s. Check the details and try again.</string>
 

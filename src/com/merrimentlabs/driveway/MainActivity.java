@@ -374,6 +374,14 @@ public final class MainActivity extends Activity {
         fix.setTag(s.id + "/fix");
         problems.addView(Ui.strip(this, true, getString(R.string.problem_signin, s.label), fix), stripParams());
       }
+    } else if (Problems.settingsField(problem) != null) {
+      // Settings the engine refused when Driveway started: which one, and Change.
+      String field = Problems.settingsField(problem);
+      View fix = Ui.tonal(this, getString(R.string.edit), v -> edit(s));
+      fix.setContentDescription(getString(R.string.edit_named, s.label));
+      fix.setTag(s.id + "/fix");
+      problems.addView(Ui.strip(this, true, field.isEmpty() ? getString(R.string.err_bad_settings, s.label)
+          : getString(R.string.problem_settings, s.label, Kinds.fieldLabel(Kinds.of(s.backend), field)), fix), stripParams());
     } else if (Problems.IDENTITY.equals(problem) || Problems.UNCONFIRMED.equals(problem)) {
       View fix = Ui.tonal(this, getString(R.string.check_identity), v -> fix(s, ServerActivity.FIX_IDENTITY));
       fix.setContentDescription(getString(R.string.check_identity_named, s.label));

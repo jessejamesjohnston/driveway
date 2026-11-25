@@ -18,7 +18,8 @@ import java.util.concurrent.CopyOnWriteArrayList;
  * from real use only (listings, reads, saves), never from a form's Test,
  * whose draft settings may not be the server's; cleared by any later success
  * and by saving the server (an SFTP server saved before its identity was
- * checked is noted as such right away). Kept beside the server list (no
+ * checked is noted as such right away), or the engine refused its saved
+ * settings when Driveway started. Kept beside the server list (no
  * backup), holding no secrets: a server id and a word.
  */
 final class Problems {
@@ -28,6 +29,18 @@ final class Problems {
   static final String IDENTITY = "identity";
   /** An SFTP server saved without its identity checked (Save anyway while it was off). */
   static final String UNCONFIRMED = "unconfirmed";
+  /**
+   * Settings the engine refused (an address it can't use), noted as
+   * "settings:" and the setting's key ("settings:url"), or "settings:" alone
+   * when it didn't name one: Files gets the same refusal until the server is
+   * saved again with Change.
+   */
+  static final String SETTINGS = "settings:";
+
+  /** The setting a SETTINGS problem names ("" for none), or null for another problem. */
+  static String settingsField(String problem) {
+    return problem != null && problem.startsWith(SETTINGS) ? problem.substring(SETTINGS.length()) : null;
+  }
 
   private static final List<Runnable> listeners = new CopyOnWriteArrayList<>();
   private static final Handler main = new Handler(Looper.getMainLooper());

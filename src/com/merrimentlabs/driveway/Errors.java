@@ -51,6 +51,17 @@ final class Errors {
     return null;
   }
 
+  /**
+   * The setting an engine refusal names (SetRemote's "the address in url
+   * can't be used"), "" for a refusal that names none, or null when e isn't
+   * a refusal of the settings.
+   */
+  static String refusedSetting(Throwable e) {
+    if (!kind(e).equals("badsettings")) return null;
+    java.util.regex.Matcher m = ADDRESS_REFUSED.matcher(detail(e));
+    return m.find() ? m.group(1) : "";
+  }
+
   static boolean isNotFound(Throwable e) {
     return kind(e).equals("notfound");
   }
@@ -82,6 +93,10 @@ final class Errors {
       this.args = args;
     }
   }
+
+  /** The engine's refusal of an address: the setting, and why (engine/address.go, settingsError). */
+  private static final java.util.regex.Pattern ADDRESS_REFUSED =
+      java.util.regex.Pattern.compile("the address in ([a-z0-9_]+) can't be used \\(([a-z]+)\\)");
 
   static String explain(Context ctx, Servers.Server s, Throwable e) {
     return explain(ctx, s, e, false);
@@ -157,9 +172,20 @@ final class Errors {
       // such as no shared drive to choose.
       case "setupended":
         return new Message(R.string.err_setup_ended, service(s, name));
-      // The settings handed to the engine weren't readable.
-      case "badsettings":
+      // The settings handed to the engine weren't readable: an address
+      // the engine refused names its setting and why (engine/address.go),
+      // in the same sentence the form shows; on a card or in Files, which
+      // setting to correct, and where.
+      case "badsettings": {
+        java.util.regex.Matcher m = ADDRESS_REFUSED.matcher(detail(e));
+        if (m.find()) {
+          Kinds.Kind k = s == null ? null : Kinds.of(s.backend);
+          String field = Kinds.fieldLabel(k, m.group(1));
+          if (onForm) return new Message(Kinds.addressProblem(k, m.group(2)), field, Kinds.fieldLabel(k, "user"), Kinds.fieldLabel(k, "pass"));
+          return new Message(R.string.err_bad_address, name, field);
+        }
         return new Message(onForm ? R.string.err_bad_settings_form : R.string.err_bad_settings, name);
+      }
       case "notfound":
         return new Message(R.string.err_not_found);
       case "exists":

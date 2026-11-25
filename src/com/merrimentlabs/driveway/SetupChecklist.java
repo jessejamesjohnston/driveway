@@ -182,8 +182,11 @@ final class SetupChecklist {
 
   void update() {
     for (Row r : rows) r.update();
-    boolean failedSave = run.outcome == Connection.Outcome.FAILED && "save".equals(run.errorKind);
-    saveError.setText(failedSave ? a.getString(R.string.save_failed) : "");
+    // Not kept: the device couldn't write it, or the engine refused the
+    // settings (run.error names the setting and the next step).
+    boolean refused = "savesettings".equals(run.errorKind);
+    boolean failedSave = run.outcome == Connection.Outcome.FAILED && ("save".equals(run.errorKind) || refused);
+    saveError.setText(!failedSave ? "" : refused ? run.error : a.getString(R.string.save_failed));
     saveError.setVisibility(failedSave ? View.VISIBLE : View.GONE);
   }
 
@@ -471,7 +474,9 @@ final class SetupChecklist {
       b.add(Ui.tonal(a, a.getString(R.string.change_folder), v -> actions.backTo(false)));
     }
     if (!k.equals("untrusted")) b.add(Ui.flat(a, a.getString(R.string.try_connect_again), v -> actions.retry()));
-    if (!actions.isNew() && r.save && !k.equals("untrusted") && !k.equals("cancelled") && !tokenless(r)) {
+    // Settings the engine refused can't be saved anyway: the address is fixed on the form.
+    if (!actions.isNew() && r.save && !k.equals("untrusted") && !k.equals("cancelled") && !k.equals("badsettings")
+        && !tokenless(r)) {
       b.add(Ui.flat(a, a.getString(R.string.save_anyway), v -> actions.saveAnyway()));
     }
     Layouts.Flow f = Ui.actions(a, b.toArray(new View[0]));

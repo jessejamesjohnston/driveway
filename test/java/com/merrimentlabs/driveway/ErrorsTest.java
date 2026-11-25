@@ -187,6 +187,17 @@ public final class ErrorsTest {
       m = Errors.message(sftp, err("[badsettings] bad settings: unexpected end of JSON input"), onForm, () -> true, "The server");
       check(m.res == (onForm ? R.string.err_bad_settings_form : R.string.err_bad_settings),
           "settings the engine couldn't read" + where + ": says so");
+      // An address the engine refused (SetRemote): the form's own sentence,
+      // naming the field; elsewhere (a card, Files), which setting to
+      // correct and where. Never "no longer on the server".
+      Servers.Server dav = server("webdav", "{\"url\":\"https://dav.example.com\"}");
+      m = Errors.message(dav, err("[badsettings] bad settings: the address in url can't be used (unreadable)"), onForm, () -> true, "The server");
+      check(onForm ? m.res == R.string.address_unreadable && "Address".equals(m.args[0])
+          : m.res == R.string.err_bad_address && "Address".equals(m.args[1]) && text.get(m.res).contains("Change"),
+          "an address the engine refused" + where + ": names Address" + (onForm ? "" : " and the next step"));
+      m = Errors.message(dav, err("[badsettings] bad settings: the address in url can't be used (ambiguous)"), true, () -> true, "The server");
+      check(m.res == R.string.address_ambiguous_login && "User name".equals(m.args[1]) && "Password".equals(m.args[2]),
+          "an address the engine refused, on the form: the same sentence the form shows" + where);
     }
     check(String.format(text.get(Errors.message(null, err("[signin] " + RAW), false, () -> true, "The server").res),
         Errors.message(null, err("[signin] " + RAW), false, () -> true, "The server").args).contains("said: " + RAW),

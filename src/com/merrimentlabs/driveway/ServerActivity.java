@@ -494,7 +494,7 @@ public final class ServerActivity extends Activity implements Connection.Listene
       // (if Driveway is stopped first, its next start puts the key back).
       Servers servers = Servers.get(this);
       Servers.Server stored = servers.find(server.id);
-      if (stored != null) servers.push(stored);
+      if (stored != null) servers.pushSaved(stored);
       servers.restorePin(server.id);
     } else if (Servers.get(this).find(server.id) == null) {
       // A connection registered it with the engine; forget it.
@@ -1919,7 +1919,8 @@ public final class ServerActivity extends Activity implements Connection.Listene
         List<View> b = new ArrayList<>();
         b.add(Ui.button(this, getString(R.string.back_to_details), v -> showForm(kind)));
         if (run.save && !"untrusted".equals(run.errorKind) && !"cancelled".equals(run.errorKind)
-            && !"save".equals(run.errorKind) && !SetupChecklist.tokenless(run)) {
+            && !"save".equals(run.errorKind) && !"savesettings".equals(run.errorKind) && !"badsettings".equals(run.errorKind)
+            && !SetupChecklist.tokenless(run)) {
           b.add(Ui.flat(this, getString(R.string.save_anyway), v -> saveAnyway()));
         }
         page.bar.addView(Ui.actions(this, b.toArray(new View[0])), Ui.weight());
@@ -2030,7 +2031,8 @@ public final class ServerActivity extends Activity implements Connection.Listene
       finish();
     } catch (Exception e) {
       Logs.w("can't save " + s.label, e);
-      formStatus.setText(R.string.save_anyway_failed);
+      // Settings the engine refused: which one, and what to do.
+      formStatus.setText(Errors.refusedSetting(e) != null ? Errors.explain(this, s, e, true) : getString(R.string.save_anyway_failed));
       if (isNew) showForm(kind);
     }
   }

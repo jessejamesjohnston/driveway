@@ -165,7 +165,25 @@ final class Servers {
         Servers.this.saved(id, key, value);
       }
     });
-    for (Server s : servers) push(s);
+    for (Server s : servers) pushSaved(s);
+  }
+
+  /**
+   * Hands a saved server to the engine when Driveway starts, or puts one
+   * back. Nobody is at a form then: settings the engine refuses go on the
+   * server's card (Problems.SETTINGS), and Files gets the engine's refusal,
+   * which names the setting, until the server is saved again.
+   */
+  void pushSaved(Server s) {
+    try {
+      push(s);
+      // Accepted now (a newer Driveway reads what an older one refused).
+      if (Problems.settingsField(Problems.of(context, s.id)) != null) Problems.clear(context, s.id);
+    } catch (Exception e) {
+      Logs.w("can't set up " + s.label + ": " + e.getMessage());
+      String field = Errors.refusedSetting(e);
+      Problems.note(context, s.id, Problems.SETTINGS + (field == null ? "" : field));
+    }
   }
 
   /**
@@ -228,7 +246,7 @@ final class Servers {
       servers.addAll(before);
       Server old = null;
       for (Server s : servers) if (s.id.equals(server.id)) old = s;
-      if (old != null) push(old);
+      if (old != null) pushSaved(old);
       else Engine.removeRemote(server.id);
       throw e;
     }
@@ -265,27 +283,28 @@ final class Servers {
     changed();
   }
 
-  /** The engine's settings for a server, with what only the app knows filled in. */
-  void push(Server s) {
+  /**
+   * The engine's settings for a server, with what only the app knows filled
+   * in. Settings the engine refuses throw its error (which names the
+   * setting, Errors.refusedSetting), and the engine keeps nothing of the
+   * server's earlier settings: each caller says so where the person is.
+   */
+  void push(Server s) throws Exception {
     if (Kinds.removed(s.backend)) return; // not in the engine any more
-    try {
-      JSONObject p = new JSONObject(s.params.toString());
-      if (s.backend.equals("sftp")) {
-        // Pinned on first connect (ServerActivity's host key check); a server
-        // whose key changes is refused. Until then the file is empty, so
-        // every key is refused rather than any key accepted.
-        File kh = knownHosts(s.id);
-        if (!kh.exists()) {
-          kh.createNewFile();
-        }
-        p.put("known_hosts_file", kh.getPath());
-        // Plain SFTP only: no remote shell commands.
-        p.put("shell_type", "none");
+    JSONObject p = new JSONObject(s.params.toString());
+    if (s.backend.equals("sftp")) {
+      // Pinned on first connect (ServerActivity's host key check); a server
+      // whose key changes is refused. Until then the file is empty, so
+      // every key is refused rather than any key accepted.
+      File kh = knownHosts(s.id);
+      if (!kh.exists()) {
+        kh.createNewFile();
       }
-      Engine.setRemote(s.id, s.backend, p.toString());
-    } catch (Exception e) {
-      Logs.w("can't set up " + s.label + ": " + e.getMessage());
+      p.put("known_hosts_file", kh.getPath());
+      // Plain SFTP only: no remote shell commands.
+      p.put("shell_type", "none");
     }
+    Engine.setRemote(s.id, s.backend, p.toString());
   }
 
   /** The pinned SSH host key for a server. */
