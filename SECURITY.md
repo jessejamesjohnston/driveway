@@ -44,7 +44,8 @@ About) you tested. You will get an answer as soon as I can manage; this is a one
   path ends nothing: folders named with the full-width `：` `？` `＃` `／` that Chinese and
   Japanese file names use, or with `⁉`, are accepted as typed, and so are dot forms in a
   folder. With an `@` anywhere in the address (a user name and password typed in it, say),
-  those folders are refused too. A refusal doesn't repeat the address, and says to set the
+  folders with those full-width characters or `⁉` are refused too; dot forms in a folder are
+  still accepted. A refusal doesn't repeat the address, and says to set the
   address to the server's top folder and open the folder in Files when the character is part
   of a folder's name, or to retype it when it was meant as the ordinary character. The
   redaction below doesn't read a percent-encoded look-alike as an `@`, so this case rests on

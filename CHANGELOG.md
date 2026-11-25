@@ -37,8 +37,8 @@ The first public release.
   in it typed after the user name, which looks like a server, a port and a folder with an `@`:
   the form says to type the login in User name and Password, or to write an `@` in a folder's
   name as `%40`. So is one with a character that only looks like `@` (a full-width `＠`), or
-  like `:`, `/`, `?`, `#` or a dot in the server's name, or in a folder when the address also
-  holds an `@`: the form says to set the address to the server's top folder and open the folder
+  like `:`, `/`, `?`, `#` or a dot in the server's name, or like `:`, `/`, `?` or `#` in a folder
+  when the address also holds an `@`: the form says to set the address to the server's top folder and open the folder
   in Files, or to retype the character. International server names, and folder names in any
   script, including the full-width `：`, `？`, `＃` and `／` that Chinese and Japanese names use,
   are accepted as typed. A saved
