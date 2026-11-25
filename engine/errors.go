@@ -35,11 +35,6 @@ func classify(err error) error {
 	s := strings.ToLower(err.Error())
 	var ne net.Error
 	switch {
-	// An address in the settings that Go can't read is the settings' fault,
-	// not the network's (a url.Error is a net.Error too), and Go's text
-	// repeats the address, password and all, so none of it is kept.
-	case unreadableAddress(err):
-		return tag("badsettings", &addressError{err})
 	// A service that refused to refresh the sign-in answered: an HTTP call
 	// carries that answer inside a url.Error, which is a net.Error too.
 	case strings.Contains(s, "invalid_grant"):
@@ -90,36 +85,31 @@ func (e *addressError) Error() string {
 }
 func (e *addressError) Unwrap() error { return e.err }
 
-// parseWords are the endings of Go's url.Parse errors, for an error whose
-// chain was cut by %v.
-var parseWords = []string{"invalid userinfo", "invalid port", "invalid url escape", "invalid character",
-	"missing protocol scheme", "first path segment in url cannot contain colon", "invalid control character in url"}
-
-// unreadableAddress: err comes from an address Go couldn't read (url.Parse
-// failed, or the HTTP client found no scheme it knows).
-func unreadableAddress(err error) bool {
+// settingsAddressError: err is Go's url package refusing an address in the
+// server id's own settings (rclone parses the address it is given when it
+// connects), as opposed to an address a server sent (a redirect, a link in
+// an answer): only the first is the settings' fault. Text a server controls
+// decides nothing here: the address must be one of the server's settings.
+func settingsAddressError(id string, err error) bool {
 	found := false
 	eachWrapped(err, func(e error) {
-		if ue, ok := e.(*url.Error); ok && (ue.Op == "parse" || strings.HasPrefix(ue.Err.Error(), "unsupported protocol scheme")) {
-			found = true
+		ue, ok := e.(*url.Error)
+		if !ok || ue.Op != "parse" {
+			return
+		}
+		// Go names the address as rclone gave it, maybe with a / added, or
+		// cut at a # (alice:pass#word@host).
+		got := strings.TrimRight(ue.URL, "/")
+		if !strings.Contains(got, "://") || strings.HasSuffix(got, "://") {
+			return
+		}
+		for _, k := range store.GetKeyList(id) {
+			if v, _ := store.GetValue(id, k); v != "" && strings.HasPrefix(strings.TrimSpace(v)+"/", got) {
+				found = true
+			}
 		}
 	})
-	if found {
-		return true
-	}
-	s := strings.ToLower(err.Error())
-	if strings.Contains(s, "unsupported protocol scheme") {
-		return true
-	}
-	if !strings.Contains(s, `parse "`) {
-		return false
-	}
-	for _, w := range parseWords {
-		if strings.Contains(s, w) {
-			return true
-		}
-	}
-	return false
+	return found
 }
 
 // eachWrapped calls f on err and every error it wraps.

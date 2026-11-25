@@ -3,6 +3,8 @@
 package engine
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
@@ -108,5 +110,39 @@ func TestRefusedReplaceOnServer(t *testing.T) {
 		t.Errorf("Check succeeded after the refused replace (on the old account)")
 	} else if !strings.HasPrefix(err.Error(), "[badsettings]") {
 		t.Errorf("Check after the refused replace: %v (want [badsettings])", err)
+	}
+}
+
+// TestServerTextIsNoSettingsError: what a server answers (a redirect to an
+// address Go can't read or to another scheme, a body holding the words of
+// Go's parse errors) never makes an error the settings' fault: only an
+// address in the settings themselves does.
+func TestServerTextIsNoSettingsError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.HasPrefix(r.URL.Path, "/space"):
+			w.Header().Set("Location", "http://a b/")
+			w.WriteHeader(http.StatusFound)
+		case strings.HasPrefix(r.URL.Path, "/ftp"):
+			w.Header().Set("Location", "ftp://files.example.com/")
+			w.WriteHeader(http.StatusFound)
+		default:
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = w.Write([]byte(`parse "x": invalid port ":y" after host; unsupported protocol scheme "ftp"; net/url: invalid userinfo`))
+		}
+	}))
+	defer srv.Close()
+	for _, backend := range []string{"webdav", "http"} {
+		for _, p := range []string{"/space/", "/ftp/", "/body/"} {
+			const id = "server-text"
+			if err := SetRemote(id, backend, `{"url":"`+srv.URL+p+`"}`); err != nil {
+				t.Fatal(err)
+			}
+			err := Check(id)
+			RemoveRemote(id)
+			if err != nil && strings.HasPrefix(err.Error(), "[badsettings]") {
+				t.Errorf("%s %s: the server's answer made it a settings error: %v", backend, p, err)
+			}
+		}
 	}
 }

@@ -292,6 +292,13 @@ type connected struct {
 func connect(id string, gen int) connected {
 	f, err := fs.NewFs(context.Background(), id+":")
 	if err != nil {
+		// An address in the settings that Go can't read is the settings'
+		// fault, not the network's (a url.Error is a net.Error too), and
+		// Go's text repeats the address, password and all, so none of it is
+		// kept.
+		if settingsAddressError(id, err) {
+			return connected{err: tag("badsettings", &addressError{err})}
+		}
 		return connected{err: classify(err)}
 	}
 	mu.Lock()

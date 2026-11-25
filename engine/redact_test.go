@@ -453,12 +453,14 @@ var addressRows = []struct{ backend, url string }{
 
 // TestUnreadableAddressNeverLeaks puts each of addressRows straight into the
 // settings, past SetRemote's own check, so the error path and the redaction
-// are what stand between the password and the log: Check's error is
-// Driveway's own bad-settings sentence, the log holds no part of the
-// password, and Go's raw text, which does, comes out of redact without it.
+// are what stand between the password and the log: Check's error holds no
+// part of the password, an address Go's url package refused as rclone
+// connected is Driveway's own bad-settings sentence, the log holds none of
+// it, and Go's raw text, which does, comes out of redact without it.
 func TestUnreadableAddressNeverLeaks(t *testing.T) {
 	seen := blockedNetwork(t)
 	logs := captureLogs(t)
+	settings := 0
 	for i, r := range addressRows {
 		id := fmt.Sprintf("redact-addr-%d", i)
 		mu.Lock()
@@ -473,22 +475,40 @@ func TestUnreadableAddressNeverLeaks(t *testing.T) {
 			t.Errorf("%s: Check worked", r.url)
 			continue
 		}
-		if want := "[badsettings] bad settings: an address in the settings can't be read"; err.Error() != want {
-			t.Errorf("%s: got %q, want %q", r.url, err, want)
+		if s := err.Error(); strings.Contains(s, "MADEUP") || strings.Contains(s, "hunter") {
+			t.Errorf("%s: the error holds the password: %s", r.url, s)
 		}
+		raw := err.Error()
 		var ae *addressError
-		if !errors.As(err, &ae) {
-			t.Errorf("%s: not an address error: %v", r.url, err)
-			continue
-		}
-		raw := ae.err.Error()
-		if !strings.Contains(raw, "MADEUP") {
-			t.Errorf("%s: Go's text doesn't reproduce the leak: %s", r.url, raw)
+		if errors.As(err, &ae) {
+			settings++
+			if want := "[badsettings] bad settings: an address in the settings can't be read"; err.Error() != want {
+				t.Errorf("%s: got %q, want %q", r.url, err, want)
+			}
+			raw = ae.err.Error()
+			if !strings.Contains(raw, "MADEUP") {
+				t.Errorf("%s: Go's text doesn't reproduce the leak: %s", r.url, raw)
+			}
+		} else {
+			var ce *cleanError
+			if errors.As(err, &ce) {
+				for e := ce.err; e != nil; e = errors.Unwrap(e) {
+					raw = e.Error()
+					if _, ok := e.(*cleanError); !ok {
+						break
+					}
+				}
+			}
 		}
 		if got := redact(raw); strings.Contains(got, "MADEUP") || strings.Contains(got, "hunter") {
 			t.Errorf("%s: redact leaves the password in Go's text: %s", r.url, got)
 		}
 		fs.Errorf(nil, "check failed: %s", raw)
+	}
+	// All but the address without a scheme, which Go reads (its scheme is
+	// "alice") and the HTTP client refuses later.
+	if settings != len(addressRows)-1 {
+		t.Errorf("%d of %d were bad-settings errors", settings, len(addressRows))
 	}
 	if all := logs.all(); strings.Contains(all, "MADEUP") || strings.Contains(all, "hunter") {
 		t.Errorf("the password reached the log: %s", all)
