@@ -135,6 +135,10 @@ func SetRemote(id, backend, params string) error {
 			continue
 		}
 		s = oneLine(s)
+		if k == "host" {
+			// An IPv6 address in the form this backend needs (hosts.go).
+			s = hostFor(backend, s)
+		}
 		if k == "key_pem" {
 			// rclone reads the PEM as one line with \n escapes.
 			s = strings.ReplaceAll(strings.TrimSpace(s), "\n", `\n`)

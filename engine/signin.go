@@ -383,6 +383,10 @@ func ConfigValues(id string) string {
 		if k == "client_secret" && ownSecret != "" && v == ownSecret {
 			continue
 		}
+		if k == "host" {
+			// The app's own form, which it saves (hosts.go).
+			v = bareHost(v)
+		}
 		out[k] = v
 	}
 	b, _ := json.Marshal(out)

@@ -33,7 +33,7 @@ func sftpCopy(c context.Context, id, from, to string) error {
 		return tag("unsupported", errors.New("a name with a backslash is copied the ordinary way"))
 	}
 	get := func(k string) string { v, _ := store.GetValue(id, k); return v }
-	host, user := get("host"), get("user")
+	host, user := bareHost(get("host")), get("user")
 	port := get("port")
 	if port == "" {
 		port = "22"

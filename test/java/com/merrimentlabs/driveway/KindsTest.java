@@ -159,6 +159,20 @@ public final class KindsTest {
     address("sftp", "[2001:db8::1", null, null, R.string.address_ipv6, "[2001:db8::1");
     address("sftp", "[2001:db8::1]2222", null, null, R.string.address_ipv6, "[2001:db8::1]2222");
     address("sftp", "[]:22", null, null, R.string.address_ipv6, "[]:22");
+    // One saved form for a host, whatever was typed: an IPv6 address bare (the
+    // engine adds the brackets each backend needs, engine/hosts.go). What a
+    // split leaves in Server splits again to the same host and no port, so a
+    // saved server opened and saved again keeps its address.
+    for (String backend : Arrays.asList("sftp", "smb", "nfs", "ftp")) {
+      for (String typed : Arrays.asList("[fd00::5]", "fd00::5", "[2001:db8::1]:2222", "::1", "[::1]",
+          "fe80::1%wlan0", "[fe80::1%wlan0]:445", "nas.local:2222", "192.0.2.10")) {
+        Kinds.Address first = Kinds.address(typed, backend);
+        Kinds.Address again = Kinds.address(first.host, backend);
+        check(first.problem == 0 && !first.host.startsWith("[") && again.problem == 0
+            && again.host.equals(first.host) && again.port == null,
+            backend + " Server \"" + typed + "\" is saved as " + first.host + ", which reads back the same");
+      }
+    }
     // A port that isn't one: said, never dropped.
     address("sftp", "nas.local:ssh", null, null, R.string.address_port_bad, "ssh");
     address("sftp", "nas.local:+22", null, null, R.string.address_port_bad, "+22");

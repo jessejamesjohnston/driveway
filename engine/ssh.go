@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/knownhosts"
 )
 
 // NewKey makes an Ed25519 key for SFTP: {"private": PEM, "public":
@@ -40,11 +41,13 @@ func NewKey(comment string) (string, error) {
 
 // HostKey connects to an SSH server and returns the key it presents, before
 // any login: {"line": known_hosts line, "fingerprint": SHA256:...}. The app
-// shows the fingerprint the first time and pins the line afterwards.
+// shows the fingerprint the first time and pins the line afterwards. An
+// IPv6 host may come with or without brackets.
 func HostKey(host string, port int) (string, error) {
 	if port == 0 {
 		port = 22
 	}
+	host = bareHost(host)
 	addr := net.JoinHostPort(host, strconv.Itoa(port))
 	var key ssh.PublicKey
 	cfg := &ssh.ClientConfig{
@@ -69,13 +72,14 @@ func HostKey(host string, port int) (string, error) {
 		}
 		return "", classify(err)
 	}
-	hostField := host
-	if port != 22 {
-		hostField = "[" + host + "]:" + strconv.Itoa(port)
-	}
-	line := hostField + " " + string(ssh.MarshalAuthorizedKey(key))
-	j, _ := json.Marshal(map[string]string{"line": line[:len(line)-1], "fingerprint": ssh.FingerprintSHA256(key)})
+	j, _ := json.Marshal(map[string]string{"line": knownHostsLine(host, port, key), "fingerprint": ssh.FingerprintSHA256(key)})
 	return string(j), nil
+}
+
+// knownHostsLine is the known_hosts line that pins key for host (bare or in
+// brackets) at port, as rclone and the server copy look it up.
+func knownHostsLine(host string, port int, key ssh.PublicKey) string {
+	return knownhosts.Line([]string{net.JoinHostPort(bareHost(host), strconv.Itoa(port))}, key)
 }
 
 var errHaveKey = errors.New("have host key")

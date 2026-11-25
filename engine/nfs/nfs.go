@@ -100,6 +100,10 @@ func NewFs(ctx context.Context, name, root string, m configmap.Mapper) (fs.Fs, e
 	if err := configstruct.Set(m, opt); err != nil {
 		return nil, err
 	}
+	// The host bare: an IPv6 address gets its brackets where it is dialed.
+	if h := opt.Host; len(h) > 2 && h[0] == '[' && h[len(h)-1] == ']' {
+		opt.Host = h[1 : len(h)-1]
+	}
 	f := &Fs{name: name, root: strings.Trim(root, "/"), opt: *opt, mu: make(chan struct{}, 1),
 		auth: rpc.NewAuthUnix("driveway", opt.UID, opt.GID).Auth()}
 	f.features = (&fs.Features{CanHaveEmptyDirectories: true}).Fill(ctx, f)

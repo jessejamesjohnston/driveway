@@ -163,7 +163,10 @@ final class Kinds {
    * More settings. Only for kinds that have both (takesPort).
    */
   static final class Address {
-    /** The host without brackets (an IPv6 address as it is, "2001:db8::1"). */
+    /**
+     * The host without brackets (an IPv6 address as it is, "2001:db8::1"),
+     * the one form saved; the engine adds the brackets a backend needs.
+     */
     final String host;
     /** The port typed with it ("2222", leading zeros dropped), or null for none. */
     final String port;
