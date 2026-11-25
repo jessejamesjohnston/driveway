@@ -20,6 +20,7 @@ The first public release.
 
 ### Changed
 - The SFTP form's Server hint matches the other forms ("nas.local or 192.168.1.10").
+- A server that can't sign in again offers Remove on its card.
 
 ## [0.2.13] - 2026-11-18
 
