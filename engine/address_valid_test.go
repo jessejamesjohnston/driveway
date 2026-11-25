@@ -213,6 +213,23 @@ func TestValidAddresses(t *testing.T) {
 	if len(rows) < 150 {
 		t.Errorf("only %d rows", len(rows))
 	}
+	// Every character the look-alike rule names: each non-dot one in a
+	// folder is refused, each dot form is refused in the host and accepted
+	// in a folder (lookalike, shapeLookalikes).
+	for _, r := range "\uff20\ufe6b\uff1a\ufe55\uff0f\uff1f\uff03\ufe56\ufe5f\u2047\u2100" +
+		"\ua789\u2236\u02f8\u0589\u05c3\u2215\u2044\u29f8" {
+		if a := readAddress("https://nas.local/a"+string(r)+"b/", "url"); a.reason != reasonLookalike {
+			t.Errorf("%U in a folder: got %q, want lookalike", r, a.reason)
+		}
+	}
+	for _, r := range "\uff0e\ufe52\u2024\u3002\uff61\u2026" {
+		if a := readAddress("https://nas"+string(r)+"local/dav", "url"); a.reason != reasonLookalike {
+			t.Errorf("%U in a host: got %q, want lookalike", r, a.reason)
+		}
+		if a := readAddress("https://nas.local/a"+string(r)+"b/", "url"); a.reason != "" {
+			t.Errorf("%U in a folder: got %q, want accepted", r, a.reason)
+		}
+	}
 	// The ambiguous sentence's way out is in the strings KindsTest checks;
 	// here, that each ambiguous reason is one the app maps.
 	for _, r := range rows {
