@@ -12,6 +12,10 @@ adb shell pm grant com.merrimentlabs.driveway android.permission.ACCESS_LOCAL_NE
 tools/harness.sh                                    # through Android's documents API, on an emulator
 ```
 
+Credentials are taken out of errors and log lines twice, once in the engine (Go) and once in the
+app (Java). Both layers run the same cases, kept in `test/redact_cases.json`: each case is an input
+and the exact text that must come out. Add a case there and both test suites check it.
+
 `./build.sh unit` needs only the toolchain from `./build.sh fetch`. `./build.sh test` also needs
 Docker: it makes a throwaway SSH key pair for the SFTP server on first use
 (`test/servers/keys/`, gitignored), starts the servers, waits until each answers, runs every check

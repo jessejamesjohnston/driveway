@@ -1,0 +1,320 @@
+{
+  "about": "What the engine (engine/redact.go) and the app (Logs.java) take out of a line before it is logged or an error leaves the engine. Both are checked against every case: in becomes out, and out stays out. A case whose out is the same as its in checks that nothing a person needs is lost.",
+  "cases": [
+    {
+      "why": "premiumize.me's API key in the query string, as Go reports a request that never connected",
+      "in": "[network] couldn't list files: Get \"https://www.premiumize.me/api/folder/list?apikey=SECRETAPIKEY123&includebreadcrumbs=false\": proxyconnect tcp: dial tcp 127.0.0.1:9: connect: connection refused",
+      "out": "[network] couldn't list files: Get \"https://www.premiumize.me/api/folder/list?***\": proxyconnect tcp: dial tcp 127.0.0.1:9: connect: connection refused"
+    },
+    {
+      "why": "a user name with Go's own *** for the password",
+      "in": "Get \"https://alice:***@dav.example.com:8443/remote.php/dav/files/alice/\": EOF",
+      "out": "Get \"https://***@dav.example.com:8443/remote.php/dav/files/alice/\": EOF"
+    },
+    {
+      "why": "a user name and a password in the clear",
+      "in": "can't open ftp://bob:hunter2@192.0.2.10:21/pub/readme.txt",
+      "out": "can't open ftp://***@192.0.2.10:21/pub/readme.txt"
+    },
+    {
+      "why": "a fragment",
+      "in": "came back to https://example.com/done#access_token=abc123&state=x",
+      "out": "came back to https://example.com/done?***"
+    },
+    {
+      "why": "an IPv6 address with a zone, and the dial error that follows",
+      "in": "Get \"http://[fe80::1%25wlan0]:8080/dav/?token=abc\": dial tcp [fe80::1%wlan0]:8080: connect: no route to host",
+      "out": "Get \"http://[fe80::1%25wlan0]:8080/dav/?***\": dial tcp [fe80::1%wlan0]:8080: connect: no route to host"
+    },
+    {
+      "why": "an IPv6 address with a user name and password",
+      "in": "PROPFIND http://u:p4ss@[2001:db8::1]:2222/files/ failed",
+      "out": "PROPFIND http://***@[2001:db8::1]:2222/files/ failed"
+    },
+    {
+      "why": "an IPv6 address alone",
+      "in": "can't reach http://[::1] or http://[2001:db8::5]:80/",
+      "out": "can't reach http://[::1] or http://[2001:db8::5]:80/"
+    },
+    {
+      "why": "two addresses in one sentence",
+      "in": "redirect from https://a.example/x?sig=1 to https://b.example/y/z.jpg?X-Amz-Signature=2&X-Amz-Credential=3 failed",
+      "out": "redirect from https://a.example/x?*** to https://b.example/y/z.jpg?*** failed"
+    },
+    {
+      "why": "an address in brackets at the end of a sentence",
+      "in": "listing failed (https://example.com/a?key=1).",
+      "out": "listing failed (https://example.com/a?***)."
+    },
+    {
+      "why": "an Azure shared access signature",
+      "in": "container: https://acct.blob.core.windows.net/photos?sv=2024-01-01&se=2027-01-01&sp=rl&sig=AbCd%2Bef: 403 Forbidden",
+      "out": "container: https://acct.blob.core.windows.net/photos?***: 403 Forbidden"
+    },
+    {
+      "why": "key=",
+      "in": "bad request: key=abc123 rejected",
+      "out": "bad request: key=*** rejected"
+    },
+    {
+      "why": "apikey=",
+      "in": "bad request: apikey=abc123 rejected",
+      "out": "bad request: apikey=*** rejected"
+    },
+    {
+      "why": "api_key=",
+      "in": "bad request: api_key=abc123 rejected",
+      "out": "bad request: api_key=*** rejected"
+    },
+    {
+      "why": "token=",
+      "in": "body token=abc123&x=1",
+      "out": "body token=***&x=1"
+    },
+    {
+      "why": "access_token=",
+      "in": "body access_token=ya29.abc-def_123",
+      "out": "body access_token=***"
+    },
+    {
+      "why": "refresh_token=",
+      "in": "grant_type=refresh_token&refresh_token=1//0abc",
+      "out": "grant_type=refresh_token&refresh_token=***"
+    },
+    {
+      "why": "password=",
+      "in": "login password=hunter2 user=alice",
+      "out": "login password=*** user=alice"
+    },
+    {
+      "why": "pass=",
+      "in": "login pass=hunter2",
+      "out": "login pass=***"
+    },
+    {
+      "why": "secret=",
+      "in": "client secret=s3cr3t!",
+      "out": "client secret=***"
+    },
+    {
+      "why": "client_secret=",
+      "in": "client_id=abc&client_secret=s3cr3t",
+      "out": "client_id=abc&client_secret=***"
+    },
+    {
+      "why": "signature=",
+      "in": "signature=abcdef0123",
+      "out": "signature=***"
+    },
+    {
+      "why": "sig=",
+      "in": "sig=abcdef0123 expired",
+      "out": "sig=*** expired"
+    },
+    {
+      "why": "session_id=",
+      "in": "session_id=0123abcd invalid",
+      "out": "session_id=*** invalid"
+    },
+    {
+      "why": "a settings line with spaces",
+      "in": "pass = 9xKq0abcdEFG",
+      "out": "pass = ***"
+    },
+    {
+      "why": "a quoted value",
+      "in": "password=\"a b c\" next",
+      "out": "password=*** next"
+    },
+    {
+      "why": "a sign-in token as JSON",
+      "in": "token {\"access_token\":\"ya29.abc\",\"token_type\":\"Bearer\",\"refresh_token\":\"1//xyz\",\"expiry\":\"2026-01-01T00:00:00Z\"}",
+      "out": "token {\"access_token\":\"***\",\"token_type\":\"Bearer\",\"refresh_token\":\"***\",\"expiry\":\"2026-01-01T00:00:00Z\"}"
+    },
+    {
+      "why": "JSON quoted inside a message",
+      "in": "couldn't parse \"{\\\"token\\\":\\\"abc\\\"}\"",
+      "out": "couldn't parse \"{\\\"token\\\":\\\"***\\\"}\""
+    },
+    {
+      "why": "an Authorization header line",
+      "in": "Authorization: Bearer ya29.a0AfH6SMB",
+      "out": "Authorization: ***"
+    },
+    {
+      "why": "headers as Go prints them",
+      "in": "map[Authorization:[Basic YWxpY2U6c2VjcmV0] User-Agent:[Driveway]]",
+      "out": "map[Authorization:[***] User-Agent:[Driveway]]"
+    },
+    {
+      "why": "a bearer token on its own",
+      "in": "sent Bearer eyJhbGciOiJIUzI1NiJ9.e30.abc",
+      "out": "sent Bearer ***"
+    },
+    {
+      "why": "an API key header",
+      "in": "X-Api-Key: abc123def",
+      "out": "X-Api-Key: ***"
+    },
+    {
+      "why": "a cookie header",
+      "in": "Cookie: sid=abc; theme=dark",
+      "out": "Cookie: ***"
+    },
+    {
+      "why": "nothing secret: a missing folder",
+      "in": "[notfound] directory not found",
+      "out": "[notfound] directory not found"
+    },
+    {
+      "why": "nothing secret: a changed host key",
+      "in": "[auth] ssh: handshake failed: knownhosts: key mismatch",
+      "out": "[auth] ssh: handshake failed: knownhosts: key mismatch"
+    },
+    {
+      "why": "nothing secret: a timeout",
+      "in": "[network] dial tcp 192.168.1.5:445: i/o timeout",
+      "out": "[network] dial tcp 192.168.1.5:445: i/o timeout"
+    },
+    {
+      "why": "nothing secret: a refused refresh",
+      "in": "[auth] couldn't fetch token: oauth2: \"invalid_grant\" \"Token has been expired or revoked.\"",
+      "out": "[auth] couldn't fetch token: oauth2: \"invalid_grant\" \"Token has been expired or revoked.\""
+    },
+    {
+      "why": "nothing secret: an address with no query",
+      "in": "Get \"https://api.dropboxapi.com/2/files/list_folder\": dial tcp: lookup api.dropboxapi.com: no such host",
+      "out": "Get \"https://api.dropboxapi.com/2/files/list_folder\": dial tcp: lookup api.dropboxapi.com: no such host"
+    },
+    {
+      "why": "nothing secret: a status and a file name",
+      "in": "upload DSC05071.JPG: 401 Unauthorized: bearer token missing",
+      "out": "upload DSC05071.JPG: 401 Unauthorized: bearer token missing"
+    },
+    {
+      "why": "nothing secret: the host key words",
+      "in": "the host key changed: ssh-ed25519 SHA256:aTDhUjE6gr",
+      "out": "the host key changed: ssh-ed25519 SHA256:aTDhUjE6gr"
+    },
+    {
+      "why": "a password typed with a slash in it",
+      "in": "parse \"https://alice:p/ss@dav.example.com/files/\": invalid port",
+      "out": "parse \"https://***@dav.example.com/files/\": invalid port"
+    },
+    {
+      "why": "a password typed with a question mark in it",
+      "in": "can't open https://alice:p?ss@dav.example.com:8443/files/",
+      "out": "can't open https://***@dav.example.com:8443/files/"
+    },
+    {
+      "why": "nothing secret: a port, then an @ in the path",
+      "in": "Get \"https://dav.example.com:8443/files/a@b.txt\": EOF",
+      "out": "Get \"https://dav.example.com:8443/files/a@b.txt\": EOF"
+    },
+    {
+      "why": "nothing secret: a colon and an @ in the path",
+      "in": "Get \"https://dav.example.com/files/a:b@c.txt\": EOF",
+      "out": "Get \"https://dav.example.com/files/a:b@c.txt\": EOF"
+    },
+    {
+      "why": "OpenDrive's session id in the path",
+      "in": "Get \"https://dev.opendrive.com/api/v1/folder/list.json/0123abcdef/AbC12\": EOF",
+      "out": "Get \"https://dev.opendrive.com/api/v1/folder/list.json/***/AbC12\": EOF"
+    },
+    {
+      "why": "OneDrive's upload session in the path",
+      "in": "Put \"https://sn3302.up.1drv.com/up/fe6987415ace7X4e1eF866337\": EOF",
+      "out": "Put \"https://sn3302.up.1drv.com/up/***\": EOF"
+    },
+    {
+      "why": "nothing secret: a folder named up on another server",
+      "in": "Get \"https://nas.local/up/photos\": EOF",
+      "out": "Get \"https://nas.local/up/photos\": EOF"
+    },
+    {
+      "why": "a 1Fichier shared folder",
+      "in": "Get \"https://1fichier.com/dir/AbCdEf12?json=1\": EOF",
+      "out": "Get \"https://1fichier.com/dir/***?***\": EOF"
+    },
+    {
+      "why": "Uloz.to's upload",
+      "in": "Patch \"https://apis.uloz.to/v8/upload-batch/private/q1w2e3r4\": EOF",
+      "out": "Patch \"https://apis.uloz.to/v8/upload-batch/private/***\": EOF"
+    },
+    {
+      "why": "Quatrix's upload key in the path and in its own message",
+      "in": "upload 9f8e7d6c finalize: Get \"https://files.example.com/api/upload/finalize/9f8e7d6c\": EOF",
+      "out": "upload *** finalize: Get \"https://files.example.com/api/upload/finalize/***\": EOF"
+    },
+    {
+      "why": "a pixeldrain shared folder",
+      "in": "Get \"https://pixeldrain.com/api/filesystem/AbC123xyz/photos\": EOF",
+      "out": "Get \"https://pixeldrain.com/api/filesystem/***/photos\": EOF"
+    },
+    {
+      "why": "nothing secret: the pixeldrain account's own folder",
+      "in": "Get \"https://pixeldrain.com/api/filesystem/me/photos\": EOF",
+      "out": "Get \"https://pixeldrain.com/api/filesystem/me/photos\": EOF"
+    },
+    {
+      "why": "Seafile's file link, without an address",
+      "in": "file not found 'seafhttp/files/0a1b2c3d-token/photo.jpg'",
+      "out": "file not found 'seafhttp/files/***/photo.jpg'"
+    },
+    {
+      "why": "WebDAV's token command and what it printed",
+      "in": "failed to get bearer token using \"pass show dav\": eyJhbGciOi: exit status 1",
+      "out": "failed to get bearer token using ***"
+    },
+    {
+      "why": "pCloud's signed download link",
+      "in": "fetched invalid link &{Path:/cBZabc123/photo.jpg Hosts:[]}",
+      "out": "fetched invalid link ***"
+    },
+    {
+      "why": "Filen's answer that couldn't be read",
+      "in": "Cannot unmarshal response {\"apiKey\":\"x\"",
+      "out": "Cannot unmarshal response ***"
+    },
+    {
+      "why": "Mega's session id",
+      "in": "request failed: sid=AbCd123 id=7",
+      "out": "request failed: sid=*** id=7"
+    },
+    {
+      "why": "Linkbox's password",
+      "in": "login email=a@example.com&pwd=hunter2&platform=web",
+      "out": "login email=a@example.com&pwd=***&platform=web"
+    },
+    {
+      "why": "S3's signature error",
+      "in": "SignatureDoesNotMatch: <AWSAccessKeyId>AKIAEXAMPLE</AWSAccessKeyId><StringToSign>AWS4-HMAC-SHA256\n20261125</StringToSign><SignatureProvided>abc</SignatureProvided>",
+      "out": "SignatureDoesNotMatch: <AWSAccessKeyId>***</AWSAccessKeyId><StringToSign>***</StringToSign><SignatureProvided>***</SignatureProvided>"
+    },
+    {
+      "why": "a token in XML",
+      "in": "<RefreshToken>1//abc</RefreshToken>",
+      "out": "<RefreshToken>***</RefreshToken>"
+    },
+    {
+      "why": "Authorization with a service's own scheme",
+      "in": "Authorization: Zoho-oauthtoken 1000.abc.def",
+      "out": "Authorization: ***"
+    },
+    {
+      "why": "Internet Archive's keys",
+      "in": "Authorization: LOW accesskey:secretkey",
+      "out": "Authorization: ***"
+    },
+    {
+      "why": "a service's own token headers",
+      "in": "X-Auth-Token: abc123 X-Sess-ID: s9 X-Akamai-ACS-Auth-Sign: zz pm-storage-token: tt",
+      "out": "X-Auth-Token: *** X-Sess-ID: *** X-Akamai-ACS-Auth-Sign: *** pm-storage-token: ***"
+    },
+    {
+      "why": "headers as Go prints them, with cookies",
+      "in": "map[Content-Type:[text/html] Set-Cookie:[sid=abc; Path=/]]",
+      "out": "map[Content-Type:[text/html] Set-Cookie:***"
+    }
+  ]
+}
