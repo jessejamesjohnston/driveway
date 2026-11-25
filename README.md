@@ -172,14 +172,15 @@ bundletool, the R8 jar that D8 runs from, and the Docker test images are pinned 
 versions (the SDK's build-tools are not), and `javac -Xlint:all` runs with warnings as errors.
 
 **Tests.** `test/servers` runs SFTP, SMB, NFS, WebDAV, S3 and FTP servers in Docker,
-and `./build.sh test` runs the engine's checks against all of them: 167 Go tests (with 87
+and `./build.sh test` runs the engine's checks against all of them: 171 Go tests (with 89
 subtests), including a fake backend that fails at every step of a save, and an NFS check that
 an operation given up on mid-flight changes nothing afterward. Engine statement coverage is
-measured by `./build.sh cover`. 235 plain-Java checks cover the service catalog, the New
-labels, error messages and the update check. On an emulator, a debug-only harness drives the
-app through Android's documents API (`tools/harness.sh`), a screen walk checks 26 screens for
-accessibility problems (`tools/screens.sh`), and the browser sign-ins run end to end against
-a stand-in provider (`tools/signin-harness.sh`). CI runs the build and the Docker-backed tests
+measured by `./build.sh cover`. 454 plain-Java checks cover the service catalog and the Server
+field, the New labels, error messages, the update check, and the wording rules every string
+follows. On an emulator, a debug-only harness drives the app through Android's documents API
+(`tools/harness.sh`), a screen walk checks 26 screens for accessibility problems
+(`tools/screens.sh`), and the browser sign-ins run end to end against a stand-in provider
+(`tools/signin-harness.sh`). CI runs the build and the Docker-backed tests
 on every pull request. Driveway has also been checked by hand on phone, tablet and
 large-screen emulators and on a Googlebook. [docs/TESTING.md](docs/TESTING.md) has the
 commands.
