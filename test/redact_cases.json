@@ -485,6 +485,21 @@
       "why": "an access token header with a service's prefix",
       "in": "Dropbox-Access-Token: MADEUPTOKEN8",
       "out": "Dropbox-Access-Token: ***"
+    },
+    {
+      "why": "the host key phrases errors are told apart by, kept",
+      "in": "[auth] ssh: handshake failed: knownhosts: key is unknown; host key mismatch",
+      "out": "[auth] ssh: handshake failed: knownhosts: key is unknown; host key mismatch"
+    },
+    {
+      "why": "the NFS ports phrase, kept",
+      "in": "[auth] mount refused: the server only accepts non-privileged ports when told to",
+      "out": "[auth] mount refused: the server only accepts non-privileged ports when told to"
+    },
+    {
+      "why": "an unreachable host's phrase with a port, kept",
+      "in": "[network] dial tcp: lookup nas.local: no such host (port 2222)",
+      "out": "[network] dial tcp: lookup nas.local: no such host (port 2222)"
     }
   ]
 }
