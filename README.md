@@ -58,7 +58,7 @@ doesn't make a server at home reachable from outside on its own.
 <table>
   <tr>
     <td width="33%"><img src="docs/images/phone-servers.png" alt="Driveway on a phone: one server found on the network (DiskStation), then Family NAS, Media, Dropbox and Studio Mac, each with its kind and address, and Add a server"></td>
-    <td width="33%"><img src="docs/images/phone-identity.png" alt="Connecting to Studio Mac, step 3 of 3: Found, then Is this the server? with the type of key it presented, the file to compare it with, and its SHA256 fingerprint, Cancel and Trust and continue; Sign in and Open your home folder still to come"></td>
+    <td width="33%"><img src="docs/images/phone-identity.png" alt="Connecting to Studio Mac, step 3 of 3: Found 10.0.2.2, then Is this 10.0.2.2? with its RSA key, the file to compare it with (/etc/ssh/ssh_host_rsa_key.pub), and its SHA256 fingerprint, Cancel and Trust and continue; Sign in as driveway and Open your home folder still to come"></td>
     <td width="33%"><img src="docs/images/phone-done.png" alt="Studio Mac is in Files: Driveway's house with a car in the driveway, Open Files and Done, and the checklist with every step checked"></td>
   </tr>
   <tr>
