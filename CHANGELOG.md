@@ -26,9 +26,15 @@ The first public release.
   under More settings, and wins over a different one already there (the form says so). A port that isn't a number from 1 to
   65535, a folder, a user name, or another kind of server's address (`https://...`) is pointed
   out on the form instead of failing as "can't reach".
+- The Address field of WebDAV moves a user name and password typed in it
+  (`https://you:password@host/dav`) to User name and Password as soon as you leave it, and says
+  so. An address Driveway can't use, such as one without `https://` or with a password that holds
+  a space, a quote or a slash, is pointed out on the form, without repeating it, instead of
+  failing as "can't reach".
 - An error says what happened and what to do next, in Driveway's own words, on a server's card,
   in Files and in a failed save's notification. The technical detail from the server or the
-  network goes only to the app's log, with passwords, API keys and sign-in tokens taken out. A
+  network goes only to the app's log, with passwords, API keys, private keys and sign-in tokens
+  found by their shape and taken out, and each line cut to 8,000 characters. A
   server that can't be reached names what to check: its address and port when you typed one, the
   internet connection for a service such as Dropbox. A sign-in a service refuses shows what the
   service said, labeled as the service's.

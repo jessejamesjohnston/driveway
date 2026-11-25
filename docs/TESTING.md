@@ -14,7 +14,21 @@ tools/harness.sh                                    # through Android's document
 
 Credentials are taken out of errors and log lines twice, once in the engine (Go) and once in the
 app (Java). Both layers run the same cases, kept in `test/redact_cases.json`: each case is an input
-and the exact text that must come out. Add a case there and both test suites check it.
+and the exact text that must come out. Add a case there and both test suites check it. Around
+them:
+
+- `TestSecretNamesFromRclone` walks every setting rclone marks as a password or as sensitive, and
+  fails on one that is neither hidden nor listed as not secret with a reason, and on a hidden name
+  no shared case covers.
+- `TestUnreadableAddressNeverLeaks` puts addresses with a password Go can't parse straight into
+  the settings, past the check at the door, and asserts that the error, the log and the redacted
+  raw text hold none of it. `TestAddressAtTheDoor` and `KindsTest` check that door itself, in the
+  engine and in the form.
+- Both suites redact a megabyte of each of a dozen shapes, and of a long value inside each rule,
+  within a generous time bound (a pattern that backtracks would take minutes, or overflow the
+  app's stack).
+- `LogsTest` scans the app's and the debug harness's code for any log call or console write that
+  goes around `Logs`.
 
 `./build.sh unit` needs only the toolchain from `./build.sh fetch`. `./build.sh test` also needs
 Docker: it makes a throwaway SSH key pair for the SFTP server on first use
