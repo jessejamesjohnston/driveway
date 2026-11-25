@@ -106,6 +106,7 @@ public final class ErrorsTest {
     errors.add(err("[auth] knownhosts: key mismatch " + RAW));
     errors.add(err("[auth] knownhosts: key is unknown " + RAW));
     errors.add(err("[auth] mount refused, non-privileged ports " + RAW));
+    errors.add(err("[network] dial tcp: lookup nohost.invalid: no such host " + RAW));
     errors.add(err(RAW));
     errors.add(new IllegalStateException(new org.json.JSONException(RAW)));
     errors.add(new IllegalStateException(RAW));
@@ -137,6 +138,20 @@ public final class ErrorsTest {
       }
     }
     check(shown == errors.size() * 3 * 2 * 2, "user-facing error text never carries the engine's raw detail (" + shown + " cases)");
+    // Can't reach: the next step names the port (a server that is on, answering
+    // on another) and, for a name that doesn't look up, its spelling.
+    Servers.Server sftp = servers.get("sftp");
+    for (boolean onForm : new boolean[] {false, true}) {
+      String where = onForm ? " on the form" : "";
+      Errors.Message m = Errors.message(sftp, err("[network] ssh: handshake failed: EOF"), onForm, () -> true, "The server");
+      check(m.res == (onForm ? R.string.err_network_form : R.string.err_network) && text.get(m.res).contains("port"),
+          "a server that answers wrongly or not at all" + where + ": the next step names its port");
+      m = Errors.message(sftp, err("[network] dial tcp: lookup nohost.invalid: no such host"), onForm, () -> true, "The server");
+      check(m.res == (onForm ? R.string.err_no_host_form : R.string.err_no_host) && text.get(m.res).contains("spelling"),
+          "a name that doesn't look up" + where + ": the next step is its spelling");
+      m = Errors.message(sftp, err("[network] dial tcp: lookup nohost.invalid: no such host"), onForm, () -> false, "The server");
+      check(m.res == R.string.err_local_network, "without Nearby devices" + where + ": that comes first");
+    }
     check(String.format(text.get(Errors.message(null, err("[signin] " + RAW), false, () -> true, "The server").res),
         Errors.message(null, err("[signin] " + RAW), false, () -> true, "The server").args).contains("said: " + RAW),
         "a service's own words are labeled as the service's");

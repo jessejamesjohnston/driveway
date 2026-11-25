@@ -95,7 +95,11 @@ final class Errors {
     switch (kind(e)) {
       case "network":
         if (!localNetwork.getAsBoolean()) return new Message(R.string.err_local_network, name);
-        return new Message(R.string.err_network, name);
+        // A name that doesn't look up: misspelled, or a local name off its
+        // network. Anything else may also be the wrong port (a server that
+        // is on, answering on another).
+        if (detail(e).contains("no such host")) return new Message(onForm ? R.string.err_no_host_form : R.string.err_no_host, name);
+        return new Message(onForm ? R.string.err_network_form : R.string.err_network, name);
       case "auth":
         if (detail(e).contains("knownhosts: key mismatch") || detail(e).contains("host key mismatch")) {
           return new Message(R.string.err_host_key, name);
