@@ -246,7 +246,7 @@ func rawText(err error) string {
 // (no request leaves the machine), the error Check returns and everything
 // logged meanwhile must not hold the key.
 func TestPremiumizeKeyNeverLeaves(t *testing.T) {
-	const key = "SECRETAPIKEY123"
+	const key = "made-up-premiumize-key"
 	seen := blockedNetwork(t)
 	logs := captureLogs(t)
 	if err := SetRemote("redact-pm", "premiumizeme", `{"api_key":"`+key+`"}`); err != nil {
