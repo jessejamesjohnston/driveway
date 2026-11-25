@@ -30,8 +30,8 @@ About) you tested. You will get an answer as soon as I can manage; this is a one
   whole value of `Authorization`), private key blocks, and the tokens some services put in an
   address's path (`engine/redact.go`, with its cases in `test/redact_cases.json`). The setting
   names are checked against every setting rclone marks as a password or as sensitive, so a new
-  one fails the tests until it is classified. A logged line is cut to 8,000 characters, after
-  redaction. It works by pattern: a credential in a shape it doesn't know, such as a field printed
+  one fails the tests until it is classified. A line the app or the engine logs is cut to 8,000
+  characters, after redaction. It works by pattern: a credential in a shape it doesn't know, such as a field printed
   as `Name:value`, would pass, so the contributing guide asks people to read a log before sharing
   it. The log does name servers, their addresses, user names and files. A
   crash of the engine (a Go panic) is written by Go's runtime straight to the system log under
