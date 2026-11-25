@@ -66,8 +66,8 @@ final class Logs {
 
   // The same rules as engine/redact.go (see there for why each exists).
   private static final String SECRET_NAME =
-      "[a-z0-9_.-]*?(?:api[_-]?key|key|token|passw(?:or)?d|passphrase|pass|pwd|secret|signature|sig|credential|"
-          + "sess(?:ion)?[_-]?id|sid|auth|authorization)";
+      "[a-z0-9_.-]*?(?:api[_-]?key|keys?|key_pem|key_base64|tokens?|passw(?:or)?d|passphrase|pass|pwd|secrets?|"
+          + "signature|sig|credentials?|sess(?:ion)?[_-]?id|sid|auth|authorization|mnemonic|grant|cookies?|connection_string|sas_url)";
   private static final Pattern URL = Pattern.compile("(?i)\\b[a-z][a-z0-9+.-]{0,30}://[^\\s\"'<>`\\\\]+");
   private static final Pattern ESCAPED_START = Pattern.compile("(?i)\\b[a-z][a-z0-9+.-]{0,30}:\\\\\\\\?/\\\\\\\\?/");
   private static final Pattern SCHEME_START = Pattern.compile("(?i)\\b[a-z][a-z0-9+.-]{0,30}://");
@@ -87,6 +87,8 @@ final class Logs {
       + "x-[a-z0-9-]*?(?:token|key|auth|auth-data|auth-sign|sign|signature|secret|sess-id|session-id|password))"
       + "(\\s*[:=]\\s*\\[?)((?:(?:bearer|basic|digest|token|oauth|low|sharedkey(?:lite)?|aws4-hmac-sha256|aws|zoho-oauthtoken"
       + "|negotiate|ntlm|mac)[ \\t]+)?[^\\s\"',;\\]]+)");
+  private static final Pattern PEM_BLOCK =
+      Pattern.compile("(?s)(-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----).*?(-----END [A-Z0-9 ]*PRIVATE KEY-----|\\z)");
   private static final Pattern COOKIE_HEADER = Pattern.compile("(?i)\\b((?:set-)?cookie)(\\s*:\\s*)[^\\r\\n\"]+");
   private static final Pattern BEARER = Pattern.compile("(?i)\\b(bearer)\\s+[a-z0-9._~+/=-]{8,}");
   private static final Pattern[] PATH_TOKENS = {
@@ -106,6 +108,7 @@ final class Logs {
   /** s without the credentials it may hold; host, status and the kind of error stay. */
   static String clean(String s) {
     if (s == null) return null;
+    s = PEM_BLOCK.matcher(s).replaceAll("$1***$2");
     s = INVALID_PORT.matcher(s).replaceAll("$1:***$2");
     s = looseUserinfo(s);
     s = cleanEscaped(s);

@@ -542,3 +542,103 @@ func TestLogLinesAreCut(t *testing.T) {
 		t.Errorf("a short line changed: %q", b.String())
 	}
 }
+
+// notSecret are settings rclone marks sensitive that name or locate an
+// account rather than unlock it, which the log keeps on purpose (a person
+// reading it needs them), each with why.
+var notSecret = map[string]string{
+	"user": "a user name", "username": "a user name", "email": "an account's email address",
+	"apple_id": "an account name", "account": "an account name", "cloud_name": "an account name",
+	"host": "a host: the address rules apply", "url": "an address: the address rules apply",
+	"api_url": "an address: the address rules apply", "namenode": "a host", "domain": "a Windows domain",
+	"spn": "a service name", "service_principal_name": "a service name", "namespace": "a storage namespace",
+	"compartment": "a cloud compartment's id", "project_number": "a cloud project's number",
+	"user_project": "a cloud project's id", "tenant": "a directory's name or id", "tenant_id": "a directory's id",
+	"tenant_domain": "a directory's domain", "account_id": "an account's id", "user_id": "a user's id",
+	"client_id": "an app's public id", "app_id": "an app's public id", "client_uid": "an app session's public id",
+	"application_credential_id": "the id of a credential, not the credential",
+	"application_credential_name": "the name of a credential, not the credential",
+	"access_key_id": "the id of a key, not the key (the secret has its own setting)",
+	"sse_kms_key_id": "the id of a key, not the key", "sse_customer_key_md5": "a checksum of a key, not the key",
+	"msi_client_id": "a managed identity's id", "msi_object_id": "a managed identity's id",
+	"msi_mi_res_id": "a managed identity's id", "impersonate": "the account to act as",
+	"impersonate_admin": "the account to act as", "device_id": "a device's id", "drive_id": "a drive's id",
+	"team_drive": "a shared drive's id", "root_folder_id": "a folder's id", "root_folder_slug": "a folder's id",
+	"root_id": "a folder's id", "base_folder_uuid": "a folder's id", "deleted_id": "a folder's id",
+	"workspace_id": "a workspace's id",
+}
+
+// TestSecretNamesFromRclone: every setting rclone marks as a password, or as
+// sensitive, in every service compiled in, is either a name the redactors
+// hide (secretName) or listed in notSecret with why. A setting a new
+// version of rclone adds fails here until someone decides which it is. Each
+// hidden name is also in a shared case, so the app's redactor is checked
+// against the same list.
+func TestSecretNamesFromRclone(t *testing.T) {
+	b, err := os.ReadFile("../test/redact_cases.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var file struct{ Cases []struct{ Why, In, Out string } }
+	if err := json.Unmarshal(b, &file); err != nil {
+		t.Fatal(err)
+	}
+	stillThere := map[string]bool{}
+	hiddenNames := map[string]bool{}
+	for _, ri := range fs.Registry {
+		if hidden[ri.Name] {
+			continue
+		}
+		for _, o := range ri.Options {
+			if !o.IsPassword && !o.Sensitive {
+				continue
+			}
+			if why, ok := notSecret[o.Name]; ok {
+				stillThere[o.Name] = true
+				if o.IsPassword {
+					t.Errorf("%s's %s is a password, but notSecret says %q", ri.Name, o.Name, why)
+				}
+				continue
+			}
+			hiddenNames[o.Name] = true
+			if got := redact(o.Name + "=MADEUPVALUE"); got != o.Name+"=***" {
+				t.Errorf("%s's %s isn't hidden (%s): add it to secretName, or to notSecret with why", ri.Name, o.Name, got)
+			}
+		}
+	}
+	for name := range notSecret {
+		if !stillThere[name] {
+			t.Errorf("notSecret lists %s, which no service has any more", name)
+		}
+	}
+	for name := range hiddenNames {
+		re := regexp.MustCompile(`(?:^|[^a-z0-9_.-])` + regexp.QuoteMeta(name) + `=MADEUP\S*`)
+		found := false
+		for _, c := range file.Cases {
+			found = found || re.MatchString(c.In) && !re.MatchString(c.Out)
+		}
+		if !found {
+			t.Errorf("no shared case hides %s=", name)
+		}
+	}
+	if len(hiddenNames) < 40 {
+		t.Errorf("only %d secret settings found", len(hiddenNames))
+	}
+}
+
+// TestKeyAcrossLines: a private key's block written a line at a time (as
+// the log writers receive it) loses every line between its first and last.
+func TestKeyAcrossLines(t *testing.T) {
+	var b bytes.Buffer
+	w := &redactWriter{w: &b}
+	for _, l := range []string{"can't use this key:\n", "-----BEGIN RSA PRIVATE KEY-----\n", "MADEUPKEYLINE1\n",
+		"MADEUPKEYLINE2\n", "-----END RSA PRIVATE KEY----- (rejected)\n", "next line\n"} {
+		if _, err := w.Write([]byte(l)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	want := "can't use this key:\n-----BEGIN RSA PRIVATE KEY-----***\n***\n***\n***-----END RSA PRIVATE KEY----- (rejected)\nnext line\n"
+	if b.String() != want {
+		t.Errorf("got %q, want %q", b.String(), want)
+	}
+}

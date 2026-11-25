@@ -440,6 +440,31 @@
       "why": "a long folder name without a digit after /up/ on another server, kept",
       "in": "Get \"https://nas.local/up/family-photos-from-the-summer-trip/\": EOF",
       "out": "Get \"https://nas.local/up/family-photos-from-the-summer-trip/\": EOF"
+    },
+    {
+      "why": "every setting rclone marks as a password or as a sensitive credential, as name=value (TestSecretNamesFromRclone checks this list against rclone's)",
+      "in": "settings: access_grant=MADEUPVALUE access_token=MADEUPVALUE api_key=MADEUPVALUE api_password=MADEUPVALUE api_secret=MADEUPVALUE app_token=MADEUPVALUE application_credential_secret=MADEUPVALUE auth_token=MADEUPVALUE authorization=MADEUPVALUE bearer_token=MADEUPVALUE client_access_token=MADEUPVALUE client_certificate_password=MADEUPVALUE client_refresh_token=MADEUPVALUE client_salted_key_pass=MADEUPVALUE client_secret=MADEUPVALUE config_credentials=MADEUPVALUE connection_string=MADEUPVALUE cookies=MADEUPVALUE file_password=MADEUPVALUE folder_password=MADEUPVALUE key=MADEUPVALUE key_file_pass=MADEUPVALUE key_pem=MADEUPVALUE library_key=MADEUPVALUE link_password=MADEUPVALUE mailbox_password=MADEUPVALUE master_key=MADEUPVALUE master_keys=MADEUPVALUE mnemonic=MADEUPVALUE otp_secret_key=MADEUPVALUE pass=MADEUPVALUE passphrase=MADEUPVALUE password=MADEUPVALUE permanent_token=MADEUPVALUE private_access_key=MADEUPVALUE private_key=MADEUPVALUE public_key=MADEUPVALUE refresh_token=MADEUPVALUE resource_key=MADEUPVALUE sas_url=MADEUPVALUE secret=MADEUPVALUE secret_access_key=MADEUPVALUE service_account_credentials=MADEUPVALUE session_id=MADEUPVALUE session_token=MADEUPVALUE sse_customer_key=MADEUPVALUE sse_customer_key_base64=MADEUPVALUE trust_token=MADEUPVALUE",
+      "out": "settings: access_grant=*** access_token=*** api_key=*** api_password=*** api_secret=*** app_token=*** application_credential_secret=*** auth_token=*** authorization=*** bearer_token=*** client_access_token=*** client_certificate_password=*** client_refresh_token=*** client_salted_key_pass=*** client_secret=*** config_credentials=*** connection_string=*** cookies=*** file_password=*** folder_password=*** key=*** key_file_pass=*** key_pem=*** library_key=*** link_password=*** mailbox_password=*** master_key=*** master_keys=*** mnemonic=*** otp_secret_key=*** pass=*** passphrase=*** password=*** permanent_token=*** private_access_key=*** private_key=*** public_key=*** refresh_token=*** resource_key=*** sas_url=*** secret=*** secret_access_key=*** service_account_credentials=*** session_id=*** session_token=*** sse_customer_key=*** sse_customer_key_base64=*** trust_token=***"
+    },
+    {
+      "why": "an SSH private key in rclone's one-line form",
+      "in": "key_pem = -----BEGIN OPENSSH PRIVATE KEY-----\\nMADEUPKEYBODY1\\nMADEUPKEYBODY2\\n-----END OPENSSH PRIVATE KEY----- rejected",
+      "out": "key_pem = *** OPENSSH PRIVATE KEY-----***-----END OPENSSH PRIVATE KEY----- rejected"
+    },
+    {
+      "why": "a private key block across lines, without a name before it",
+      "in": "can't use the key:\n-----BEGIN RSA PRIVATE KEY-----\nMADEUPKEYBODY3\nMADEUPKEYBODY4\n-----END RSA PRIVATE KEY-----\nand nothing else",
+      "out": "can't use the key:\n-----BEGIN RSA PRIVATE KEY-----***-----END RSA PRIVATE KEY-----\nand nothing else"
+    },
+    {
+      "why": "a private key block cut before its end",
+      "in": "key: -----BEGIN PRIVATE KEY-----\nMADEUPKEYBODY5\nMADEUPKEYBO",
+      "out": "key: -----BEGIN PRIVATE KEY-----***"
+    },
+    {
+      "why": "a public key block, kept",
+      "in": "server key: -----BEGIN PUBLIC KEY-----\nAAAAB3NzaC1yc2E\n-----END PUBLIC KEY-----",
+      "out": "server key: -----BEGIN PUBLIC KEY-----\nAAAAB3NzaC1yc2E\n-----END PUBLIC KEY-----"
     }
   ]
 }

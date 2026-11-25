@@ -44,10 +44,11 @@ func filterFD(fd int) error {
 	out := os.NewFile(uintptr(old), "log")
 	go func() {
 		br := bufio.NewReader(r)
+		var lines lineRedactor
 		for {
 			line, err := br.ReadString('\n')
 			if line != "" {
-				_, _ = out.WriteString(capLine(redact(line)))
+				_, _ = out.WriteString(capLine(lines.line(line)))
 			}
 			if err != nil {
 				return

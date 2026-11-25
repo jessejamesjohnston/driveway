@@ -30,10 +30,13 @@ import (
 
 // secretName is a setting or parameter name that holds a credential: it ends
 // in one of these words (access_token, client_secret, X-Amz-Signature,
-// session_id, Mega's sid, Linkbox's pwd, ...). A few harmless names end the
-// same way; hiding their values costs nothing.
-const secretName = `[a-z0-9_.-]*?(?:api[_-]?key|key|token|passw(?:or)?d|passphrase|pass|pwd|secret|signature|sig|credential|` +
-	`sess(?:ion)?[_-]?id|sid|auth|authorization)`
+// session_id, Mega's sid, Linkbox's pwd, SFTP's key_pem, Internxt's
+// mnemonic, Storj's access_grant, Azure's connection_string and sas_url,
+// ...). A few harmless names end the same way; hiding their values costs
+// nothing. TestSecretNamesFromRclone checks every setting rclone marks as a
+// password or as sensitive against it.
+const secretName = `[a-z0-9_.-]*?(?:api[_-]?key|keys?|key_pem|key_base64|tokens?|passw(?:or)?d|passphrase|pass|pwd|secrets?|` +
+	`signature|sig|credentials?|sess(?:ion)?[_-]?id|sid|auth|authorization|mnemonic|grant|cookies?|connection_string|sas_url)`
 
 var (
 	// urlPattern: an address with a scheme, up to a space, a quote or a
@@ -71,6 +74,13 @@ var (
 	authHeader = regexp.MustCompile(`(?i)(^|[^a-z0-9_-])((?:proxy-)?authorization|pm-storage-token|` +
 		`x-[a-z0-9-]*?(?:token|key|auth|auth-data|auth-sign|sign|signature|secret|sess-id|session-id|password))` +
 		`(\s*[:=]\s*\[?)((?:(?:bearer|basic|digest|token|oauth|low|sharedkey(?:lite)?|aws4-hmac-sha256|aws|zoho-oauthtoken|negotiate|ntlm|mac)[ \t]+)?[^\s"',;\]]+)`)
+	// A private key's PEM block, from its first line to its last (or the
+	// end of the text, when cut before it); rclone keeps SFTP's on one line
+	// with \n escapes. The line-by-line writers carry a block's middle lines
+	// over (lineRedactor).
+	pemBlock     = regexp.MustCompile(`(?s)(-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----).*?(-----END [A-Z0-9 ]*PRIVATE KEY-----|\z)`)
+	pemBegin     = regexp.MustCompile(`-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----`)
+	pemEnd       = regexp.MustCompile(`-----END [A-Z0-9 ]*PRIVATE KEY-----`)
 	cookieHeader = regexp.MustCompile(`(?i)\b((?:set-)?cookie)(\s*:\s*)[^\r\n"]+`)
 	bearer       = regexp.MustCompile(`(?i)\b(bearer)\s+[a-z0-9._~+/=-]{8,}`)
 	// Credentials in a path, wherever it appears (with an address or
@@ -100,6 +110,7 @@ var (
 // them. What a person or a developer needs to see stays: the host, the
 // status, the kind of error.
 func redact(s string) string {
+	s = pemBlock.ReplaceAllString(s, "${1}***${2}")
 	s = invalidPort.ReplaceAllString(s, `${1}:***${2}`)
 	s = looseUserinfo(s)
 	s = redactEscaped(s)
@@ -423,17 +434,43 @@ func capLine(s string) string {
 	return s[:end] + fmt.Sprintf(" [cut: %d more bytes]", len(s)-end-len(nl)) + nl
 }
 
+// lineRedactor redacts text that arrives a line at a time. A private key's
+// block printed over several lines would leave its middle lines with
+// nothing to match, so from a line that starts a block to the line that
+// ends it, each line is replaced whole.
+type lineRedactor struct{ inKey bool }
+
+func (l *lineRedactor) line(s string) string {
+	nl := ""
+	if strings.HasSuffix(s, "\n") {
+		s, nl = s[:len(s)-1], "\n"
+	}
+	if l.inKey {
+		loc := pemEnd.FindStringIndex(s)
+		if loc == nil {
+			return "***" + nl
+		}
+		l.inKey = false
+		s = "***" + s[loc[0]:]
+	}
+	if begins := pemBegin.FindAllStringIndex(s, -1); len(begins) > 0 {
+		l.inKey = !pemEnd.MatchString(s[begins[len(begins)-1][1]:])
+	}
+	return redact(s) + nl
+}
+
 // redactWriter redacts what it passes on. Each Write is taken as whole lines
 // (Go's log package and the handler below write a line at a time).
 type redactWriter struct {
-	mu sync.Mutex
-	w  io.Writer
+	mu    sync.Mutex
+	w     io.Writer
+	lines lineRedactor
 }
 
 func (r *redactWriter) Write(p []byte) (int, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if _, err := io.WriteString(r.w, capLine(redact(string(p)))); err != nil {
+	if _, err := io.WriteString(r.w, capLine(r.lines.line(string(p)))); err != nil {
 		return 0, err
 	}
 	return len(p), nil
