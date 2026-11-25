@@ -1185,10 +1185,15 @@ public final class ServerActivity extends Activity implements Connection.Listene
       }
     }
     View host = key == null ? null : inputs.get(key);
+    boolean isHost = "host".equals(key);
     if (host instanceof EditText) {
       ((EditText) host).addTextChangedListener(new Watcher(() -> {
         if (!labelEdited) {
-          String h = ((EditText) host).getText().toString().replaceFirst("^https?://", "").replaceFirst("[/:].*$", "");
+          String typed = ((EditText) host).getText().toString();
+          // A host with a port ("nas.local:2222", "[2001:db8::1]:2222") is named for the host.
+          Kinds.Address a = isHost ? Kinds.address(typed, k.backend) : null;
+          String h = a != null && a.problem == 0 ? a.host
+              : typed.replaceFirst("^https?://", "").replaceFirst("[/:].*$", "");
           labelInput.setText(h);
           labelEdited = false;
         }
@@ -1543,7 +1548,42 @@ public final class ServerActivity extends Activity implements Connection.Listene
     updateMainButton();
   }
 
+  /** What splitting the Server field changed that the form should say (a port that replaced another), or null. */
+  private String addressNote;
+
+  /**
+   * "host:port" in the Server field: the host stays there and the port goes
+   * to Port under More settings, so the form shows what is used. The port
+   * typed with the name wins over a different one already in Port (it is
+   * the one typed last, next to the name it belongs to), and the form says
+   * so (addressNote). What can't be a host is said in plain words on the
+   * field, never looked up as a name.
+   */
+  private void splitAddress() {
+    addressNote = null;
+    if (!Kinds.takesPort(kind)) return;
+    View hv = inputs.get("host"), pv = inputs.get("port");
+    if (!(hv instanceof EditText) || !(pv instanceof EditText)) return;
+    EditText hostField = (EditText) hv, portField = (EditText) pv;
+    Kinds.Address a = Kinds.address(hostField.getText().toString(), kind.backend);
+    if (a.problem != 0) {
+      String hostLabel = getString(R.string.name);
+      for (Kinds.Field f : kind.fields) if (f.key.equals("host")) hostLabel = f.label;
+      throw new Missing(getString(a.problem, a.bad, a.problem == R.string.address_scheme ? kind.label : hostLabel), hostField);
+    }
+    if (!a.host.equals(hostField.getText().toString().trim())) hostField.setText(a.host);
+    if (a.port == null) return;
+    String before = portField.getText().toString().trim();
+    String fallback = "";
+    for (Kinds.Field f : kind.fields) if (f.key.equals("port")) fallback = f.fallback;
+    if (!before.isEmpty() && !before.equals(fallback) && !before.equals(a.port)) {
+      addressNote = getString(R.string.address_port_moved, a.port, before);
+    }
+    if (!before.equals(a.port)) portField.setText(a.port);
+  }
+
   private Servers.Server collect() throws IllegalArgumentException {
+    splitAddress();
     Servers.Server s = server.copy();
     s.backend = kind.backend;
     JSONObject p = new JSONObject();
@@ -1638,7 +1678,8 @@ public final class ServerActivity extends Activity implements Connection.Listene
       }
       return;
     }
-    formStatus.setText("");
+    // Empty, or which port is used now that the Server field had one.
+    formStatus.setText(addressNote == null ? "" : addressNote);
     if (run != null) run.detach(this);
     run = new Connection(this, s, kind, isNew, save, signInAgain);
     signInAgain = false;
@@ -1688,6 +1729,12 @@ public final class ServerActivity extends Activity implements Connection.Listene
     String name = run != null ? run.server.label : server.label;
     col.addView(Ui.topBar(this, getString(R.string.connecting_to, name), v -> leave()));
     col.addView(stepLine(3));
+    // The port the Server field's replaced (the form, now out of sight, says it too).
+    if (addressNote != null) {
+      TextView note = Ui.secondary(this, addressNote);
+      note.setPadding(Ui.dp(this, 4), Ui.dp(this, 8), Ui.dp(this, 4), 0);
+      col.addView(note);
+    }
     runView = Ui.column(this);
     LinearLayout.LayoutParams lp = Ui.matchWidth();
     lp.topMargin = Ui.dp(this, 8);

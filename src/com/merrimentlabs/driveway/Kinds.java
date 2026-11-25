@@ -154,6 +154,100 @@ final class Kinds {
     return null;
   }
 
+  /**
+   * What was typed in a Server field, split into the host and a port: many
+   * people type "nas.local:2222", where the port has its own setting under
+   * More settings. Only for kinds that have both (takesPort).
+   */
+  static final class Address {
+    /** The host without brackets (an IPv6 address as it is, "2001:db8::1"). */
+    final String host;
+    /** The port typed with it ("2222", leading zeros dropped), or null for none. */
+    final String port;
+    /** Why it can't be used as it is (an R.string id), or 0. */
+    final int problem;
+    /** The part of what was typed that the problem names. */
+    final String bad;
+
+    Address(String host, String port, int problem, String bad) {
+      this.host = host;
+      this.port = port;
+      this.problem = problem;
+      this.bad = bad;
+    }
+  }
+
+  /** Whether the kind has a Server (host) setting and a Port setting of its own. */
+  static boolean takesPort(Kind k) {
+    boolean host = false, port = false;
+    for (Field f : k.fields) {
+      host |= f.key.equals("host");
+      port |= f.key.equals("port");
+    }
+    return host && port;
+  }
+
+  /** The address schemes a kind's own links use (sftp://, smb://), which can be typed before the host. */
+  private static List<String> schemes(String backend) {
+    switch (backend) {
+      case "sftp":
+        return Arrays.asList("sftp", "ssh");
+      case "smb":
+        return Arrays.asList("smb", "cifs");
+      case "nfs":
+        return Arrays.asList("nfs");
+      case "ftp":
+        return Arrays.asList("ftp");
+      default:
+        return Arrays.asList();
+    }
+  }
+
+  /**
+   * Splits a Server field: "host", "host:port", "[IPv6]:port", or one of the
+   * kind's own links without a folder ("sftp://host:22"). An IPv6 address
+   * without brackets ("::1", two colons or more) is a host with no port. A
+   * trailing colon has no port. Anything else that can't be a host (a port
+   * that isn't 1 to 65535, another kind's link, a folder, a user name before
+   * an "@") is a problem, said in plain words, never a host to look up.
+   */
+  static Address address(String typed, String backend) {
+    String s = typed.trim();
+    java.util.regex.Matcher m = java.util.regex.Pattern.compile("^([A-Za-z][A-Za-z0-9+.-]*)://(.*)$").matcher(s);
+    if (m.matches()) {
+      String scheme = m.group(1).toLowerCase(java.util.Locale.ROOT);
+      if (!schemes(backend).contains(scheme)) return new Address(s, null, R.string.address_scheme, scheme + "://");
+      s = m.group(2);
+    }
+    int slash = s.indexOf('/');
+    if (slash >= 0) {
+      if (!s.substring(slash).matches("/*")) return new Address(s, null, R.string.address_folder, s.substring(slash));
+      s = s.substring(0, slash);
+    }
+    int at = s.lastIndexOf('@');
+    if (at >= 0) return new Address(s, null, R.string.address_user, s.substring(0, at + 1));
+    String host, port;
+    if (s.startsWith("[")) {
+      int close = s.indexOf(']');
+      String tail = close < 0 ? "" : s.substring(close + 1);
+      if (close < 2 || !(tail.isEmpty() || tail.startsWith(":"))) return new Address(s, null, R.string.address_ipv6, s);
+      host = s.substring(1, close);
+      port = tail.isEmpty() ? "" : tail.substring(1);
+    } else {
+      int colon = s.indexOf(':');
+      if (colon < 0 || s.indexOf(':', colon + 1) >= 0) return new Address(s, null, 0, null);
+      host = s.substring(0, colon);
+      port = s.substring(colon + 1);
+    }
+    if (port.isEmpty()) return new Address(host, null, 0, null);
+    if (!port.matches("[0-9]+")) return new Address(host, null, R.string.address_port_bad, port);
+    String n = port.replaceFirst("^0+(?=.)", "");
+    if (n.length() > 5 || Integer.parseInt(n) < 1 || Integer.parseInt(n) > 65535) {
+      return new Address(host, null, R.string.address_port_range, port);
+    }
+    return new Address(host, n, 0, null);
+  }
+
   static String label(String backend) {
     Kind k = main(backend);
     if (k != null) return k.label;

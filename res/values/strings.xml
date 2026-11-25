@@ -105,6 +105,13 @@
   <string name="copied">Copied</string>
   <string name="needs">Fill in %1$s</string>
   <string name="needs_login">Enter a password, or make a key.</string>
+  <string name="address_port_bad">\"%1$s\" after the colon isn\'t a port number. Type the server\'s name or address in %2$s, and its port in Port under More settings.</string>
+  <string name="address_port_range">Port %1$s is out of range: a port is a number from 1 to 65535.</string>
+  <string name="address_scheme">A %1$s address isn\'t for %2$s. Type just the server\'s name or address, like nas.local, or go back and choose the kind of server it is.</string>
+  <string name="address_folder">Type just the server\'s name or address here, without %1$s. A folder goes in Start in folder, under More settings.</string>
+  <string name="address_user">Type just the server\'s name or address here, without \"%1$s\".</string>
+  <string name="address_ipv6">An IPv6 address with a port goes in brackets, like [2001:db8::1]:2222.</string>
+  <string name="address_port_moved">Port %1$s, typed with the server\'s name, replaces %2$s in Port under More settings.</string>
   <string name="connect">Connect</string>
   <string name="save">Save</string>
   <string name="test">Test connection</string>

@@ -70,6 +70,7 @@ public final class KindsTest {
 
   public static void main(String[] args) throws Exception {
     realCatalog();
+    addresses();
     madeUpCatalogs();
     names();
     listing();
@@ -81,6 +82,79 @@ public final class KindsTest {
   }
 
   /** Every service the engine lists, as the app builds it. */
+  /** One Server field typed into a kind's form: the host, port and problem it splits into. */
+  private static void address(String backend, String typed, String host, String port, int problem, String bad) {
+    Kinds.Address a = Kinds.address(typed, backend);
+    boolean ok = problem != 0 ? a.problem == problem && eq(a.bad, bad)
+        : a.problem == 0 && eq(a.host, host) && eq(a.port, port);
+    check(ok, backend + " Server \"" + typed + "\" -> " + (problem != 0 ? "problem " + bad
+        : host + (port == null ? " (no port)" : " port " + port))
+        + (ok ? "" : " (got " + a.host + ", " + a.port + ", " + a.problem + ", " + a.bad + ")"));
+  }
+
+  /**
+   * "host:port" in the Server field (the port has its own setting): which
+   * kinds split it, and how every shape of address splits, against the real
+   * catalog.
+   */
+  private static void addresses() {
+    // The kinds with a Server and a Port setting, and only those.
+    Set<String> splits = new HashSet<>();
+    List<Kinds.Kind> all = new ArrayList<>(Kinds.MAIN);
+    all.addAll(Kinds.others());
+    for (Kinds.Kind k : all) if (Kinds.takesPort(k)) splits.add(k.backend);
+    check(splits.equals(new HashSet<>(Arrays.asList("sftp", "smb", "nfs", "ftp"))),
+        "Server fields that take a port: SFTP, SMB, NFS, FTP (got " + splits + ")");
+    check(Kinds.other("quatrix") != null && !Kinds.takesPort(Kinds.other("quatrix")),
+        "Quatrix's account address (no Port setting) is left as typed");
+
+    // A host alone, and with a port.
+    address("sftp", "nas.local", "nas.local", null, 0, null);
+    address("sftp", "  192.0.2.10  ", "192.0.2.10", null, 0, null);
+    address("sftp", "192.0.2.10:2222", "192.0.2.10", "2222", 0, null);
+    address("smb", "nas.local:1445", "nas.local", "1445", 0, null);
+    address("nfs", "nas.local:2049", "nas.local", "2049", 0, null);
+    address("ftp", "ftp.example.com:2121", "ftp.example.com", "2121", 0, null);
+    address("sftp", "nas.local:02222", "nas.local", "2222", 0, null);
+    address("sftp", "nas.local:65535", "nas.local", "65535", 0, null);
+    // A trailing colon is no port.
+    address("sftp", "nas.local:", "nas.local", null, 0, null);
+    // IPv6: bracketed with or without a port, bare is a host (no port to split off).
+    address("sftp", "[2001:db8::1]:2222", "2001:db8::1", "2222", 0, null);
+    address("sftp", "[::1]:2222", "::1", "2222", 0, null);
+    address("sftp", "[2001:db8::1]", "2001:db8::1", null, 0, null);
+    address("sftp", "[2001:db8::1]:", "2001:db8::1", null, 0, null);
+    address("sftp", "::1", "::1", null, 0, null);
+    address("sftp", "2001:db8::1", "2001:db8::1", null, 0, null);
+    address("sftp", "fe80::1%wlan0", "fe80::1%wlan0", null, 0, null);
+    address("sftp", "[2001:db8::1", null, null, R.string.address_ipv6, "[2001:db8::1");
+    address("sftp", "[2001:db8::1]2222", null, null, R.string.address_ipv6, "[2001:db8::1]2222");
+    address("sftp", "[]:22", null, null, R.string.address_ipv6, "[]:22");
+    // A port that isn't one: said, never dropped.
+    address("sftp", "nas.local:ssh", null, null, R.string.address_port_bad, "ssh");
+    address("sftp", "nas.local:+22", null, null, R.string.address_port_bad, "+22");
+    address("sftp", "nas.local:22 22", null, null, R.string.address_port_bad, "22 22");
+    address("sftp", "nas.local:0", null, null, R.string.address_port_range, "0");
+    address("sftp", "nas.local:65536", null, null, R.string.address_port_range, "65536");
+    address("sftp", "nas.local:99999999999", null, null, R.string.address_port_range, "99999999999");
+    address("sftp", "[2001:db8::1]:x", null, null, R.string.address_port_bad, "x");
+    // The kind's own links, without a folder.
+    address("sftp", "sftp://nas.local:2222", "nas.local", "2222", 0, null);
+    address("sftp", "SFTP://nas.local/", "nas.local", null, 0, null);
+    address("sftp", "ssh://[2001:db8::1]:2222", "2001:db8::1", "2222", 0, null);
+    address("smb", "smb://nas.local", "nas.local", null, 0, null);
+    address("ftp", "ftp://ftp.example.com:21", "ftp.example.com", "21", 0, null);
+    // A folder, a user name or another kind's link: said, never looked up as a name.
+    address("sftp", "sftp://nas.local:22/srv/files", null, null, R.string.address_folder, "/srv/files");
+    address("smb", "smb://nas.local/share", null, null, R.string.address_folder, "/share");
+    address("smb", "nas.local/share", null, null, R.string.address_folder, "/share");
+    address("sftp", "https://cloud.example.com/dav", null, null, R.string.address_scheme, "https://");
+    address("sftp", "smb://nas.local", null, null, R.string.address_scheme, "smb://");
+    address("nfs", "ftp://nas.local", null, null, R.string.address_scheme, "ftp://");
+    address("sftp", "driveway@nas", null, null, R.string.address_user, "driveway@");
+    address("sftp", "sftp://driveway@nas:2222", null, null, R.string.address_user, "driveway@");
+  }
+
   private static void realCatalog() throws Exception {
     JSONArray engine = new JSONArray(Engine.backends());
     List<Kinds.Kind> others = Kinds.others();
