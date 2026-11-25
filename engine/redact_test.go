@@ -24,6 +24,7 @@ import (
 	"sync"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"github.com/rclone/rclone/fs"
 	"github.com/rclone/rclone/fs/fshttp"
@@ -494,5 +495,39 @@ func TestUnreadableAddressNeverLeaks(t *testing.T) {
 	}
 	if got := seen(); len(got) != 0 {
 		t.Errorf("requests went out: %v", got)
+	}
+}
+
+// TestRedactIsLinear: a server's answer can put a megabyte of text in an
+// error (rclone quotes a failed request's body), so every shape must take
+// time in proportion to its length. The bound is generous.
+func TestRedactIsLinear(t *testing.T) {
+	for _, shape := range []string{"a.", "a-", "x-x-", "a:", "a@", "a=", "a ", "a/", "%2", `\"`, "https://", "key", "x-a"} {
+		big := strings.Repeat(shape, 1_000_000/len(shape))
+		t0 := time.Now()
+		redact(big)
+		if d := time.Since(t0); d > 5*time.Second {
+			t.Errorf("a megabyte of %q took %v", shape, d)
+		}
+	}
+}
+
+// TestLogLinesAreCut: what reaches the log is cut to maxLogLine bytes,
+// after redaction, and says so.
+func TestLogLinesAreCut(t *testing.T) {
+	var b bytes.Buffer
+	w := &redactWriter{w: &b}
+	long := "listing failed: " + strings.Repeat("wörd ", 4000) + "token=SECRETTAIL\n"
+	if _, err := w.Write([]byte(long)); err != nil {
+		t.Fatal(err)
+	}
+	got := b.String()
+	if len(got) > maxLogLine+40 || !strings.HasPrefix(got, "listing failed: wörd") || !strings.Contains(got, "[cut:") ||
+		strings.Contains(got, "SECRETTAIL") || !strings.HasSuffix(got, "\n") || !utf8.ValidString(got) {
+		t.Errorf("not cut as it should be (%d bytes): ...%s", len(got), got[len(got)-60:])
+	}
+	b.Reset()
+	if _, err := w.Write([]byte("short\n")); err != nil || b.String() != "short\n" {
+		t.Errorf("a short line changed: %q", b.String())
 	}
 }

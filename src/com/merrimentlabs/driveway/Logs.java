@@ -19,24 +19,41 @@ final class Logs {
 
   private Logs() {}
 
+  /**
+   * The most of one message that reaches the log: Android's log keeps about
+   * 4 KB of an entry anyway, and a server's answer quoted whole in an error
+   * can be megabytes. The cut comes after redaction, so a credential cut in
+   * two is never left half-matched (engine/redact.go cuts its lines the same
+   * way).
+   */
+  static final int MAX = 8000;
+
   static void i(String msg) {
-    android.util.Log.i(TAG, clean(msg));
+    android.util.Log.i(TAG, forLog(msg));
   }
 
   static void w(String msg) {
-    android.util.Log.w(TAG, clean(msg));
+    android.util.Log.w(TAG, forLog(msg));
   }
 
   static void w(String msg, Throwable e) {
-    android.util.Log.w(TAG, clean(msg + "\n" + trace(e)));
+    android.util.Log.w(TAG, forLog(msg + "\n" + trace(e)));
   }
 
   static void e(String msg) {
-    android.util.Log.e(TAG, clean(msg));
+    android.util.Log.e(TAG, forLog(msg));
   }
 
   static void e(String msg, Throwable e) {
-    android.util.Log.e(TAG, clean(msg + "\n" + trace(e)));
+    android.util.Log.e(TAG, forLog(msg + "\n" + trace(e)));
+  }
+
+  /** msg redacted, then cut to MAX characters (saying how many more there were). */
+  static String forLog(String msg) {
+    String s = clean(msg);
+    if (s == null || s.length() <= MAX) return s;
+    int end = Character.isLowSurrogate(s.charAt(MAX)) ? MAX - 1 : MAX;
+    return s.substring(0, end) + " [cut: " + (s.length() - end) + " more characters]";
   }
 
   /** The exception, its causes and where each was thrown, as Android's log prints them. */
@@ -51,18 +68,18 @@ final class Logs {
   private static final String SECRET_NAME =
       "[a-z0-9_.-]*?(?:api[_-]?key|key|token|passw(?:or)?d|passphrase|pass|pwd|secret|signature|sig|credential|"
           + "sess(?:ion)?[_-]?id|sid|auth|authorization)";
-  private static final Pattern URL = Pattern.compile("(?i)\\b[a-z][a-z0-9+.-]*://[^\\s\"'<>`\\\\]+");
-  private static final Pattern SCHEME_START = Pattern.compile("(?i)\\b[a-z][a-z0-9+.-]*://");
+  private static final Pattern URL = Pattern.compile("(?i)\\b[a-z][a-z0-9+.-]{0,30}://[^\\s\"'<>`\\\\]+");
+  private static final Pattern SCHEME_START = Pattern.compile("(?i)\\b[a-z][a-z0-9+.-]{0,30}://");
   private static final Pattern INVALID_PORT = Pattern.compile("(invalid port \")(?:[^\"\\\\]|\\\\.)*(\" after host)");
   private static final Pattern BARE_PAIR = Pattern.compile(
-      "(?i)(^|[\\s\"'(<\\[=,])[^\\s\"'<>/@:=,(\\[]+:[^\\s\"'<>/]{1,200}@([a-z0-9][a-z0-9.-]*|\\[[0-9a-f:.%]+\\])");
+      "(?i)(^|[\\s\"'(<\\[=,])[^\\s\"'<>/@:=,(\\[]{1,200}:[^\\s\"'<>/]{1,200}@([a-z0-9][a-z0-9.-]*|\\[[0-9a-f:.%]+\\])");
   private static final Pattern NAMED_VALUE =
-      Pattern.compile("(?i)\\b(" + SECRET_NAME + ")(\\s*=\\s*)(\"[^\"]*\"|'[^']*'|[^\\s&\"',;)\\]}]+)");
+      Pattern.compile("(?i)(^|[^a-z0-9_.-])(" + SECRET_NAME + ")(\\s*=\\s*)(\"[^\"]*\"|'[^']*'|[^\\s&\"',;)\\]}]+)");
   private static final Pattern JSON_VALUE =
       Pattern.compile("(?i)(\\\\?\"" + SECRET_NAME + "\\\\?\"\\s*:\\s*)(\\\\?\")((?:[^\"\\\\]|\\\\[^\"])*)(\\\\?\")");
   private static final Pattern XML_VALUE = Pattern.compile("(?i)(<(?:" + SECRET_NAME
       + "|awsaccesskeyid|stringtosign(?:bytes)?|canonicalrequest(?:bytes)?|signatureprovided)>)[^<]*(<)");
-  private static final Pattern AUTH_HEADER = Pattern.compile("(?i)\\b((?:proxy-)?authorization|pm-storage-token|"
+  private static final Pattern AUTH_HEADER = Pattern.compile("(?i)(^|[^a-z0-9_-])((?:proxy-)?authorization|pm-storage-token|"
       + "x-[a-z0-9-]*?(?:token|key|auth|auth-data|auth-sign|sign|signature|secret|sess-id|session-id|password))"
       + "(\\s*[:=]\\s*\\[?)((?:(?:bearer|basic|digest|token|oauth|low|sharedkey(?:lite)?|aws4-hmac-sha256|aws|zoho-oauthtoken"
       + "|negotiate|ntlm|mac)[ \\t]+)?[^\\s\"',;\\]]+)");
@@ -89,10 +106,10 @@ final class Logs {
     s = looseUserinfo(s);
     s = replace(URL, s, m -> cleanUrl(m.group()));
     s = BARE_PAIR.matcher(s).replaceAll("$1***@$2");
-    s = NAMED_VALUE.matcher(s).replaceAll("$1$2***");
+    s = NAMED_VALUE.matcher(s).replaceAll("$1$2$3***");
     s = JSON_VALUE.matcher(s).replaceAll("$1$2***$4");
     s = XML_VALUE.matcher(s).replaceAll("$1***$2");
-    s = AUTH_HEADER.matcher(s).replaceAll("$1$2***");
+    s = AUTH_HEADER.matcher(s).replaceAll("$1$2$3***");
     s = COOKIE_HEADER.matcher(s).replaceAll("$1$2***");
     s = BEARER.matcher(s).replaceAll("$1 ***");
     for (Pattern p : PATH_TOKENS) {

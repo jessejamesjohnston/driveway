@@ -47,7 +47,7 @@ func filterFD(fd int) error {
 		for {
 			line, err := br.ReadString('\n')
 			if line != "" {
-				_, _ = out.WriteString(redact(line))
+				_, _ = out.WriteString(capLine(redact(line)))
 			}
 			if err != nil {
 				return

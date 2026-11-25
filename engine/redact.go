@@ -14,6 +14,7 @@ package engine
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log"
 	"log/slog"
@@ -22,6 +23,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"unicode/utf8"
 
 	"github.com/rclone/rclone/fs"
 )
@@ -36,17 +38,21 @@ const secretName = `[a-z0-9_.-]*?(?:api[_-]?key|key|token|passw(?:or)?d|passphra
 var (
 	// urlPattern: an address with a scheme, up to a space, a quote or a
 	// bracket that can't be part of it.
-	urlPattern = regexp.MustCompile("(?i)\\b[a-z][a-z0-9+.-]*://[^\\s\"'<>`\\\\]+")
+	urlPattern = regexp.MustCompile("(?i)\\b[a-z][a-z0-9+.-]{0,30}://[^\\s\"'<>`\\\\]+")
 	// The start of an address, for userinfo that holds a character
 	// urlPattern stops at (looseUserinfo).
-	schemeStart = regexp.MustCompile(`(?i)\b[a-z][a-z0-9+.-]*://`)
+	schemeStart = regexp.MustCompile(`(?i)\b[a-z][a-z0-9+.-]{0,30}://`)
 	// Go's url.Parse names the port it couldn't read, which is the start of
 	// a password typed with a / ? or # in it (alice:pass/word@host).
 	invalidPort = regexp.MustCompile(`(invalid port ")(?:[^"\\]|\\.)*(" after host)`)
 	// user:password@host without a scheme (an address typed without one).
-	barePair = regexp.MustCompile(`(?i)(^|[\s"'(<\[=,])[^\s"'<>/@:=,(\[]+:[^\s"'<>/]{1,200}@([a-z0-9][a-z0-9.-]*|\[[0-9a-f:.%]+\])`)
+	barePair = regexp.MustCompile(`(?i)(^|[\s"'(<\[=,])[^\s"'<>/@:=,(\[]{1,200}:[^\s"'<>/]{1,200}@([a-z0-9][a-z0-9.-]*|\[[0-9a-f:.%]+\])`)
 	// name=value, as in a query string, a form body or a settings line.
-	namedValue = regexp.MustCompile(`(?i)\b(` + secretName + `)(\s*=\s*)("[^"]*"|'[^']*'|[^\s&"',;)\]}]+)`)
+	// A name starts where a run of the characters a name holds starts (the
+	// character before is kept as it is): starting inside a run would make
+	// the app's regex engine, which backtracks, take time in the square of a
+	// long dotted or dashed run's length.
+	namedValue = regexp.MustCompile(`(?i)(^|[^a-z0-9_.-])(` + secretName + `)(\s*=\s*)("[^"]*"|'[^']*'|[^\s&"',;)\]}]+)`)
 	// "name": "value" in JSON, also escaped inside a quoted string.
 	jsonValue = regexp.MustCompile(`(?i)(\\?"` + secretName + `\\?"\s*:\s*)(\\?")((?:[^"\\]|\\[^"])*)(\\?")`)
 	// <name>value</name> in XML, and the parts of S3's signature errors
@@ -56,7 +62,7 @@ var (
 	// An HTTP header that carries a credential, as a line or as Go prints
 	// http.Header (map[Authorization:[Bearer ...]]), whatever its scheme
 	// (Bearer, Basic, LOW, Zoho-oauthtoken and the other schemes listed).
-	authHeader = regexp.MustCompile(`(?i)\b((?:proxy-)?authorization|pm-storage-token|` +
+	authHeader = regexp.MustCompile(`(?i)(^|[^a-z0-9_-])((?:proxy-)?authorization|pm-storage-token|` +
 		`x-[a-z0-9-]*?(?:token|key|auth|auth-data|auth-sign|sign|signature|secret|sess-id|session-id|password))` +
 		`(\s*[:=]\s*\[?)((?:(?:bearer|basic|digest|token|oauth|low|sharedkey(?:lite)?|aws4-hmac-sha256|aws|zoho-oauthtoken|negotiate|ntlm|mac)[ \t]+)?[^\s"',;\]]+)`)
 	cookieHeader = regexp.MustCompile(`(?i)\b((?:set-)?cookie)(\s*:\s*)[^\r\n"]+`)
@@ -92,10 +98,10 @@ func redact(s string) string {
 	s = looseUserinfo(s)
 	s = urlPattern.ReplaceAllStringFunc(s, redactURL)
 	s = barePair.ReplaceAllString(s, "${1}***@${2}")
-	s = namedValue.ReplaceAllString(s, "${1}${2}***")
+	s = namedValue.ReplaceAllString(s, "${1}${2}${3}***")
 	s = jsonValue.ReplaceAllString(s, "${1}${2}***${4}")
 	s = xmlValue.ReplaceAllString(s, "${1}***${2}")
-	s = authHeader.ReplaceAllString(s, "${1}${2}***")
+	s = authHeader.ReplaceAllString(s, "${1}${2}${3}***")
 	s = cookieHeader.ReplaceAllString(s, "${1}${2}***")
 	s = bearer.ReplaceAllString(s, "${1} ***")
 	for _, re := range pathTokens {
@@ -313,6 +319,29 @@ func cleanErr(err error) error {
 // with defer scrub(&err), and TestEveryExportScrubs checks that it does.
 func scrub(err *error) { *err = cleanErr(*err) }
 
+// maxLogLine is the most of one line that reaches the log: Android's log
+// keeps about 4 KB of an entry anyway, and a server's answer quoted whole in
+// an error can be megabytes. The cut comes after redaction, so a credential
+// cut in two is never left half-matched.
+const maxLogLine = 8000
+
+// capLine cuts s to maxLogLine bytes (at a character's start), says how
+// much was left out, and keeps a final line break.
+func capLine(s string) string {
+	if len(s) <= maxLogLine {
+		return s
+	}
+	end := maxLogLine
+	for end > 0 && !utf8.RuneStart(s[end]) {
+		end--
+	}
+	nl := ""
+	if strings.HasSuffix(s, "\n") {
+		nl = "\n"
+	}
+	return s[:end] + fmt.Sprintf(" [cut: %d more bytes]", len(s)-end-len(nl)) + nl
+}
+
 // redactWriter redacts what it passes on. Each Write is taken as whole lines
 // (Go's log package and the handler below write a line at a time).
 type redactWriter struct {
@@ -323,7 +352,7 @@ type redactWriter struct {
 func (r *redactWriter) Write(p []byte) (int, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if _, err := io.WriteString(r.w, redact(string(p))); err != nil {
+	if _, err := io.WriteString(r.w, capLine(redact(string(p)))); err != nil {
 		return 0, err
 	}
 	return len(p), nil

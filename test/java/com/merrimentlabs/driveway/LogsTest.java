@@ -66,6 +66,34 @@ public final class LogsTest {
     Logs.e("can't list services", new IOException("password=x"));
     check(android.util.Log.lastMessage.contains("password=***"), "Logs.e redacts");
 
+    // Time: a server's answer can put a megabyte of text in an error
+    // (rclone quotes a failed request's body), and redaction runs on the
+    // thread that reports it. Every shape must take time in proportion to
+    // its length; the bound is generous (a quadratic pattern takes minutes).
+    String[] shapes = {"a.", "a-", "x-x-", "a:", "a@", "a=", "a ", "a/", "%2", "\\\"", "https://", "key", "x-a"};
+    long worst = 0;
+    String slowest = "";
+    for (String shape : shapes) {
+      String big = shape.repeat(1_000_000 / shape.length());
+      long t0 = System.nanoTime();
+      Logs.clean(big);
+      long ms = (System.nanoTime() - t0) / 1_000_000;
+      if (ms > worst) {
+        worst = ms;
+        slowest = shape;
+      }
+    }
+    check(worst < 3000, "a megabyte of any shape is redacted in under 3 s (slowest " + slowest + ": " + worst + " ms)");
+    // What reaches the log is cut to Logs.MAX characters, after redaction.
+    StringBuilder longLine = new StringBuilder("listing failed: ");
+    while (longLine.length() < 20_000) longLine.append("word ");
+    Logs.w(longLine + "token=SECRETTAIL");
+    String cut = android.util.Log.lastMessage;
+    check(cut.length() <= Logs.MAX + 40 && cut.startsWith("listing failed: word") && cut.contains("[cut:")
+        && !cut.contains("SECRETTAIL"), "a long line is cut, and says so (" + cut.length() + " characters)");
+    Logs.w("short");
+    check(android.util.Log.lastMessage.equals("short"), "a short line is whole");
+
     // The scan.
     check(bypasses("      Log.w(TAG, \"upload failed: \" + last);"), "scan: dynamic text is caught");
     check(bypasses("    android.util.Log.w(\"Driveway\", \"can't make a key\", e);"), "scan: an exception is caught");
