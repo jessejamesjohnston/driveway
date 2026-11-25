@@ -6,7 +6,6 @@ import android.net.nsd.NsdManager;
 import android.net.nsd.NsdServiceInfo;
 import android.os.Handler;
 import android.os.Looper;
-import android.util.Log;
 
 import java.net.Inet4Address;
 import java.net.InetAddress;
@@ -23,7 +22,6 @@ import java.util.concurrent.Executor;
  * by name.
  */
 final class Discovery {
-  private static final String TAG = "Driveway";
 
   static final class Found {
     final String name;
@@ -106,7 +104,7 @@ final class Discovery {
 
         @Override
         public void onStartDiscoveryFailed(String serviceType, int errorCode) {
-          Log.i(TAG, "discovery of " + serviceType + " failed: " + errorCode);
+          Logs.i("discovery of " + serviceType + " failed: " + errorCode);
         }
 
         @Override
@@ -116,7 +114,7 @@ final class Discovery {
         nsd.discoverServices(type, NsdManager.PROTOCOL_DNS_SD, (android.net.Network) null, onMain, l);
         discoveries.add(l);
       } catch (RuntimeException e) {
-        Log.i(TAG, "can't look for " + type + ": " + e.getMessage());
+        Logs.i("can't look for " + type + ": " + e.getMessage());
       }
     }
   }
@@ -150,7 +148,7 @@ final class Discovery {
       nsd.registerServiceInfoCallback(info, onMain, cb);
       callbacks.add(cb);
     } catch (RuntimeException e) {
-      Log.i(TAG, "can't resolve " + info.getServiceName() + ": " + e.getMessage());
+      Logs.i("can't resolve " + info.getServiceName() + ": " + e.getMessage());
     }
   }
 

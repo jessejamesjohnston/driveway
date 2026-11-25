@@ -59,7 +59,7 @@ final class HarnessSignIn {
         // As Connection does: a page that couldn't open says why.
         if (Servers.browserProblem != null) e = new Exception("[" + Servers.browserProblem + "] " + e.getMessage());
         String kind = Errors.kind(e);
-        Log.i(TAG, "HARNESS ENDED " + id + " " + kind + ": " + Errors.explain(context, shown, e));
+        Log.i(TAG, Logs.clean("HARNESS ENDED " + id + " " + kind + ": " + Errors.explain(context, shown, e)));
         boolean ok = expect.equals(kind) || (expect.equals("cancelled") && String.valueOf(e.getMessage()).contains("cancelled"));
         Log.i(TAG, (ok ? "HARNESS PASS " : "HARNESS FAIL ") + id + (ok ? "" : ": ended " + kind + ", expected " + expect));
         return;
@@ -133,7 +133,7 @@ final class HarnessSignIn {
     JSONObject after = new JSONObject(srv.params.optString("token", "{}"));
     boolean ok = !after.optString("access_token").isEmpty() && !after.optString("access_token").equals(before)
         && !after.optString("refresh_token").isEmpty();
-    Log.i(TAG, "HARNESS REFRESHED " + id + " " + before + " -> " + after.optString("access_token"));
+    Log.i(TAG, "HARNESS REFRESHED " + id + (ok ? " to a new token" : " to no new token"));
     Log.i(TAG, (ok ? "HARNESS PASS " : "HARNESS FAIL ") + id + (ok ? "" : ": the token wasn't refreshed and kept"));
   }
 

@@ -406,8 +406,8 @@ public final class KindsTest {
     catalog("[{\"name\":\"t-ok\"},{\"description\":\"no name\"},{\"name\":\"t-after\"}]");
     check(Kinds.others().size() == 1 && Kinds.other("t-ok") != null && Kinds.other("t-after") == null,
         "a broken entry: the services before it are kept");
-    check("Driveway".equals(android.util.Log.lastTag) && android.util.Log.lastError instanceof org.json.JSONException,
-        "and it is logged");
+    check("Driveway".equals(android.util.Log.lastTag) && android.util.Log.lastMessage.startsWith("can't list services\norg.json.JSONException"),
+        "and it is logged, with the exception");
     android.util.Log.lastTag = null;
     catalog("not json");
     check(Kinds.others().isEmpty() && "Driveway".equals(android.util.Log.lastTag), "a broken catalog: no services, logged");

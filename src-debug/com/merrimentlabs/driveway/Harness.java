@@ -111,7 +111,7 @@ public final class Harness extends BroadcastReceiver {
           action.run(context, id, intent);
         }
       } catch (Throwable e) {
-        Log.e(TAG, "HARNESS FAIL " + id + ": " + e, e);
+        Log.e(TAG, Logs.clean("HARNESS FAIL " + id + ": " + e + "\n" + Logs.trace(e)));
       } finally {
         if (held != null) held.finish();
       }
@@ -578,7 +578,7 @@ public final class Harness extends BroadcastReceiver {
       opened = pfd != null;
     } catch (Exception e) {
       opened = false;
-      Log.i(TAG, "HARNESS readonly: write refused: " + e.getMessage());
+      Log.i(TAG, Logs.clean("HARNESS readonly: write refused: " + e.getMessage()));
     }
     Thread.sleep(500);
     check(!opened && Uploads.unsent(ctx, id) == before, "a write was " + (opened ? "opened" : "staged"));
@@ -848,7 +848,7 @@ public final class Harness extends BroadcastReceiver {
       Bundle extras = c.getExtras();
       String error = extras == null ? null : extras.getString(DocumentsContract.EXTRA_ERROR);
       check(c.getCount() == 0 && error != null && error.startsWith("Can't reach"), "error: " + error);
-      Log.i(TAG, "HARNESS unreachable says: " + error);
+      Log.i(TAG, Logs.clean("HARNESS unreachable says: " + error));
     }
   }
 

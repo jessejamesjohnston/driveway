@@ -18,7 +18,6 @@ import android.provider.DocumentsContract.Root;
 import android.provider.DocumentsProvider;
 import android.system.ErrnoException;
 import android.system.OsConstants;
-import android.util.Log;
 import android.webkit.MimeTypeMap;
 
 import com.merrimentlabs.driveway.engine.Engine;
@@ -51,7 +50,6 @@ import java.util.concurrent.Executors;
  * Android tells us about the close only after the app has moved on.
  */
 public final class DrivewayProvider extends DocumentsProvider {
-  private static final String TAG = "Driveway";
 
   private static final String[] ROOT_COLUMNS = {
       Root.COLUMN_ROOT_ID, Root.COLUMN_DOCUMENT_ID, Root.COLUMN_TITLE, Root.COLUMN_SUMMARY,
@@ -486,7 +484,7 @@ public final class DrivewayProvider extends DocumentsProvider {
         // A folder on a service with no folder rename: Files makes the folder
         // anew, moves each file into it (on the server, one by one), and
         // deletes the emptied original.
-        Log.i(TAG, "folder move not possible on the server, Files moves it file by file: " + e.getMessage());
+        Logs.i("folder move not possible on the server, Files moves it file by file: " + e.getMessage());
         Uploads.moveRefused(getContext(), s.id, join(s.folder, from));
         throw new UnsupportedOperationException(Errors.detail(e));
       }
@@ -559,7 +557,7 @@ public final class DrivewayProvider extends DocumentsProvider {
       to = join(pathOf(targetParentDocumentId),
           Engine.copyNew(s.id, join(s.folder, from), remotePath(s, targetParentDocumentId), nameOf(from), left(start)));
     } catch (Exception e) {
-      Log.i(TAG, "copy on the server not possible, Files copies instead: " + e.getMessage());
+      Logs.i("copy on the server not possible, Files copies instead: " + e.getMessage());
       throw new UnsupportedOperationException(Errors.detail(e));
     }
     Problems.clear(getContext(), s.id); // it worked
@@ -635,7 +633,7 @@ public final class DrivewayProvider extends DocumentsProvider {
           System.arraycopy(got, 0, data, 0, got.length);
           return got.length;
         } catch (Exception e) {
-          Log.w(TAG, "read " + path + " at " + offset + ": " + e.getMessage());
+          Logs.w("read " + path + " at " + offset + ": " + e.getMessage());
           // A sign-in that ended mid-read shows on the server's card too.
           Problems.observe(ctx, s, e);
           throw new ErrnoException("read", OsConstants.EIO);

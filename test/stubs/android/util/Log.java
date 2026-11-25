@@ -25,6 +25,14 @@ public final class Log {
     return 0;
   }
 
+  public static int e(String tag, String msg) {
+    return w(tag, msg);
+  }
+
+  public static int i(String tag, String msg) {
+    return w(tag, msg);
+  }
+
   public static int w(String tag, String msg) {
     lastTag = tag;
     lastMessage = msg;

@@ -543,7 +543,7 @@ public final class MainActivity extends Activity {
           try {
             Servers.get(this).remove(s.id);
           } catch (Exception e) {
-            android.util.Log.w("Driveway", "can't remove " + s.label, e);
+            Logs.w("can't remove " + s.label, e);
             new AlertDialog.Builder(this)
                 .setMessage(getString(R.string.remove_failed, s.label))
                 .setPositiveButton(android.R.string.ok, null)

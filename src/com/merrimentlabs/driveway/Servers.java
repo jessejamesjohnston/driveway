@@ -7,7 +7,6 @@ import android.net.Uri;
 import android.provider.DocumentsContract;
 import android.security.keystore.KeyGenParameterSpec;
 import android.security.keystore.KeyProperties;
-import android.util.Log;
 
 import com.merrimentlabs.driveway.engine.Engine;
 import com.merrimentlabs.driveway.engine.Host;
@@ -41,7 +40,6 @@ import javax.crypto.spec.GCMParameterSpec;
  * to the engine, which holds it in memory only.
  */
 final class Servers {
-  private static final String TAG = "Driveway";
   private static final String KEY_ALIAS = "driveway-servers";
   static final String AUTHORITY = "com.merrimentlabs.driveway.documents";
 
@@ -145,7 +143,7 @@ final class Servers {
         if (!onScreen()) {
           // Android would drop the browser silently: end the wait now
           // rather than after ten minutes.
-          Log.w(TAG, "can't open the sign-in page: Driveway isn't on screen");
+          Logs.w("can't open the sign-in page: Driveway isn't on screen");
           browserProblem = "background";
           Engine.configCancel();
           return;
@@ -156,7 +154,7 @@ final class Servers {
         } catch (RuntimeException e) {
           // Nothing will come back to the sign-in's server: end the wait now
           // rather than after ten minutes.
-          Log.w(TAG, "can't open the browser: " + e);
+          Logs.w("can't open the browser: " + e);
           browserProblem = "nobrowser";
           Engine.configCancel();
         }
@@ -188,7 +186,7 @@ final class Servers {
       } catch (Exception e) {
         // The new value stays in memory (the engine has it, and won't say it
         // again), so the next write of the list, for any change, keeps it.
-        Log.w(TAG, "can't keep the new " + key + " for " + s.label + " yet: " + e);
+        Logs.w("can't keep the new " + key + " for " + s.label + " yet: " + e);
       }
     }
   }
@@ -286,7 +284,7 @@ final class Servers {
       }
       Engine.setRemote(s.id, s.backend, p.toString());
     } catch (Exception e) {
-      Log.w(TAG, "can't set up " + s.label + ": " + e.getMessage());
+      Logs.w("can't set up " + s.label + ": " + e.getMessage());
     }
   }
 
@@ -347,7 +345,7 @@ final class Servers {
       }
       saved.delete();
     } catch (IOException e) {
-      Log.w(TAG, "can't put back the key pinned before for " + id + ": " + e);
+      Logs.w("can't put back the key pinned before for " + id + ": " + e);
     }
   }
 
@@ -382,7 +380,9 @@ final class Servers {
       for (int i = 0; i < arr.length(); i++) servers.add(Server.fromJson(arr.getJSONObject(i)));
     } catch (Exception e) {
       // Keep the unreadable file for a later version to try; start empty.
-      Log.e(TAG, "can't read the server list", e);
+      // Only the exception's type: org.json puts the text it couldn't read,
+      // the servers' passwords and keys, in its message.
+      Logs.e("can't read the server list (" + e.getClass().getName() + ")");
       file.renameTo(new File(file.getPath() + ".unreadable-" + System.currentTimeMillis()));
     }
   }

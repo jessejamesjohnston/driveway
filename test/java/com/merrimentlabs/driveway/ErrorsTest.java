@@ -62,8 +62,9 @@ public final class ErrorsTest {
     // credential(): only the file check's own tagged sentence is shown as it is.
     check("That file isn't a service account key".equals(Errors.credential(err("[credential] That file isn't a service account key"))),
         "credential: the file check's sentence");
-    android.util.Log.lastError = null;
-    check(Errors.credential(err("[other] " + RAW)) == null && android.util.Log.lastError != null,
+    android.util.Log.lastMessage = null;
+    check(Errors.credential(err("[other] " + RAW)) == null && android.util.Log.lastMessage != null
+        && android.util.Log.lastMessage.startsWith("can't check the chosen file\n") && android.util.Log.lastMessage.contains("[other] "),
         "credential: another category goes to the log");
     check(Errors.credential(err(RAW)) == null && Errors.credential(err("[credential]")) == null
         && Errors.credential(err(null)) == null && Errors.credential(new org.json.JSONException("[credential] x")) == null,
@@ -184,7 +185,7 @@ public final class ErrorsTest {
    * is checked above, case by case.
    */
   private static final java.util.regex.Pattern RAW_SOURCE = java.util.regex.Pattern.compile("getMessage\\(\\)|\\bdetail\\(");
-  private static final java.util.regex.Pattern LOGS_ONLY = java.util.regex.Pattern.compile("^(android\\.util\\.)?Log\\.[ewid]\\(");
+  private static final java.util.regex.Pattern LOGS_ONLY = java.util.regex.Pattern.compile("^((android\\.util\\.)?Log|Logs)\\.[ewid]\\(");
   /**
    * Lines allowed to read a message, each with how many times it appears and
    * why its text is Driveway's own or never shown.

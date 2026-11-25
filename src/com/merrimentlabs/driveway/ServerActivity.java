@@ -1479,7 +1479,7 @@ public final class ServerActivity extends Activity implements Connection.Listene
           a.showKey(a.keyBox);
         });
       } catch (Exception e) {
-        android.util.Log.w("Driveway", "can't make a key", e);
+        Logs.w("can't make a key", e);
         runOnUiThread(() -> {
           filled();
           formStatus.setText(R.string.key_failed);
@@ -1688,7 +1688,7 @@ public final class ServerActivity extends Activity implements Connection.Listene
         }
       }
     } catch (org.json.JSONException e) {
-      android.util.Log.w("Driveway", "can't read the form", e);
+      Logs.w("can't read the form", e);
       throw new IllegalArgumentException(getString(R.string.form_failed), e);
     }
     s.params = p;
@@ -1923,7 +1923,7 @@ public final class ServerActivity extends Activity implements Connection.Listene
       MainActivity.parkedAt = android.os.SystemClock.elapsedRealtime();
       finish();
     } catch (Exception e) {
-      android.util.Log.w("Driveway", "can't save " + s.label, e);
+      Logs.w("can't save " + s.label, e);
       formStatus.setText(R.string.save_anyway_failed);
       if (isNew) showForm(kind);
     }

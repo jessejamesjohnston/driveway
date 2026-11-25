@@ -146,9 +146,9 @@ open(out, "w").write("\n".join(lines + ["}", ""]))
 PY
   (cd engine && DRIVEWAY_BACKENDS_JSON=../$JT/backends.json go test -count=1 -run '^TestBackendsJSON$' . >/dev/null) || return 1
   javac --release 17 -Xlint:all -Werror -encoding UTF-8 -cp "$C/android-37.jar" -d $JT/classes \
-    src/com/merrimentlabs/driveway/{NewLabels,Kinds,Errors,UpdateCheck}.java $JT/gen/R.java \
+    src/com/merrimentlabs/driveway/{NewLabels,Kinds,Errors,Logs,UpdateCheck}.java $JT/gen/R.java \
     $(find test/java test/stubs -name '*.java') || return 1
-  for t in NewLabelsTest KindsTest ErrorsTest UpdateCheckTest StringStyleTest; do
+  for t in NewLabelsTest KindsTest ErrorsTest LogsTest UpdateCheckTest StringStyleTest; do
     java ${1:+"$1"} -Ddriveway.backends=$JT/backends.json -cp "$JT/classes:$B/$JSON_JAR:$C/android-37.jar" \
       com.merrimentlabs.driveway.$t || return 1
   done
@@ -172,7 +172,7 @@ cover() {
     return 1
   # Only the app's classes: not the checks, the stand-ins or the made-up R.
   find $JT/classes/com/merrimentlabs/driveway -maxdepth 1 \
-    -regex '.*/\(NewLabels\|Kinds\|UpdateCheck\)\(\$.*\)?\.class\|.*/Errors\.class' -exec cp {} $out/classes/ \;
+    -regex '.*/\(NewLabels\|Kinds\|Logs\|UpdateCheck\)\(\$.*\)?\.class\|.*/Errors\.class' -exec cp {} $out/classes/ \;
   java -jar "$B/jacococli-$JACOCO.jar" report $out/java.exec --classfiles $out/classes --sourcefiles src \
     --xml $out/java.xml --html $out/java >/dev/null
   python3 tools/cover.py java $out/java.xml

@@ -440,7 +440,7 @@ final class Kinds {
         out.add(k);
       }
     } catch (Exception e) {
-      android.util.Log.e("Driveway", "can't list services", e);
+      Logs.e("can't list services", e);
     }
     out.sort((a, b) -> a.label.compareToIgnoreCase(b.label));
     others = out;

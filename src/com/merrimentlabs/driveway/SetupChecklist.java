@@ -361,7 +361,7 @@ final class SetupChecklist {
         String help = friendly ? "" : q.optString("help");
         // Why the service asks again: in Driveway's words, with its own to the log.
         if (!q.optString("error").isEmpty()) {
-          android.util.Log.w("Driveway", r.kind.label + " setup asks again: " + q.optString("error"));
+          Logs.w(r.kind.label + " setup asks again: " + q.optString("error"));
           help = a.getString(R.string.setup_answer_refused, r.kind.label) + (help.isEmpty() ? "" : "\n\n" + help);
         }
         if (!help.isEmpty()) box.addView(Ui.secondary(a, help));

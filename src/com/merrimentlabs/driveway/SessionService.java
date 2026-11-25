@@ -13,7 +13,6 @@ import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 import android.os.SystemClock;
-import android.util.Log;
 
 /**
  * Keeps Driveway in the foreground while a server is in use.
@@ -28,7 +27,6 @@ import android.util.Log;
  * upload is running.
  */
 public final class SessionService extends Service {
-  private static final String TAG = "Driveway";
   static final String CHANNEL = "connected";
   private static final long IDLE_MS = 3 * 60 * 1000;
 
@@ -70,7 +68,7 @@ public final class SessionService extends Service {
       active = true;
     } catch (RuntimeException e) {
       // Android refuses when nothing using Driveway is on screen; the work goes ahead without it.
-      Log.i(TAG, "no foreground session: " + e.getMessage());
+      Logs.i("no foreground session: " + e.getMessage());
     }
   }
 

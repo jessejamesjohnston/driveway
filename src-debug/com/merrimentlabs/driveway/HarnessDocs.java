@@ -42,7 +42,7 @@ final class HarnessDocs {
     } catch (Exception e) {
       result = e.toString();
     }
-    Log.i(TAG, "HARNESS CREATE " + id + " took " + (System.currentTimeMillis() - t0) + " ms: " + result);
+    Log.i(TAG, "HARNESS CREATE " + id + " took " + (System.currentTimeMillis() - t0) + " ms: " + Logs.clean(result));
     Log.i(TAG, (ok ? "HARNESS PASS " : "HARNESS FAIL ") + id + (ok ? "" : ": create failed"));
   }
 
@@ -103,8 +103,8 @@ final class HarnessDocs {
       ok = false;
       result = e.toString();
     }
-    Log.i(TAG, "HARNESS DOC " + id + " " + op + " " + path + " took " + (System.currentTimeMillis() - t0) + " ms: " + result);
-    Log.i(TAG, (ok ? "HARNESS PASS " : "HARNESS FAIL ") + id + (ok ? "" : ": " + result));
+    Log.i(TAG, "HARNESS DOC " + id + " " + op + " " + path + " took " + (System.currentTimeMillis() - t0) + " ms: " + Logs.clean(result));
+    Log.i(TAG, (ok ? "HARNESS PASS " : "HARNESS FAIL ") + id + (ok ? "" : ": " + Logs.clean(result)));
   }
 
   /** Saves NAME (MB megabytes, contents fixed by the name) into the server's top folder; doesn't wait for the upload. */
@@ -167,7 +167,7 @@ final class HarnessDocs {
       Bundle x = c.getExtras();
       error = x == null ? null : x.getString(DocumentsContract.EXTRA_ERROR);
     }
-    Log.i(TAG, "HARNESS LIST " + id + " " + path + ": " + n + " entries in " + (System.currentTimeMillis() - t0) + " ms" + (error == null ? "" : ", error: " + error));
+    Log.i(TAG, "HARNESS LIST " + id + " " + path + ": " + n + " entries in " + (System.currentTimeMillis() - t0) + " ms" + (error == null ? "" : ", error: " + Logs.clean(error)));
     Log.i(TAG, (error == null ? "HARNESS PASS " : "HARNESS FAIL ") + id + (error == null ? "" : ": the listing has an error"));
   }
 
@@ -192,8 +192,8 @@ final class HarnessDocs {
       result = "copy failed: " + e;
       ok = false;
     }
-    Log.i(TAG, "HARNESS COPY " + id + " " + result);
-    Log.i(TAG, (ok ? "HARNESS PASS " : "HARNESS FAIL ") + id + (ok ? "" : ": " + result));
+    Log.i(TAG, "HARNESS COPY " + id + " " + Logs.clean(result));
+    Log.i(TAG, (ok ? "HARNESS PASS " : "HARNESS FAIL ") + id + (ok ? "" : ": " + Logs.clean(result)));
   }
 
   /**

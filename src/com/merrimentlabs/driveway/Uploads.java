@@ -6,7 +6,6 @@ import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
-import android.util.Log;
 
 import com.merrimentlabs.driveway.engine.Engine;
 
@@ -41,7 +40,6 @@ import java.util.concurrent.atomic.AtomicInteger;
  * after Driveway was stopped can never put an older version over a newer one.
  */
 final class Uploads {
-  private static final String TAG = "Driveway";
   static final String CHANNEL = "uploads";
   static final String EXTRA_SERVER = "server";
   static final String EXTRA_PATH = "path";
@@ -223,13 +221,13 @@ final class Uploads {
       out.write(n.toString().getBytes(StandardCharsets.UTF_8));
       out.getFD().sync();
     } catch (Exception e) {
-      Log.w(TAG, "can't note where " + local + " goes: " + e);
+      Logs.w("can't note where " + local + " goes: " + e);
       return;
     }
     try {
       Files.move(tmp.toPath(), note.toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
     } catch (Exception e) {
-      Log.w(TAG, "can't note where " + local + " goes: " + e);
+      Logs.w("can't note where " + local + " goes: " + e);
     }
   }
 
@@ -340,7 +338,7 @@ final class Uploads {
         Files.move(tmp.toPath(), note.toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
       } catch (Exception e) {
         // Still kept while Driveway runs.
-        Log.w(TAG, "can't note the refused move of " + path + ": " + e);
+        Logs.w("can't note the refused move of " + path + ": " + e);
       }
     }
   }
@@ -373,7 +371,7 @@ final class Uploads {
         refusedMoves.merge(n.getString("move"), n.getLong("at"), Math::max);
       }
     } catch (Exception e) {
-      Log.w(TAG, "can't read the refused move in " + note + ": " + e);
+      Logs.w("can't read the refused move in " + note + ": " + e);
     }
   }
 
@@ -495,7 +493,7 @@ final class Uploads {
       if (!n.optBoolean("ready")) {
         Stage cur = latest.get(key);
         if (cur == null || !cur.file.equals(f)) {
-          Log.i(TAG, "dropping an unfinished save of " + n.optString("path"));
+          Logs.i("dropping an unfinished save of " + n.optString("path"));
           forget(f);
         }
         continue;
@@ -511,7 +509,7 @@ final class Uploads {
     }
     for (Map.Entry<String, File> e : newest.entrySet()) {
       JSONObject n = notes.get(e.getKey());
-      Log.i(TAG, "resuming the save of " + n.optString("path"));
+      Logs.i("resuming the save of " + n.optString("path"));
       upload(ctx, n.optString("server"), n.optString("path"), e.getValue(), genOf(e.getValue()), null);
     }
     // Once the saves are back in place: a refused move only they still hold
@@ -597,7 +595,7 @@ final class Uploads {
     NotificationManager nm = ctx.getSystemService(NotificationManager.class);
     if (s == null) {
       // Kept: the server list may not have loaded (removing a server forgets its saves itself).
-      Log.w(TAG, "upload of " + name + " waits: no server " + serverId);
+      Logs.w("upload of " + name + " waits: no server " + serverId);
       return false;
     }
     Exception last = null;
@@ -611,7 +609,7 @@ final class Uploads {
         nm.cancel(notification);
         failedWhy.remove(key(serverId, path));
         Problems.clear(ctx, serverId);
-        Log.i(TAG, "uploaded " + name + " to " + s.label);
+        Logs.i("uploaded " + name + " to " + s.label);
         return true;
       } catch (Exception e) {
         last = e;
@@ -624,7 +622,7 @@ final class Uploads {
       }
     }
     sending.remove(key(serverId, path));
-    Log.w(TAG, "upload of " + name + " to " + s.label + " failed: " + last);
+    Logs.w("upload of " + name + " to " + s.label + " failed: " + last);
     Problems.observe(ctx, s, last);
     failedWhy.put(key(serverId, path), Errors.explain(ctx, s, last));
     channel(ctx);

@@ -47,7 +47,7 @@ final class Errors {
    */
   static String credential(Throwable e) {
     if (!(e instanceof org.json.JSONException) && kind(e).equals("credential") && !detail(e).isEmpty()) return detail(e);
-    android.util.Log.w("Driveway", "can't check the chosen file", e);
+    Logs.w("can't check the chosen file", e);
     return null;
   }
 
@@ -101,7 +101,7 @@ final class Errors {
    * service's ("Dropbox said: ...").
    */
   static Message message(Servers.Server s, Throwable e, boolean onForm, BooleanSupplier localNetwork, String theServer) {
-    android.util.Log.w("Driveway", (s == null ? "" : s.label + ": ") + (e.getMessage() == null ? e : e.getMessage()));
+    Logs.w((s == null ? "" : s.label + ": ") + (e.getMessage() == null ? e : e.getMessage()));
     String name = s == null ? theServer : s.label;
     switch (kind(e)) {
       case "network":
