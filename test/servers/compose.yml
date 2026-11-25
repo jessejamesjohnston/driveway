@@ -1,0 +1,127 @@
+# Throwaway servers for Driveway's tests. Each serves its own scratch volume,
+# so nothing a test writes can reach real data. Every image is pinned by
+# digest, so an upstream push can't change what the tests run against; to
+# update one, pull the new tag, run ./build.sh test, and copy its digest here.
+#
+#   docker compose -f test/servers/compose.yml up -d
+#
+# From the emulator the host is 10.0.2.2; from a device on the LAN it is
+# this machine's address. Logins are all driveway / driveway-test.
+name: driveway-test
+
+services:
+  sftp:
+    image: atmoz/sftp:alpine@sha256:6d41b9200f8115ce925bbd295376cb3c6b72634a267f41946e5aee4efe482186
+    command: driveway:driveway-test:1000:1000:share
+    ports: ["2222:22"]
+    volumes:
+      - sftp:/home/driveway/share
+    # Copied into the container rather than mounted from this folder, so the
+    # servers also start when the Docker daemon can't see this checkout (a
+    # remote or sandboxed build). build.sh sets DRIVEWAY_SFTP_PUBKEY.
+    configs:
+      - source: sftp_key
+        target: /home/driveway/.ssh/keys/driveway.pub
+      - source: sftp_init
+        target: /etc/sftp.d/init.sh
+        mode: 0755
+
+  # SFTP on an ordinary Linux account with a shell, like most home servers:
+  # rclone can then copy on the server (cp) and read free space (df).
+  sftp-shell:
+    image: lscr.io/linuxserver/openssh-server:latest@sha256:946fa26105e0ec212fdf821b9ddc59aab65f2c2d07c02b25ff0f5001fc332ff0
+    environment:
+      USER_NAME: driveway
+      USER_PASSWORD: driveway-test
+      PASSWORD_ACCESS: "true"
+      PUID: "1000"
+      PGID: "1000"
+    ports: ["2226:2222"]
+
+  smb:
+    image: dockurr/samba:latest@sha256:404f91bdf317d390241a41165579cd25199f34171b44677d877c75dc40184042
+    environment:
+      NAME: share
+      USER: driveway
+      PASS: driveway-test
+    ports: ["1445:445"]
+    volumes:
+      - smb:/storage
+
+  webdav:
+    image: rclone/rclone:latest@sha256:45401ad7410db1d67ffdb58e19059ad20b0d8e0285a60e38bbec55cc1019c7a5
+    command: serve webdav /data --addr :8080 --user driveway --pass driveway-test
+    ports: ["8080:8080"]
+    volumes:
+      - webdav:/data
+
+  # NFSv3 in user space (rclone's own NFS server): no kernel module, no
+  # portmapper, one port. It never refuses non-privileged ports, so the
+  # "allow non-privileged ports" message is NOT covered here: that needs a
+  # kernel nfsd with the default "secure" export (not set up yet).
+  nfs:
+    image: rclone/rclone:latest@sha256:45401ad7410db1d67ffdb58e19059ad20b0d8e0285a60e38bbec55cc1019c7a5
+    command: serve nfs /data --addr :2050 --vfs-cache-mode full
+    ports: ["2050:2050"]
+    volumes:
+      - nfs:/data
+
+  # Two of rclone's "More services": S3-style object storage (Versity's S3
+  # gateway; keys driveway / driveway-test) and FTP. Test servers only.
+  s3:
+    image: versity/versitygw:latest@sha256:30292fc2eeacc67a36993b01f7a7a5e3361a19cced0e80c1d71cfa2a4b0a2499
+    command: --access driveway --secret driveway-test --port :9000 posix /data
+    ports: ["9000:9000"]
+    volumes:
+      - s3:/data
+
+  ftp:
+    image: delfer/alpine-ftp-server:latest@sha256:60bb774d8408d9d4d5c74d05d1c086a34ce192c6c1a142ffac268cac0dbc6fac
+    # Its start script watches the newest vsftpd process; a connection that
+    # arrives in the instant after start makes that the connection's own
+    # process, and the container quits when it closes. Come straight back.
+    restart: unless-stopped
+    environment:
+      USERS: "driveway|driveway-test|/home/driveway|1000"
+      ADDRESS: ${DRIVEWAY_LAN_IP:-127.0.0.1}
+      MIN_PORT: "21000"
+      MAX_PORT: "21010"
+    ports: ["2121:21", "21000-21010:21000-21010"]
+
+  # A kernel NFS server (portmapper, mountd, nfsd), off unless asked for:
+  #   sudo modprobe nfsd && docker compose -f compose.yml --profile kernel-nfs up -d knfs
+  # KNFS_OPTS=insecure lets ports above 1024 in (what Android apps use); the
+  # default "secure" export refuses them, which is what the app's NFS message
+  # is tested against (DRIVEWAY_KNFS=127.0.0.1 ./build.sh test).
+  knfs:
+    profiles: [kernel-nfs]
+    # Privileged and unmaintained upstream (last push 2019): pinned to the
+    # digest already tested here, so a re-pushed tag can't swap in new code
+    # with root on this host.
+    image: erichough/nfs-server@sha256:784ef30907aa318b8324c4c49bd258b11a740ab0eea9f09b5ccf9df378fa77ca
+    privileged: true
+    environment:
+      NFS_EXPORT_0: "/export *(rw,sync,no_subtree_check,fsid=0${KNFS_OPTS:+,${KNFS_OPTS}})"
+      NFS_DISABLE_VERSION_4: "true"
+      NFS_VERSION: "3"
+    ports: ["2049:2049", "111:111", "111:111/udp", "32765:32765", "32767:32767"]
+    volumes:
+      - knfs:/export
+
+configs:
+  # The public half of the test-only key pair build.sh makes (test/servers/keys).
+  sftp_key:
+    content: ${DRIVEWAY_SFTP_PUBKEY:-}
+  # atmoz chroots the user into a root-owned home; let it write its share.
+  sftp_init:
+    content: |
+      #!/bin/sh
+      chown 1000:1000 /home/driveway/share
+
+volumes:
+  s3:
+  knfs:
+  sftp:
+  smb:
+  webdav:
+  nfs:

@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Driveway puts file servers (SFTP, SMB, NFS, WebDAV and more) in Files and
+     in every app's open and save dialogs, through a documents provider. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.merrimentlabs.driveway"
+    android:versionCode="16"
+    android:versionName="0.3.0">
+
+  <uses-sdk android:minSdkVersion="34" android:targetSdkVersion="37" />
+
+  <!-- Talking to your servers is the whole job. -->
+  <uses-permission android:name="android.permission.INTERNET" />
+  <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+  <!-- Android 17+: reaching servers on the local network (your NAS, a
+       computer at home) needs this runtime permission ("Nearby devices"). -->
+  <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK" />
+  <!-- Only to say an upload failed, with Try again. -->
+  <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+  <!-- Keeps Driveway running while a save uploads. -->
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+
+  <!-- extractNativeLibs: the engine is stored compressed, which keeps the
+       download near 50 MB; Android unpacks it once at install. -->
+  <application
+      android:label="@string/app_name"
+      android:icon="@mipmap/ic_launcher"
+      android:theme="@style/Theme.Driveway"
+      android:extractNativeLibs="true"
+      android:supportsRtl="true"
+      android:allowBackup="false">
+
+    <!-- configChanges: resizing a window (a Googlebook's everyday) keeps the
+         screen as it is instead of rebuilding it, which would lose a
+         half-filled form and stop a sign-in in progress. -->
+    <activity
+        android:name=".MainActivity"
+        android:exported="true"
+        android:resizeableActivity="true"
+        android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation">
+      <layout
+          android:defaultWidth="720dp"
+          android:defaultHeight="640dp"
+          android:minWidth="320dp"
+          android:minHeight="320dp" />
+      <intent-filter>
+        <action android:name="android.intent.action.MAIN" />
+        <category android:name="android.intent.category.LAUNCHER" />
+      </intent-filter>
+    </activity>
+
+    <activity
+        android:name=".ServerActivity"
+        android:exported="false"
+        android:resizeableActivity="true"
+        android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation"
+        android:windowSoftInputMode="adjustResize" />
+
+    <!-- "Return to Driveway" on the page a browser sign-in comes back to:
+         brings Driveway's screen back and closes (no screen of its own). -->
+    <activity
+        android:name=".ReturnActivity"
+        android:exported="true"
+        android:noHistory="true"
+        android:excludeFromRecents="true"
+        android:theme="@android:style/Theme.Translucent.NoTitleBar">
+      <intent-filter>
+        <action android:name="android.intent.action.VIEW" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <category android:name="android.intent.category.BROWSABLE" />
+        <data android:scheme="driveway" android:host="signin" />
+      </intent-filter>
+    </activity>
+
+    <activity
+        android:name=".SettingsActivity"
+        android:exported="false"
+        android:resizeableActivity="true"
+        android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation" />
+
+    <activity
+        android:name=".LicensesActivity"
+        android:exported="false"
+        android:resizeableActivity="true"
+        android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation" />
+
+    <provider
+        android:name=".DrivewayProvider"
+        android:authorities="com.merrimentlabs.driveway.documents"
+        android:exported="true"
+        android:grantUriPermissions="true"
+        android:permission="android.permission.MANAGE_DOCUMENTS">
+      <intent-filter>
+        <action android:name="android.content.action.DOCUMENTS_PROVIDER" />
+      </intent-filter>
+    </provider>
+
+    <service
+        android:name=".SessionService"
+        android:exported="false"
+        android:foregroundServiceType="dataSync" />
+
+    <!-- The opt-in weekly update check (off by default; UpdateJob). -->
+    <service
+        android:name=".UpdateJob"
+        android:exported="false"
+        android:permission="android.permission.BIND_JOB_SERVICE" />
+
+    <receiver
+        android:name=".RetryReceiver"
+        android:exported="false" />
+  </application>
+</manifest>

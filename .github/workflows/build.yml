@@ -1,0 +1,57 @@
+name: Build and test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Builds and tests only, with no secrets: the debug APK is signed with a
+# throwaway key the build makes, and Box's one-tap registration is absent.
+# Releases are built from a tag and signed locally (scripts/release.sh,
+# docs/RELEASING.md); no key ever goes to GitHub. Actions are pinned to commits (the tag is in the comment) so a
+# moved tag cannot change what runs here.
+permissions:
+  contents: read
+
+# A newer push to the same branch or pull request replaces a run still going.
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Engine and app
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4.9.1
+        with:
+          distribution: temurin
+          java-version: "21"
+      # Go, gomobile, the Android jars and the Go module cache, keyed by what pins them.
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: |
+            ~/.cache/driveway
+            ~/.cache/android
+          key: toolchain-${{ hashFiles('build.sh', 'engine/go.sum') }}
+          restore-keys: toolchain-
+      - name: Toolchain (Go, gomobile, go-licenses, Android jars, NDK)
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null; ./build.sh fetch
+      # go vet, the engine's tests against throwaway servers in Docker, and
+      # the app's plain-Java checks.
+      - name: Tests
+        run: ./build.sh test
+      # The engine for both chips, the license gate, javac with warnings as
+      # errors, D8, and the permission check.
+      - name: Debug APK
+        run: ./build.sh debug
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: driveway-debug
+          path: build/Driveway-debug.apk
+          if-no-files-found: error
+          retention-days: 7

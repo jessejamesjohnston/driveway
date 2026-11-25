@@ -1,0 +1,35 @@
+name: Bug report
+description: Something in Driveway does not work as it should.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Driveway version
+      description: Settings, About shows it.
+      placeholder: "0.3.0"
+    validations:
+      required: true
+  - type: input
+    id: server
+    attributes:
+      label: Kind of server
+      description: SFTP, SMB, NFS, WebDAV, or the service's name. If it is a NAS, its make helps.
+      placeholder: "SMB on a NAS"
+  - type: input
+    id: device
+    attributes:
+      label: Device and Android version
+      placeholder: "A Googlebook, Android 17"
+  - type: textarea
+    id: more
+    attributes:
+      label: Anything else
+      description: The exact message Driveway showed helps most. Please leave out server addresses, user names and anything personal.

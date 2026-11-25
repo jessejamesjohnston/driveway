@@ -1,0 +1,21 @@
+# Opens the test servers to other devices (a phone or Googlebook on the LAN or a
+# VPN) for a test session. Their logins are throwaway, so close them
+# afterwards: docker compose -f compose.yml up -d (without this file).
+#
+#   DRIVEWAY_LAN_IP=192.0.2.10 DRIVEWAY_TS_IP=100.x.y.z \
+#     docker compose -f compose.yml -f compose.expose.yml up -d
+services:
+  sftp:
+    ports: ["${DRIVEWAY_LAN_IP}:2222:22", "${DRIVEWAY_TS_IP}:2222:22"]
+  sftp-shell:
+    ports: ["${DRIVEWAY_LAN_IP}:2226:2222", "${DRIVEWAY_TS_IP}:2226:2222"]
+  smb:
+    ports: ["${DRIVEWAY_LAN_IP}:1445:445", "${DRIVEWAY_TS_IP}:1445:445"]
+  webdav:
+    ports: ["${DRIVEWAY_LAN_IP}:8080:8080", "${DRIVEWAY_TS_IP}:8080:8080"]
+  nfs:
+    ports: ["${DRIVEWAY_LAN_IP}:2050:2050", "${DRIVEWAY_TS_IP}:2050:2050"]
+  s3:
+    ports: ["${DRIVEWAY_LAN_IP}:9000:9000", "${DRIVEWAY_TS_IP}:9000:9000"]
+  ftp:
+    ports: ["${DRIVEWAY_LAN_IP}:2121:21", "${DRIVEWAY_LAN_IP}:21000-21010:21000-21010"]
