@@ -641,4 +641,13 @@ func TestKeyAcrossLines(t *testing.T) {
 	if b.String() != want {
 		t.Errorf("got %q, want %q", b.String(), want)
 	}
+	// A block that never ends stops blanking lines after maxKeyLines.
+	var l lineRedactor
+	l.line("-----BEGIN RSA PRIVATE KEY-----\n")
+	for i := 0; i < maxKeyLines; i++ {
+		l.line("MADEUPKEYLINE\n")
+	}
+	if got := l.line("later line\n"); got != "later line\n" {
+		t.Errorf("an unended block still blanks the log: %q", got)
+	}
 }

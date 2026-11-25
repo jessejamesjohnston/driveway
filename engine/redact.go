@@ -445,7 +445,14 @@ func capLine(s string) string {
 // block printed over several lines would leave its middle lines with
 // nothing to match, so from a line that starts a block to the line that
 // ends it, each line is replaced whole.
-type lineRedactor struct{ inKey bool }
+// A block longer than maxKeyLines lines ends the carry: no key is that
+// long, and a block that never ends must not blank the log for good.
+type lineRedactor struct {
+	inKey bool
+	lines int
+}
+
+const maxKeyLines = 100
 
 func (l *lineRedactor) line(s string) string {
 	nl := ""
@@ -455,13 +462,16 @@ func (l *lineRedactor) line(s string) string {
 	if l.inKey {
 		loc := pemEnd.FindStringIndex(s)
 		if loc == nil {
+			if l.lines++; l.lines >= maxKeyLines {
+				l.inKey = false
+			}
 			return "***" + nl
 		}
 		l.inKey = false
 		s = "***" + s[loc[0]:]
 	}
 	if begins := pemBegin.FindAllStringIndex(s, -1); len(begins) > 0 {
-		l.inKey = !pemEnd.MatchString(s[begins[len(begins)-1][1]:])
+		l.inKey, l.lines = !pemEnd.MatchString(s[begins[len(begins)-1][1]:]), 0
 	}
 	return redact(s) + nl
 }
