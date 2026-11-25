@@ -80,7 +80,7 @@ final class Logs {
   private static final Pattern NAMED_VALUE =
       Pattern.compile("(?i)(^|[^a-z0-9_.-])(" + SECRET_NAME + ")(\\s*=\\s*)(\"[^\"]*\"|'[^']*'|[^\\s&\"',;)\\]}]+)");
   private static final Pattern JSON_VALUE =
-      Pattern.compile("(?i)(\\\\?\"" + SECRET_NAME + "\\\\?\"\\s*:\\s*)(\\\\?\")((?:[^\"\\\\]|\\\\[^\"])*)(\\\\?\")");
+      Pattern.compile("(?i)(\\\\?\"" + SECRET_NAME + "\\\\?\"\\s*:\\s*)(\\\\?\")([^\"\\\\]*+(?:\\\\[^\"][^\"\\\\]*+)*+)(\\\\?\")");
   private static final Pattern XML_VALUE = Pattern.compile("(?i)(<(?:" + SECRET_NAME
       + "|awsaccesskeyid|stringtosign(?:bytes)?|canonicalrequest(?:bytes)?|signatureprovided)>)[^<]*(<)");
   private static final Pattern AUTH_HEADER = Pattern.compile("(?i)(^|[^a-z0-9_-])((?:proxy-)?authorization|pm-storage-token|"

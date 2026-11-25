@@ -83,6 +83,27 @@ public final class LogsTest {
         slowest = shape;
       }
     }
+    // One long value inside each rule's own frame, which a pattern that
+    // recursed per character would overflow the stack on.
+    String run = "a\\".repeat(250_000) + "b".repeat(500_000);
+    String[][] frames = {{"\"token\":\"", "\""}, {"invalid port \"", "\" after host"}, {"https:\\/\\/", ""},
+        {"token=\"", "\""}, {"Cookie: ", ""}, {"https://alice:p s", "@host/"}, {"<password>", "</password>"}};
+    for (String[] f : frames) {
+      String big = f[0] + run + f[1];
+      long t0 = System.nanoTime();
+      String out;
+      try {
+        out = Logs.clean(big);
+      } catch (StackOverflowError overflow) {
+        out = null;
+      }
+      long ms = (System.nanoTime() - t0) / 1_000_000;
+      check(out != null, "a megabyte inside " + f[0] + " doesn't overflow the stack");
+      if (ms > worst) {
+        worst = ms;
+        slowest = f[0];
+      }
+    }
     check(worst < 3000, "a megabyte of any shape is redacted in under 3 s (slowest " + slowest + ": " + worst + " ms)");
     // What reaches the log is cut to Logs.MAX characters, after redaction.
     StringBuilder longLine = new StringBuilder("listing failed: ");

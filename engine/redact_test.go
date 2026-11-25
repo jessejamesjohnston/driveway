@@ -510,6 +510,17 @@ func TestRedactIsLinear(t *testing.T) {
 			t.Errorf("a megabyte of %q took %v", shape, d)
 		}
 	}
+	// One long value inside each rule's own frame (LogsTest checks the
+	// app's patterns don't overflow the stack on these).
+	run := strings.Repeat(`a\`, 250_000) + strings.Repeat("b", 500_000)
+	for _, f := range [][2]string{{`"token":"`, `"`}, {`invalid port "`, `" after host`}, {`https:\/\/`, ""},
+		{`token="`, `"`}, {"Cookie: ", ""}, {"https://alice:p s", "@host/"}, {"<password>", "</password>"}} {
+		t0 := time.Now()
+		redact(f[0] + run + f[1])
+		if d := time.Since(t0); d > 5*time.Second {
+			t.Errorf("a megabyte inside %q took %v", f[0], d)
+		}
+	}
 }
 
 // TestLogLinesAreCut: what reaches the log is cut to maxLogLine bytes,
