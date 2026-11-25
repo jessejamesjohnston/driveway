@@ -191,6 +191,11 @@ public final class KindsTest {
       java.util.regex.Matcher m = java.util.regex.Pattern.compile("<string name=\"" + w[0] + "\">([^<]*)<").matcher(xml);
       check(m.find() && m.group(1).contains("write it as %%40") && m.group(1).contains(w[1]), w[0] + " gives both ways out");
     }
+    // A look-alike: the way out for a folder's name (the server's top folder,
+    // then Files) and for a character meant as the ordinary one (retype it).
+    java.util.regex.Matcher look = java.util.regex.Pattern.compile("<string name=\"address_lookalike\">([^<]*)<").matcher(xml);
+    check(look.find() && look.group(1).contains("top folder") && look.group(1).contains("in Files") && look.group(1).contains("retype it"),
+        "address_lookalike gives both ways out");
   }
 
   /**
