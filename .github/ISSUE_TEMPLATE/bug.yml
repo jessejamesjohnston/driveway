@@ -32,4 +32,4 @@ body:
     id: more
     attributes:
       label: Anything else
-      description: The exact message Driveway showed helps most. Please leave out server addresses, user names and anything personal.
+      description: The exact message Driveway showed helps most. The technical detail behind it is in the device's log (with the device connected over adb, run `adb logcat -d -s Driveway GoLog`; CONTRIBUTING.md has the steps). Please leave out server addresses, user names and anything personal, in the log too.

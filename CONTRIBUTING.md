@@ -10,6 +10,18 @@ showed, the kind of server and its make (if it is a NAS) help most. Please leave
 addresses, user names and anything else personal. Security problems go through
 [SECURITY.md](SECURITY.md), not a public issue.
 
+Driveway's messages are in its own words; the technical detail behind them (what the server or
+the network actually said) goes to the device's log. To include it, connect the device to a
+computer with USB or wireless debugging on, reproduce the problem, and run:
+
+```sh
+adb logcat -d -s Driveway GoLog > driveway-log.txt
+```
+
+`Driveway` is the app's own lines, `GoLog` the file engine's. The log names your servers, their
+addresses and the files you opened, so read it through and remove anything personal before you
+attach it.
+
 ## Pull requests
 
 Pull requests are read. This public repository is a copy of a private working repository, so a

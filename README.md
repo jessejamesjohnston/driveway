@@ -233,6 +233,8 @@ Not planned:
 ## Contributing
 
 Issues are welcome. Driveway is maintained by one person, so there is no support promise.
+Error messages are in Driveway's own words; [CONTRIBUTING.md](CONTRIBUTING.md#issues) says how to
+get the technical detail behind one from the device's log (`adb logcat -s Driveway GoLog`).
 Pull requests are read; a change that fits is applied in the private working repository and
 carried back here as its own commit, credited to you. [CONTRIBUTING.md](CONTRIBUTING.md) has the
 details, and [SECURITY.md](SECURITY.md) says how to report a security problem privately.
