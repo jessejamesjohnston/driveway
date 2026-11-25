@@ -315,8 +315,11 @@ final class SetupChecklist {
       case IDENTITY: {
         if (!s.id.equals(Connection.IDENTITY)) return null;
         String h = host(r);
-        TextView body = Ui.secondary(a, a.getString(r.identityChanged ? R.string.identity_changed_body
-            : R.string.identity_first_body, h));
+        // The server's own copy to compare with is the file of the key type it presented.
+        String[] key = Kinds.hostKeyFile(r.keyType);
+        TextView body = Ui.secondary(a, r.identityChanged ? a.getString(R.string.identity_changed_body)
+            : key != null ? a.getString(R.string.identity_first_body, h, key[0], key[1])
+            : a.getString(R.string.identity_first_body_other, h));
         if (r.identityChanged) body.setTextColor(Ui.color(a, R.color.trust_ink));
         box.addView(body);
         TextView fp = Ui.text(a, r.fingerprint, 14, 400);

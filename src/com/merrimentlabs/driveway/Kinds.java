@@ -224,6 +224,19 @@ final class Kinds {
         replaces ? before : null);
   }
 
+  /**
+   * An SSH host key type ("ssh-ed25519") as a person names it and the file
+   * that holds the server's own copy: {"Ed25519", "ssh_host_ed25519_key.pub"}.
+   * Null for a type with no usual file.
+   */
+  static String[] hostKeyFile(String type) {
+    if (type == null) return null;
+    if (type.equals("ssh-ed25519")) return new String[] {"Ed25519", "ssh_host_ed25519_key.pub"};
+    if (type.equals("ssh-rsa")) return new String[] {"RSA", "ssh_host_rsa_key.pub"};
+    if (type.startsWith("ecdsa-sha2-")) return new String[] {"ECDSA", "ssh_host_ecdsa_key.pub"};
+    return null;
+  }
+
   static boolean takesPort(Kind k) {
     boolean host = false, port = false;
     for (Field f : k.fields) {

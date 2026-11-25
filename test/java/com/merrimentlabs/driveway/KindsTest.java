@@ -137,6 +137,14 @@ public final class KindsTest {
 
     leavingTheServerField();
 
+    // The identity step names the file of the key type the server presented.
+    check(Arrays.equals(Kinds.hostKeyFile("ssh-rsa"), new String[] {"RSA", "ssh_host_rsa_key.pub"})
+        && Arrays.equals(Kinds.hostKeyFile("ssh-ed25519"), new String[] {"Ed25519", "ssh_host_ed25519_key.pub"})
+        && Arrays.equals(Kinds.hostKeyFile("ecdsa-sha2-nistp256"), new String[] {"ECDSA", "ssh_host_ecdsa_key.pub"}),
+        "host key types name their files: RSA, Ed25519, ECDSA");
+    check(Kinds.hostKeyFile("x-made-up-key-type") == null && Kinds.hostKeyFile("") == null && Kinds.hostKeyFile(null) == null,
+        "a host key type with no usual file names none");
+
     // A host alone, and with a port.
     address("sftp", "nas.local", "nas.local", null, 0, null);
     address("sftp", "  192.0.2.10  ", "192.0.2.10", null, 0, null);

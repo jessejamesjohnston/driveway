@@ -77,6 +77,8 @@ final class Connection {
   volatile String errorKind;
   /** Identity asked about: the server's fingerprint, and whether it changed. */
   volatile String fingerprint;
+  /** The type of the key it presented (ssh-ed25519, ssh-rsa...). */
+  volatile String keyType;
   volatile boolean identityChanged;
   /** The setup question being asked (rclone's, as JSON). */
   volatile JSONObject question;
@@ -433,6 +435,7 @@ final class Connection {
     }
     synchronized (lock) {
       fingerprint = print;
+      keyType = key.optString("type");
       identityChanged = !old.isEmpty() && old.split(" ", 2)[0].equals(line.split(" ", 2)[0]);
     }
     set(IDENTITY, State.WAITING, null);

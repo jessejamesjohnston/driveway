@@ -40,7 +40,8 @@ func NewKey(comment string) (string, error) {
 }
 
 // HostKey connects to an SSH server and returns the key it presents, before
-// any login: {"line": known_hosts line, "fingerprint": SHA256:...}. The app
+// any login: {"line": known_hosts line, "fingerprint": SHA256:..., "type":
+// the key's type, such as ssh-ed25519 or ssh-rsa}. The app
 // shows the fingerprint the first time and pins the line afterwards. An
 // IPv6 host may come with or without brackets.
 func HostKey(host string, port int) (string, error) {
@@ -72,7 +73,8 @@ func HostKey(host string, port int) (string, error) {
 		}
 		return "", classify(err)
 	}
-	j, _ := json.Marshal(map[string]string{"line": knownHostsLine(host, port, key), "fingerprint": ssh.FingerprintSHA256(key)})
+	j, _ := json.Marshal(map[string]string{"line": knownHostsLine(host, port, key), "fingerprint": ssh.FingerprintSHA256(key),
+		"type": key.Type()})
 	return string(j), nil
 }
 

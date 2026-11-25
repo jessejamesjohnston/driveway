@@ -229,6 +229,12 @@ func TestSSHKey(t *testing.T) {
 	if err != nil || !strings.Contains(hk, "SHA256:") {
 		t.Fatalf("host key: %s %v", hk, err)
 	}
+	// The type of the key pinned, so the app names the file to compare with.
+	var typed map[string]string
+	_ = json.Unmarshal([]byte(hk), &typed)
+	if !strings.HasPrefix(typed["line"], "[127.0.0.1]:2222 "+typed["type"]+" ") {
+		t.Fatalf("key type %q doesn't match the pinned line %q", typed["type"], typed["line"])
+	}
 	pem, err := os.ReadFile("../test/servers/keys/driveway")
 	if err != nil {
 		t.Fatal(err)
