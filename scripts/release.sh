@@ -15,6 +15,8 @@
 #                            the certificate of the published Driveway releases. Set it to your own
 #                            certificate when you sign with your own key.
 #
+# The password and the alias are checked against the keystore, and the password must unlock the
+# key, before anything is cloned or built, so a wrong one fails at once.
 # The tag is cloned into a temporary directory and built there with ./build.sh, so uncommitted
 # changes and untracked files in this checkout never reach the release, and the commit recorded
 # inside the APK (META-INF/version-control-info.textproto) is the tag's. The password reaches
@@ -41,21 +43,25 @@ else
     [[ -x "$APKSIGNER" ]] || die "no apksigner: sudo apt install apksigner, or set ANDROID_HOME to an SDK with build-tools"
 fi
 
-cert_sha256() {
-    "$APKSIGNER" verify --print-certs "$1" | sed -n 's/^.*[Ss]igner.* certificate SHA-256 digest: //p' | head -1 \
-        | tr 'a-f' 'A-F' | sed 's/../&:/g; s/:$//'
-}
-
 # Every check a release APK must pass. $2, when given, is the commit the APK must record.
 # Prints what it checked; returns non-zero on any failure.
 verify() {
-    local apk="$1" want="${2:-}" fail=0 sha dn rev libs dex found
+    local apk="$1" want="${2:-}" fail=0 out rc sha dn rev libs dex found
     [[ -f "$apk" ]] || die "no APK at $apk"
 
     echo "== Signature"
-    "$APKSIGNER" verify --verbose "$apk" | grep -E "^Verified using|^Verifies" || true
-    sha=$(cert_sha256 "$apk")
-    dn=$("$APKSIGNER" verify --print-certs "$apk" | sed -n 's/^.*[Ss]igner.* certificate DN: //p' | head -1)
+    # One apksigner run: its exit status says whether the signature verifies at all (a modified
+    # APK does not), and its output names the signing certificate.
+    rc=0
+    out="$("$APKSIGNER" verify --verbose --print-certs "$apk" 2>&1)" || rc=$?
+    if (( rc != 0 )); then
+        echo "  the signature does not verify (the APK was modified after signing, or is not signed)" >&2
+        sed -n 's/^ERROR: /  apksigner: /p' <<<"$out" | head -3 >&2
+        return 1
+    fi
+    grep -E "^Verified using|^Verifies" <<<"$out" || true
+    sha=$(sed -n 's/^.*[Ss]igner.* certificate SHA-256 digest: //p' <<<"$out" | head -1 | tr 'a-f' 'A-F' | sed 's/../&:/g; s/:$//')
+    dn=$(sed -n 's/^.*[Ss]igner.* certificate DN: //p' <<<"$out" | head -1)
     echo "Certificate SHA-256: $sha"
     echo "Expected:            $EXPECTED_CERT"
     [[ "$sha" == "$EXPECTED_CERT" ]] || { echo "  not the expected certificate" >&2; fail=1; }
@@ -123,20 +129,32 @@ if [[ -z "${DRIVEWAY_KEYSTORE_PASS:-}" ]]; then
 fi
 [[ -n "$DRIVEWAY_KEYSTORE_PASS" ]] || die "empty keystore password"
 export DRIVEWAY_KEYSTORE_PASS
-# Fail before the build if the password or alias is wrong (keytool reads the password from the environment).
-KEYS="$(keytool -list -keystore "$STORE" -storepass:env DRIVEWAY_KEYSTORE_PASS 2>/dev/null)" \
+# Fail before the build if the password or alias is wrong. keytool reads the password from the
+# environment, and runs in English so its listing can be parsed the same way everywhere. The
+# locale is left alone: Java decodes the password in the locale's character set, as apksigner will
+# when it signs, so a password with non-ASCII characters checks out here exactly when it works there.
+keytool_en() { keytool -J-Duser.language=en -J-Duser.country=US "$@"; }
+KEYS="$(keytool_en -list -keystore "$STORE" -storepass:env DRIVEWAY_KEYSTORE_PASS 2>/dev/null)" \
     || die "the keystore or its password did not check out"
-ALIASES="$(sed -n 's/^\([^,]*\), .*PrivateKeyEntry.*/\1/p' <<<"$KEYS")"
+# "alias, date, PrivateKeyEntry," per key. Keystores store aliases in lowercase.
+ALIASES="$(sed -n 's/^\([^,]*\),.*PrivateKeyEntry.*/\1/p' <<<"$KEYS")"
+[[ -n "$ALIASES" ]] || die "no private key in the keystore"
 if [[ -n "${DRIVEWAY_KEY_ALIAS:-}" ]]; then
     ALIAS="$DRIVEWAY_KEY_ALIAS"
-    grep -qxF "$ALIAS" <<<"$ALIASES" || die "no key named '$ALIAS' in the keystore (it holds: $(paste -sd, - <<<"$ALIASES"))"
+    # Keystore lookups ignore case, so MyKey names the key listed as mykey.
+    grep -qixF "$ALIAS" <<<"$ALIASES" || die "no key named '$ALIAS' in the keystore (it holds: $(paste -sd, - <<<"$ALIASES"))"
 elif [[ "$(grep -c . <<<"$ALIASES")" == 1 ]]; then
     ALIAS="$ALIASES"
-elif grep -qxF driveway <<<"$ALIASES"; then
+elif grep -qixF driveway <<<"$ALIASES"; then
     ALIAS=driveway
 else
     die "the keystore holds several keys ($(paste -sd, - <<<"$ALIASES")); set DRIVEWAY_KEY_ALIAS to one"
 fi
+# The build unlocks the key with the same password. Unlocking the key proves it (the request
+# keytool writes is thrown away).
+keytool_en -certreq -keystore "$STORE" -alias "$ALIAS" -storepass:env DRIVEWAY_KEYSTORE_PASS \
+    -keypass:env DRIVEWAY_KEYSTORE_PASS >/dev/null 2>&1 \
+    || die "the password does not unlock the key '$ALIAS' (the key's password must equal the keystore's)"
 echo "release: signing with key '$ALIAS'"
 
 WORK="$(mktemp -d)"
