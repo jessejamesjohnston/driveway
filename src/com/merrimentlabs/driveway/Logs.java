@@ -83,12 +83,15 @@ final class Logs {
       Pattern.compile("(?i)(\\\\?\"" + SECRET_NAME + "\\\\?\"\\s*:\\s*)(\\\\?\")([^\"\\\\]*+(?:\\\\[^\"][^\"\\\\]*+)*+)(\\\\?\")");
   private static final Pattern XML_VALUE = Pattern.compile("(?i)(<(?:" + SECRET_NAME
       + "|awsaccesskeyid|stringtosign(?:bytes)?|canonicalrequest(?:bytes)?|signatureprovided)>)[^<]*(<)");
-  private static final Pattern AUTH_HEADER = Pattern.compile("(?i)(^|[^a-z0-9_-])((?:proxy-)?authorization|pm-storage-token|"
-      + "x-[a-z0-9-]*?(?:token|key|auth|auth-data|auth-sign|sign|signature|secret|sess-id|session-id|password))"
+  private static final Pattern AUTH_HEADER = Pattern.compile("(?i)(^|[^a-z0-9_-])(pm-storage-token|"
+      + "x-[a-z0-9-]*?(?:token|key|auth|auth-data|auth-sign|sign|signature|secret|sess-id|session-id|password)|"
+      + "[a-z0-9-]*?(?:api-?key|auth-token|access-token))"
       + "(\\s*[:=]\\s*\\[?)((?:(?:bearer|basic|digest|token|oauth|low|sharedkey(?:lite)?|aws4-hmac-sha256|aws|zoho-oauthtoken"
       + "|negotiate|ntlm|mac)[ \\t]+)?[^\\s\"',;\\]]+)");
   private static final Pattern PEM_BLOCK =
       Pattern.compile("(?s)(-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----).*?(-----END [A-Z0-9 ]*PRIVATE KEY-----|\\z)");
+  private static final Pattern AUTH_VALUE =
+      Pattern.compile("(?i)(^|[^a-z0-9_-])((?:proxy-)?authorization)([ \\t]*:[ \\t]*\\[?)[^\\r\\n\\]]+");
   private static final Pattern COOKIE_HEADER = Pattern.compile("(?i)\\b((?:set-)?cookie)(\\s*:\\s*)[^\\r\\n\"]+");
   private static final Pattern BEARER = Pattern.compile("(?i)\\b(bearer)\\s+[a-z0-9._~+/=-]{8,}");
   private static final Pattern[] PATH_TOKENS = {
@@ -117,6 +120,7 @@ final class Logs {
     s = NAMED_VALUE.matcher(s).replaceAll("$1$2$3***");
     s = JSON_VALUE.matcher(s).replaceAll("$1$2***$4");
     s = XML_VALUE.matcher(s).replaceAll("$1***$2");
+    s = AUTH_VALUE.matcher(s).replaceAll("$1$2$3***");
     s = AUTH_HEADER.matcher(s).replaceAll("$1$2$3***");
     s = COOKIE_HEADER.matcher(s).replaceAll("$1$2***");
     s = BEARER.matcher(s).replaceAll("$1 ***");

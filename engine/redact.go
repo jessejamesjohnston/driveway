@@ -71,8 +71,9 @@ var (
 	// An HTTP header that carries a credential, as a line or as Go prints
 	// http.Header (map[Authorization:[Bearer ...]]), whatever its scheme
 	// (Bearer, Basic, LOW, Zoho-oauthtoken and the other schemes listed).
-	authHeader = regexp.MustCompile(`(?i)(^|[^a-z0-9_-])((?:proxy-)?authorization|pm-storage-token|` +
-		`x-[a-z0-9-]*?(?:token|key|auth|auth-data|auth-sign|sign|signature|secret|sess-id|session-id|password))` +
+	authHeader = regexp.MustCompile(`(?i)(^|[^a-z0-9_-])(pm-storage-token|` +
+		`x-[a-z0-9-]*?(?:token|key|auth|auth-data|auth-sign|sign|signature|secret|sess-id|session-id|password)|` +
+		`[a-z0-9-]*?(?:api-?key|auth-token|access-token))` +
 		`(\s*[:=]\s*\[?)((?:(?:bearer|basic|digest|token|oauth|low|sharedkey(?:lite)?|aws4-hmac-sha256|aws|zoho-oauthtoken|negotiate|ntlm|mac)[ \t]+)?[^\s"',;\]]+)`)
 	// A private key's PEM block, from its first line to its last (or the
 	// end of the text, when cut before it); rclone keeps SFTP's on one line
@@ -81,6 +82,11 @@ var (
 	pemBlock     = regexp.MustCompile(`(?s)(-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----).*?(-----END [A-Z0-9 ]*PRIVATE KEY-----|\z)`)
 	pemBegin     = regexp.MustCompile(`-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----`)
 	pemEnd       = regexp.MustCompile(`-----END [A-Z0-9 ]*PRIVATE KEY-----`)
+	// The Authorization and Proxy-Authorization headers: the whole value,
+	// whatever its scheme, quotes included, up to the end of the line (or,
+	// as Go prints http.Header, the closing bracket). As a setting
+	// (authorization=) namedValue has it.
+	authValue    = regexp.MustCompile(`(?i)(^|[^a-z0-9_-])((?:proxy-)?authorization)([ \t]*:[ \t]*\[?)[^\r\n\]]+`)
 	cookieHeader = regexp.MustCompile(`(?i)\b((?:set-)?cookie)(\s*:\s*)[^\r\n"]+`)
 	bearer       = regexp.MustCompile(`(?i)\b(bearer)\s+[a-z0-9._~+/=-]{8,}`)
 	// Credentials in a path, wherever it appears (with an address or
@@ -119,6 +125,7 @@ func redact(s string) string {
 	s = namedValue.ReplaceAllString(s, "${1}${2}${3}***")
 	s = jsonValue.ReplaceAllString(s, "${1}${2}***${4}")
 	s = xmlValue.ReplaceAllString(s, "${1}***${2}")
+	s = authValue.ReplaceAllString(s, "${1}${2}${3}***")
 	s = authHeader.ReplaceAllString(s, "${1}${2}${3}***")
 	s = cookieHeader.ReplaceAllString(s, "${1}${2}***")
 	s = bearer.ReplaceAllString(s, "${1} ***")

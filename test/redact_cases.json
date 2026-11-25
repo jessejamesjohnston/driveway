@@ -465,6 +465,26 @@
       "why": "a public key block, kept",
       "in": "server key: -----BEGIN PUBLIC KEY-----\nAAAAB3NzaC1yc2E\n-----END PUBLIC KEY-----",
       "out": "server key: -----BEGIN PUBLIC KEY-----\nAAAAB3NzaC1yc2E\n-----END PUBLIC KEY-----"
+    },
+    {
+      "why": "Authorization with a scheme the rule doesn't list: the whole value goes",
+      "in": "request headers: Authorization: OAuth2 MADEUPTOKEN extra=1",
+      "out": "request headers: Authorization: ***"
+    },
+    {
+      "why": "Authorization with a scheme and parameters, as Go prints http.Header",
+      "in": "map[Authorization:[Digest username=\"alice\", response=\"MADEUP\"] User-Agent:[rclone]]",
+      "out": "map[Authorization:[***] User-Agent:[rclone]]"
+    },
+    {
+      "why": "an API key header without x-",
+      "in": "Api-Key: MADEUPKEY7\nAccept: */*",
+      "out": "Api-Key: ***\nAccept: */*"
+    },
+    {
+      "why": "an access token header with a service's prefix",
+      "in": "Dropbox-Access-Token: MADEUPTOKEN8",
+      "out": "Dropbox-Access-Token: ***"
     }
   ]
 }
