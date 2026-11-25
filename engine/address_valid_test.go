@@ -96,6 +96,18 @@ func validRows() []validRow {
 		"https://cloud.example.com/remote.php/dav/files/alice/Notes\u2026/",
 		"https://nas.local/\uff26\uff4f\uff54\uff4f\uff53/",
 		"https://nas.local/%E5%86%99%E7%9C%9F/",
+		// Folders named with full-width punctuation, and no @.
+		"https://nas.local/dav/\u4f1a\u8bae\uff1a2024/",
+		"https://nas.local:5006/\u306a\u305c\uff1f/\u7b2c\uff031/\u4e0a\uff0f\u4e0b/",
+		"https://nas.local/dav/\u4f1a\u8bae%EF%BC%9A2024/",
+	)
+	// The same folders with an @ in the address are refused: a password
+	// needs an @ after it, so there the look-alikes could end one. The way
+	// out is the server's top folder as the address, or the user name and
+	// password in their own settings.
+	add("webdav", "url", reasonLookalike,
+		"https://alice:pw@nas:5006/dav/\u4f1a\u8bae\uff1a2024/",
+		"https://nas.local/dav/team@home/\u306a\u305c\uff1f/",
 	)
 	add("sftp", "host", "", "b\u00fccher.example", "\u0434\u0430\u0447\u0430.example", "\u4f8b\u3048.jp")
 	add("s3", "endpoint", "", "https://\u4f8b\u3048.jp", "minio.b\u00fccher.example:9000")
@@ -213,21 +225,42 @@ func TestValidAddresses(t *testing.T) {
 	if len(rows) < 150 {
 		t.Errorf("only %d rows", len(rows))
 	}
-	// Every character the look-alike rule names: each non-dot one in a
-	// folder is refused, each dot form is refused in the host and accepted
-	// in a folder (lookalike, shapeLookalikes).
-	for _, r := range "\uff20\ufe6b\uff1a\ufe55\uff0f\uff1f\uff03\ufe56\ufe5f\u2047\u2100" +
+	// Every character the look-alike rule names, one by one (lookalike,
+	// shapeLookalikes): a form of @ is refused anywhere; a form of : / ? #
+	// is refused in the authority, and in a folder only when the address
+	// holds an @; a dot form is refused in the authority and accepted in a
+	// folder.
+	for _, r := range "\uff20\ufe6b" {
+		for _, v := range []string{"https://nas.local/a" + string(r) + "b/", "https://nas" + string(r) + "local/", "nas.local/a" + string(r) + "b"} {
+			if a := readAddress(v, "url"); a.reason != reasonLookalike {
+				t.Errorf("%U in %q: got %q, want lookalike", r, v, a.reason)
+			}
+		}
+	}
+	for _, r := range "\uff1a\ufe55\uff0f\uff1f\uff03\ufe56\ufe5f\u2047\u2049\u2048\u2100" +
 		"\ua789\u2236\u02f8\u0589\u05c3\u2215\u2044\u29f8" {
-		if a := readAddress("https://nas.local/a"+string(r)+"b/", "url"); a.reason != reasonLookalike {
-			t.Errorf("%U in a folder: got %q, want lookalike", r, a.reason)
+		for _, v := range []string{"https://nas" + string(r) + "local/dav", "https://alice" + string(r) + "pw@nas/", "nas" + string(r) + "local"} {
+			if a := readAddress(v, "url"); a.reason != reasonLookalike {
+				t.Errorf("%U in the authority %q: got %q, want lookalike", r, v, a.reason)
+			}
+		}
+		if a := readAddress("https://nas.local/a"+string(r)+"b/", "url"); a.reason != "" {
+			t.Errorf("%U in a folder: got %q, want accepted", r, a.reason)
+		}
+		for _, v := range []string{"https://nas.local/a" + string(r) + "b/c@d/", "https://alice:pw@nas/a" + string(r) + "b/"} {
+			if a := readAddress(v, "url"); a.reason != reasonLookalike {
+				t.Errorf("%U in a folder with an @ %q: got %q, want lookalike", r, v, a.reason)
+			}
 		}
 	}
 	for _, r := range "\uff0e\ufe52\u2024\u3002\uff61\u2026" {
 		if a := readAddress("https://nas"+string(r)+"local/dav", "url"); a.reason != reasonLookalike {
 			t.Errorf("%U in a host: got %q, want lookalike", r, a.reason)
 		}
-		if a := readAddress("https://nas.local/a"+string(r)+"b/", "url"); a.reason != "" {
-			t.Errorf("%U in a folder: got %q, want accepted", r, a.reason)
+		for _, v := range []string{"https://nas.local/a" + string(r) + "b/", "https://alice:pw@nas/a" + string(r) + "b/"} {
+			if a := readAddress(v, "url"); a.reason != "" {
+				t.Errorf("%U in a folder %q: got %q, want accepted", r, v, a.reason)
+			}
 		}
 	}
 	// The ambiguous sentence's way out is in the strings KindsTest checks;

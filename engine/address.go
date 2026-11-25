@@ -354,23 +354,32 @@ func readAddress(s, name string) address {
 	return a
 }
 
-// The look-alike rule: an address may not hold a character that is a
-// compatibility or confusable form of one of the characters that give an
-// address its shape, @ : / ? # and the dot. Go's url package reads only the
-// ASCII ones, so with a full-width @ (U+FF20) in place of the @ before a host,
-// https://alice:2024/pass＠host reads as the host alice, the port 2024 and a
-// folder, the two-ways rule (ambiguousAt) finds no @ to refuse it by, and
-// every error that quotes the address repeats the password, the look-alike
-// written as %EF%BC%A0. A character counts when its NFKC form differs from
-// it and holds one of the six (＠ ﹫ ： ﹕ ／ ？ ﹖ ＃ ﹟ ．, and ⁇ or ℀ that
-// hold one), or when it is in shapeLookalikes, which NFKC leaves alone.
-// A dot form counts only in the host part: a folder may be named
-// "Notes…" (NFKC: three dots), but a host can't be. Letters in any script
-// stay: an international host name (bücher.example) and folders named in
-// any language are accepted.
+// The look-alike rule, in one sentence: an address setting may not hold a
+// look-alike of @ anywhere, nor a look-alike of : / ? # or the dot in its
+// authority (from the start to the first ASCII / ? or # after the scheme's
+// //), nor a look-alike of : / ? # in its path when the address holds an @.
+//
+// A look-alike is a character whose NFKC form differs from it and holds one
+// of @ : / ? # or the dot (＠ ﹫ ： ﹕ ／ ？ ﹖ ＃ ﹟ ． ⁉ ⁇ ℀ …), or one in
+// shapeLookalikes, which NFKC leaves alone. Go's url package reads only the
+// ASCII ones, and the rule covers the two ways that leaked a password:
+//   - a look-alike @ where the @ before a host goes:
+//     https://alice:2024/pass＠host reads as the host alice, the port 2024
+//     and a folder, the two-ways rule (ambiguousAt) finds no @ to refuse it
+//     by, and every error that quotes the address repeats the password (the
+//     look-alike written as %EF%BC%A0);
+//   - a look-alike colon in the authority, which Koofr's client rewrites
+//     into an address that keeps the password.
+//
+// Anywhere else the separators only matter around an @ (a password needs
+// one after it to end it), so without one a folder may be named with the
+// full-width colon, question mark, number sign or solidus that Chinese and
+// Japanese file names use, and dot forms in a folder are always accepted.
+// Letters in any script stay: an international host name (bücher.example)
+// and folders named in any script are accepted.
 func lookalike(s string) bool {
-	// The host part: from after the scheme's // (or the start) to the first
-	// / ? or #.
+	// The authority: from the start to the first / ? or # after the
+	// scheme's // (or after the start, without a scheme).
 	hostStart := 0
 	if m := schemeAhead.FindStringIndex(s); m != nil {
 		hostStart = m[1]
@@ -382,6 +391,7 @@ func lookalike(s string) bool {
 	if i := strings.IndexAny(s[hostStart:], "/?#"); i >= 0 {
 		hostEnd = hostStart + i
 	}
+	at := strings.Contains(s, "@")
 	for i, r := range s {
 		if r < 0x80 {
 			continue
@@ -392,7 +402,12 @@ func lookalike(s string) bool {
 				shape = n
 			}
 		}
-		if strings.ContainsAny(shape, "@:/?#") || strings.Contains(shape, ".") && i >= hostStart && i < hostEnd {
+		switch {
+		case strings.Contains(shape, "@"):
+			return true
+		case i < hostEnd && strings.ContainsAny(shape, ":/?#."):
+			return true
+		case at && strings.ContainsAny(shape, ":/?#"):
 			return true
 		}
 	}

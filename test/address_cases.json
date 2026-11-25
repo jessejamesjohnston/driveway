@@ -970,6 +970,38 @@
    "field": "host",
    "reason": "lookalike",
    "message": "address_lookalike"
+  },
+  {
+   "why": "a folder named with a full-width colon (U+FF1A), as Chinese and Japanese file names write one, and no @: accepted as typed",
+   "backend": "webdav",
+   "settings": {
+    "url": "https://nas.example/dav/会议：2024/"
+   },
+   "settings_out": {
+    "url": "https://nas.example/dav/会议：2024/"
+   },
+   "note": null
+  },
+  {
+   "why": "full-width question mark and number sign (U+FF1F, U+FF03) in folders of the HTTP kind, and no @: accepted as typed",
+   "backend": "http",
+   "settings": {
+    "url": "https://files.example.com/pub/なぜ？/第＃1/"
+   },
+   "settings_out": {
+    "url": "https://files.example.com/pub/なぜ？/第＃1/"
+   },
+   "note": null
+  },
+  {
+   "why": "the same folder with a user name and password in the address: with an @ present, a look-alike in the path is refused",
+   "backend": "webdav",
+   "settings": {
+    "url": "https://alice:pwMADEUP14@nas.example/dav/会议：2024/"
+   },
+   "field": "url",
+   "reason": "lookalike",
+   "message": "address_lookalike"
   }
  ]
 }
