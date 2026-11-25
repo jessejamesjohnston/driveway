@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	"github.com/rclone/rclone/fs"
+	"golang.org/x/text/unicode/norm"
 )
 
 // addressName is the name of a setting that holds an address, as rclone's
@@ -69,6 +70,8 @@ const (
 	// the first, so a user name or password can't hold one there, and the
 	// rest would reach its error as the proxy's host.
 	reasonProxyAt = "proxyat"
+	// A character that looks like one of @ : / ? # . but isn't (lookalike).
+	reasonLookalike = "lookalike"
 )
 
 // What became of a user name and password typed in an address, on a kind
@@ -279,6 +282,9 @@ type address struct {
 var schemeAhead = regexp.MustCompile(`^([A-Za-z][A-Za-z0-9+.-]*):/`)
 
 func readAddress(s, name string) address {
+	if lookalike(s) {
+		return address{reason: reasonLookalike}
+	}
 	hostOnly := hostName.MatchString(name)
 	m := schemeAhead.FindStringSubmatch(s)
 	if m == nil {
@@ -346,4 +352,61 @@ func readAddress(s, name string) address {
 		a.hasUser = true
 	}
 	return a
+}
+
+// The look-alike rule: an address may not hold a character that is a
+// compatibility or confusable form of one of the characters that give an
+// address its shape, @ : / ? # and the dot. Go's url package reads only the
+// ASCII ones, so with a full-width @ (U+FF20) in place of the @ before a host,
+// https://alice:2024/pass＠host reads as the host alice, the port 2024 and a
+// folder, the two-ways rule (ambiguousAt) finds no @ to refuse it by, and
+// every error that quotes the address repeats the password, the look-alike
+// written as %EF%BC%A0. A character counts when its NFKC form differs from
+// it and holds one of the six (＠ ﹫ ： ﹕ ／ ？ ﹖ ＃ ﹟ ．, and ⁇ or ℀ that
+// hold one), or when it is in shapeLookalikes, which NFKC leaves alone.
+// A dot form counts only in the host part: a folder may be named
+// "Notes…" (NFKC: three dots), but a host can't be. Letters in any script
+// stay: an international host name (bücher.example) and folders named in
+// any language are accepted.
+func lookalike(s string) bool {
+	// The host part: from after the scheme's // (or the start) to the first
+	// / ? or #.
+	hostStart := 0
+	if m := schemeAhead.FindStringIndex(s); m != nil {
+		hostStart = m[1]
+		for hostStart < len(s) && s[hostStart] == '/' {
+			hostStart++
+		}
+	}
+	hostEnd := len(s)
+	if i := strings.IndexAny(s[hostStart:], "/?#"); i >= 0 {
+		hostEnd = hostStart + i
+	}
+	for i, r := range s {
+		if r < 0x80 {
+			continue
+		}
+		shape := shapeLookalikes[r]
+		if shape == "" {
+			if n := norm.NFKC.String(string(r)); n != string(r) {
+				shape = n
+			}
+		}
+		if strings.ContainsAny(shape, "@:/?#") || strings.Contains(shape, ".") && i >= hostStart && i < hostEnd {
+			return true
+		}
+	}
+	return false
+}
+
+// shapeLookalikes are confusable forms of @ : / and the dot that NFKC leaves
+// as they are, with the character each looks like: colons (the modifier
+// letter colon, the ratio sign, the raised colon, the Armenian full stop,
+// the Hebrew sof pasuq), slashes (the division and fraction slashes, the big
+// solidus), and the ideographic full stops a Japanese or Chinese keyboard
+// types for a dot (which international host names read as one).
+var shapeLookalikes = map[rune]string{
+	'\ua789': ":", '\u2236': ":", '\u02f8': ":", '\u0589': ":", '\u05c3': ":",
+	'\u2215': "/", '\u2044': "/", '\u29f8': "/",
+	'\u3002': ".", '\uff61': ".",
 }

@@ -365,6 +365,8 @@ final class Kinds {
         return R.string.address_ambiguous_escape;
       case "proxyat":
         return R.string.address_proxy_at;
+      case "lookalike":
+        return R.string.address_lookalike;
       default:
         return R.string.address_unreadable;
     }

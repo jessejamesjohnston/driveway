@@ -910,6 +910,66 @@
    "field": "socks_proxy",
    "reason": "proxyat",
    "message": "address_proxy_at"
+  },
+  {
+   "why": "a full-width @ (U+FF20) where the @ before the host goes, after a digits port: Go reads host alice, port 2024 and a folder, and errors repeat the password",
+   "backend": "webdav",
+   "settings": {
+    "url": "https://alice:2024/pwMADEUP9＠nas.example.com/"
+   },
+   "field": "url",
+   "reason": "lookalike",
+   "message": "address_lookalike"
+  },
+  {
+   "why": "a small @ (U+FE6B) after an empty port",
+   "backend": "webdav",
+   "settings": {
+    "url": "https://alice:/pwMADEUP10﹫nas/"
+   },
+   "field": "url",
+   "reason": "lookalike",
+   "message": "address_lookalike"
+  },
+  {
+   "why": "a full-width colon (U+FF1A) between a user name and a password: Koofr's client rewrites the address into a form that keeps the password",
+   "backend": "koofr",
+   "settings": {
+    "endpoint": "https://alice：2024/pwMADEUP11@nas/"
+   },
+   "field": "endpoint",
+   "reason": "lookalike",
+   "message": "address_lookalike"
+  },
+  {
+   "why": "a modifier letter colon (U+A789), which NFKC leaves as it is",
+   "backend": "koofr",
+   "settings": {
+    "endpoint": "https://alice꞉/pwMADEUP12@nas/"
+   },
+   "field": "endpoint",
+   "reason": "lookalike",
+   "message": "address_lookalike"
+  },
+  {
+   "why": "a full-width solidus (U+FF0F) in a password, in the HTTP kind, whose sign-in stays in the address",
+   "backend": "http",
+   "settings": {
+    "url": "https://alice:2024／pwMADEUP13@files.example.com/"
+   },
+   "field": "url",
+   "reason": "lookalike",
+   "message": "address_lookalike"
+  },
+  {
+   "why": "a full-width full stop (U+FF0E) in a host",
+   "backend": "sftp",
+   "settings": {
+    "host": "nas．example．com"
+   },
+   "field": "host",
+   "reason": "lookalike",
+   "message": "address_lookalike"
   }
  ]
 }

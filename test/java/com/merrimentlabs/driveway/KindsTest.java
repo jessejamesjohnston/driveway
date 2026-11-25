@@ -174,7 +174,7 @@ public final class KindsTest {
     // Every reason the engine gives has its own sentence, and each names the field (its first argument).
     String xml = new String(java.nio.file.Files.readAllBytes(new java.io.File("res/values/strings.xml").toPath()),
         java.nio.charset.StandardCharsets.UTF_8);
-    for (String reason : new String[] {"scheme", "hostonly", "login", "escape", "port", "credentials", "ambiguous", "ambiguousescape", "proxyat", "unreadable"}) {
+    for (String reason : new String[] {"scheme", "hostonly", "login", "escape", "port", "credentials", "ambiguous", "ambiguousescape", "proxyat", "lookalike", "unreadable"}) {
       for (Kinds.Kind k : new Kinds.Kind[] {Kinds.WEBDAV, Kinds.of("http")}) {
         String name = null;
         for (java.lang.reflect.Field f : R.string.class.getFields()) {

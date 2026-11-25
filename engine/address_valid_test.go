@@ -83,6 +83,30 @@ func validRows() []validRow {
 		"http://localhost:8080/me@example.com/",
 		"https://nas.local:8443/team@home/x",
 	)
+	// International host names and folders named in other scripts: the
+	// look-alike rule refuses only forms of @ : / ? # and the dot.
+	add("webdav", "url", "",
+		"https://\u0434\u0430\u0447\u0430.example/dav",
+		"https://\u4f8b\u3048.jp/dav/",
+		"https://xn--r8jz45g.jp/dav/",
+		"https://\u00e9t\u00e9-caf\u00e9.example:8443/remote.php/dav/files/alice/",
+		"https://nas.local/\u0424\u043e\u0442\u043e/2024/",
+		"https://nas.local:5006/\u5199\u771f/\u65c5\u884c/",
+		"https://cloud.example.com/remote.php/dav/files/alice/Gr\u00f6\u00dfe Dateien/",
+		"https://cloud.example.com/remote.php/dav/files/alice/Notes\u2026/",
+		"https://nas.local/\uff26\uff4f\uff54\uff4f\uff53/",
+		"https://nas.local/%E5%86%99%E7%9C%9F/",
+	)
+	add("sftp", "host", "", "b\u00fccher.example", "\u0434\u0430\u0447\u0430.example", "\u4f8b\u3048.jp")
+	add("s3", "endpoint", "", "https://\u4f8b\u3048.jp", "minio.b\u00fccher.example:9000")
+	// A look-alike of @ : / ? # (anywhere) or of the dot (in the host).
+	add("webdav", "url", reasonLookalike,
+		"https://nas.local:5006/alice\uff20example.com/",
+		"https://nas\uff0elocal/dav",
+		"https://\u4f8b\u3048\u3002jp/dav",
+		"https\uff1a//nas.local/dav",
+		"https://nas.local\uff0fdav",
+	)
 	add("http", "url", "",
 		"https://files.example.com/",
 		"https://user:pass@files.example.com/pub/",
