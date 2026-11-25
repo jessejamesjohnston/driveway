@@ -227,7 +227,14 @@ final class Servers {
   /** Adds the server, or replaces the one with the same id. */
   synchronized void save(Server server) throws Exception {
     List<Server> before = new ArrayList<>(servers);
-    push(server);
+    try {
+      push(server);
+    } catch (Exception e) {
+      // The engine refused the new settings and dropped the old ones with
+      // them: the saved server goes back to the engine as it was.
+      for (Server s : before) if (s.id.equals(server.id)) pushSaved(s);
+      throw e;
+    }
     Server copy = server.copy();
     boolean replaced = false;
     for (int i = 0; i < servers.size(); i++) {

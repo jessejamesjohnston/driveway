@@ -1819,6 +1819,11 @@ public final class ServerActivity extends Activity implements Connection.Listene
       if (a.problem != 0) {
         View field = a.field == null ? null : inputs.get(a.field);
         String problem = a.field == null ? getString(a.problem) : addressSentence(a.problem, a.field);
+        // Shown on the status line (testThen) and remembered as a refusal
+        // said on leaving the field, so it goes once the field is put right.
+        urlSaid = problem;
+        urlSaidField = a.field;
+        urlSaidNote = false;
         if (field != null) throw new Missing(problem, field);
         throw new IllegalArgumentException(problem);
       }
