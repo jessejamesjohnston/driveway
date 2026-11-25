@@ -27,8 +27,10 @@ About) you tested. You will get an answer as soon as I can manage; this is a one
   an `@` comes after it, `https://alice:2024/word@host` reads as a user name and a password with
   a `/` in it as easily as a server, a port and a folder. The check refuses it, whatever the
   host or user name looks like and however far down the `@` is; nothing in it is moved, and the
-  sentence gives both ways out (the login in User name and Password, or `%40` for an `@` in a
-  folder's name, as in `https://host:8443/remote.php/dav/files/me%40example.com/`). A
+  sentence gives both ways out: for an `@` in a folder's name, `%40` (as in
+  `https://host:8443/remote.php/dav/files/me%40example.com/`); for a password, User name and
+  Password where the service has them, `%2F` for a `/` where its sign-in stays in the address
+  (the HTTP kind, a proxy), and otherwise that a user name and password can't go there. A
   generated test (`engine/address_matrix_test.go`) puts every combination of user name,
   password, host and folder shapes into every address setting rclone has and checks the verdict,
   the redaction of Go's errors, and, with the network cut, what a connection attempt returns and
@@ -46,10 +48,9 @@ About) you tested. You will get an answer as soon as I can manage; this is a one
   fragment, and its user name and password in the shapes the cases file covers (among them an
   address Go couldn't read and a scheme typed twice or with one slash). An address that reads two
   ways (the same rule, for text the check never saw) loses everything from its `//` to its last
-  `@`, and an
-  address with an `@` in its path loses the path up to that `@` (Go's HTTP client drops an empty
-  port, and with it the colon a password followed), so a folder's name can be lost from the log
-  but its host stays; it replaces with `***` the values of settings, JSON and XML fields
+  `@`, host and port included, and an address with an `@` in its path loses the path up to that
+  `@` but keeps its host (Go's HTTP client drops an empty port, and with it the colon a password
+  followed); it replaces with `***` the values of settings, JSON and XML fields
   and HTTP headers named like credentials (the whole value of `Authorization`, also written as a
   setting, and of a mnemonic or passphrase of several words), private key blocks of any length,
   and the tokens some services put in an

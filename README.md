@@ -175,9 +175,11 @@ versions (the SDK's build-tools are not), and `javac -Xlint:all` runs with warni
 and `./build.sh test` runs the engine's checks against all of them: 192 Go tests (with 89
 subtests), including a fake backend that fails at every step of a save, an NFS check that
 an operation given up on mid-flight changes nothing afterward, and a check that generates
-about 1.8 million addresses with a password typed into every address setting of every service:
-none is accepted with the password left in it, Go's errors about them come out of redaction
-without it, and for a pairwise sample a connection attempt returns and logs none of it. Engine statement coverage is
+22,176 addresses with a password typed in and puts each into every one of the 72 address
+settings rclone has (about 1.8 million checks): none is accepted with the password left in it,
+except where the service's own sign-in stays in the address (the HTTP kind, a proxy); Go's
+errors about them come out of redaction without it; and for a pairwise sample a connection
+attempt returns and logs none of it. Engine statement coverage is
 measured by `./build.sh cover`. 625 plain-Java checks cover the service catalog, the Server
 field and the address check, the New labels, error messages, log redaction, the update check, and the wording rules every string
 follows. On an emulator, a debug-only harness drives the app through Android's documents API
