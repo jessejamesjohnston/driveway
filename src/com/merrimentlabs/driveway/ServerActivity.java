@@ -1652,10 +1652,14 @@ public final class ServerActivity extends Activity implements Connection.Listene
     EditText field = (EditText) uv;
     boolean login = Kinds.takesLogin(kind);
     Kinds.UrlParts u = Kinds.urlParts(field.getText().toString(), key.equals("url"), login);
+    // What the last time focus left the field said goes, unless it still holds.
+    if (leaving && urlSaid != null && urlSaid.contentEquals(formStatus.getText())) formStatus.setText("");
+    if (leaving) urlSaid = null;
     if (u.problem != 0) {
       String problem = getString(u.problem, fieldLabel(key), fieldLabel("user"), fieldLabel("pass"));
       if (leaving) {
         formStatus.setText(problem);
+        urlSaid = problem;
         return;
       }
       throw new Missing(problem, field);
@@ -1669,9 +1673,16 @@ public final class ServerActivity extends Activity implements Connection.Listene
     String note = u.pass != null
         ? getString(R.string.address_url_moved, fieldLabel(key), fieldLabel("user"), fieldLabel("pass"))
         : getString(R.string.address_url_user_moved, fieldLabel(key), fieldLabel("user"));
-    if (leaving) formStatus.setText(note);
-    else addressNote = note;
+    if (leaving) {
+      formStatus.setText(note);
+      urlSaid = note;
+    } else {
+      addressNote = note;
+    }
   }
+
+  /** What the status line was given when focus last left an address field. */
+  private String urlSaid;
 
   private Servers.Server collect() throws IllegalArgumentException {
     splitAddress();
