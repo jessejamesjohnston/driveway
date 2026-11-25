@@ -93,6 +93,33 @@ public final class KindsTest {
   }
 
   /**
+   * Focus leaving the Server field (or Connect): what Server and Port then
+   * hold, and the line that says where the port went.
+   */
+  private static void leavingTheServerField() {
+    Kinds.Split s = Kinds.split("nas.local:2222", "", "22", "sftp");
+    check(s.address.problem == 0 && s.host.equals("nas.local") && s.port.equals("2222")
+        && s.note == R.string.address_port_set && s.replaced == null,
+        "leaving Server: nas.local:2222 with Port empty -> Server nas.local, Port 2222, says the port moved");
+    s = Kinds.split(" nas.local:2222 ", "22", "22", "sftp");
+    check(s.host.equals("nas.local") && s.port.equals("2222") && s.note == R.string.address_port_set,
+        "leaving Server: Port holding the default counts as empty");
+    s = Kinds.split("nas.local:2222", "2200", "22", "sftp");
+    check(s.host.equals("nas.local") && s.port.equals("2222") && s.note == R.string.address_port_moved
+        && "2200".equals(s.replaced), "leaving Server: the typed port replaces another, and says which");
+    s = Kinds.split("nas.local:2222", "2222", "22", "sftp");
+    check(s.host.equals("nas.local") && s.port.equals("2222") && s.note == 0, "leaving Server: the same port, nothing to say");
+    s = Kinds.split("nas.local", "2200", "22", "sftp");
+    check(s.host.equals("nas.local") && s.port.equals("2200") && s.note == 0, "leaving Server: no port typed, Port as it was");
+    s = Kinds.split("[2001:db8::1]:445", "", "445", "smb");
+    check(s.host.equals("2001:db8::1") && s.port.equals("445") && s.note == R.string.address_port_set,
+        "leaving Server: a bracketed IPv6 address and its port");
+    s = Kinds.split("nas.local:ssh", "2200", "22", "sftp");
+    check(s.address.problem == R.string.address_port_bad && s.host.equals("nas.local:ssh") && s.port.equals("2200")
+        && s.note == 0, "leaving Server: what can't be used stays as typed, Port untouched");
+  }
+
+  /**
    * "host:port" in the Server field (the port has its own setting): which
    * kinds split it, and how every shape of address splits, against the real
    * catalog.
@@ -107,6 +134,8 @@ public final class KindsTest {
         "Server fields that take a port: SFTP, SMB, NFS, FTP (got " + splits + ")");
     check(Kinds.other("quatrix") != null && !Kinds.takesPort(Kinds.other("quatrix")),
         "Quatrix's account address (no Port setting) is left as typed");
+
+    leavingTheServerField();
 
     // A host alone, and with a port.
     address("sftp", "nas.local", "nas.local", null, 0, null);

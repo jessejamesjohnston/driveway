@@ -1278,6 +1278,12 @@ public final class ServerActivity extends Activity implements Connection.Listene
         boolean optional = !Kinds.required(kind, f, server.params);
         EditText e = FormViews.field(this, parent, f.label + (optional && !f.advanced ? getString(R.string.optional) : ""), hint, value, type);
         inputs.put(f.key, e);
+        // A port typed after the name moves to Port as soon as focus leaves Server.
+        if (f.key.equals("host") && Kinds.takesPort(kind)) {
+          e.setOnFocusChangeListener((v, has) -> {
+            if (!has && form != null && !busy()) splitAddress(true);
+          });
+        }
       }
     }
   }
@@ -1559,6 +1565,10 @@ public final class ServerActivity extends Activity implements Connection.Listene
 
   /** What splitting the Server field changed that the form should say (a port that replaced another), or null. */
   private String addressNote;
+  /** The port addressNote names, from when focus left the Server field. */
+  private String addressNotePort;
+  /** What the status line was given when focus last left the Server field. */
+  private String leftSaid;
 
   /**
    * "host:port" in the Server field: the host stays there and the port goes
@@ -1569,26 +1579,58 @@ public final class ServerActivity extends Activity implements Connection.Listene
    * field, never looked up as a name.
    */
   private void splitAddress() {
-    addressNote = null;
+    splitAddress(false);
+  }
+
+  /**
+   * leaving: focus just left the Server field. A port moved then says so on
+   * the form's status line; what can't be used is said there too and left
+   * as typed (Connect points to the field). On Connect a problem stops it.
+   */
+  private void splitAddress(boolean leaving) {
     if (!Kinds.takesPort(kind)) return;
     View hv = inputs.get("host"), pv = inputs.get("port");
     if (!(hv instanceof EditText) || !(pv instanceof EditText)) return;
     EditText hostField = (EditText) hv, portField = (EditText) pv;
-    Kinds.Address a = Kinds.address(hostField.getText().toString(), kind.backend);
+    String fallback = "";
+    for (Kinds.Field f : kind.fields) if (f.key.equals("port")) fallback = f.fallback;
+    Kinds.Split sp = Kinds.split(hostField.getText().toString(), portField.getText().toString(), fallback, kind.backend);
+    Kinds.Address a = sp.address;
+    // What the last time focus left the field said goes, unless it still holds.
+    if (leaving && leftSaid != null && leftSaid.contentEquals(formStatus.getText())) formStatus.setText("");
+    leftSaid = null;
     if (a.problem != 0) {
       String hostLabel = getString(R.string.name);
       for (Kinds.Field f : kind.fields) if (f.key.equals("host")) hostLabel = f.label;
-      throw new Missing(getString(a.problem, a.bad, a.problem == R.string.address_scheme ? kind.label : hostLabel), hostField);
+      String problem = getString(a.problem, a.bad, a.problem == R.string.address_scheme ? kind.label : hostLabel);
+      if (leaving) {
+        formStatus.setText(problem);
+        leftSaid = problem;
+        return;
+      }
+      addressNote = null;
+      throw new Missing(problem, hostField);
     }
-    if (!a.host.equals(hostField.getText().toString().trim())) hostField.setText(a.host);
-    if (a.port == null) return;
-    String before = portField.getText().toString().trim();
-    String fallback = "";
-    for (Kinds.Field f : kind.fields) if (f.key.equals("port")) fallback = f.fallback;
-    if (!before.isEmpty() && !before.equals(fallback) && !before.equals(a.port)) {
-      addressNote = getString(R.string.address_port_moved, a.port, before);
+    if (!sp.host.equals(hostField.getText().toString().trim())) hostField.setText(sp.host);
+    if (!sp.port.equals(portField.getText().toString())) portField.setText(sp.port);
+    String note = sp.note == 0 ? null : sp.note == R.string.address_port_moved
+        ? getString(sp.note, sp.port, sp.replaced) : getString(sp.note, sp.port);
+    if (leaving) {
+      if (note != null) formStatus.setText(note);
+      leftSaid = note;
+      // A replaced port is said again on the connecting screen, while Port still holds it.
+      if (sp.note == R.string.address_port_moved) {
+        addressNote = note;
+        addressNotePort = sp.port;
+      }
+      return;
     }
-    if (!before.equals(a.port)) portField.setText(a.port);
+    if (sp.note == R.string.address_port_moved) {
+      addressNote = note;
+    } else if (sp.note != 0 || addressNotePort == null || !addressNotePort.equals(portField.getText().toString().trim())) {
+      addressNote = null;
+    }
+    addressNotePort = null;
   }
 
   private Servers.Server collect() throws IllegalArgumentException {

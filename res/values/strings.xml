@@ -113,6 +113,7 @@
   <string name="address_folder">Type just the server\'s name or address here, without %1$s. A folder goes in Start in folder, under More settings.</string>
   <string name="address_user">Type just the server\'s name or address here, without \"%1$s\"</string>
   <string name="address_ipv6">An IPv6 address with a port goes in brackets, like [2001:db8::1]:2222</string>
+  <string name="address_port_set">Port %1$s, typed with the server\'s name, is now in Port under More settings</string>
   <string name="address_port_moved">Port %1$s, typed with the server\'s name, replaces %2$s in Port under More settings</string>
   <string name="connect">Connect</string>
   <string name="save">Save</string>

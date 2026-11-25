@@ -181,6 +181,46 @@ final class Kinds {
   }
 
   /** Whether the kind has a Server (host) setting and a Port setting of its own. */
+  /**
+   * What the form does with the Server field when focus leaves it (and on
+   * Connect): a port typed after the name moves to Port, and wins over a
+   * different one already there.
+   */
+  static final class Split {
+    /** Why what was typed can't be used (an R.string id, see Address), or 0: then nothing changes. */
+    final Address address;
+    /** What Server shows afterwards. */
+    final String host;
+    /** What Port holds afterwards (as it was when no port was typed). */
+    final String port;
+    /**
+     * The line saying where the port went (an R.string id), or 0 when it
+     * didn't move: address_port_moved when it replaced another port (the
+     * one in replaced), address_port_set when Port was empty or held the
+     * default.
+     */
+    final int note;
+    final String replaced;
+
+    Split(Address address, String host, String port, int note, String replaced) {
+      this.address = address;
+      this.host = host;
+      this.port = port;
+      this.note = note;
+      this.replaced = replaced;
+    }
+  }
+
+  static Split split(String typed, String portNow, String fallback, String backend) {
+    Address a = address(typed, backend);
+    String before = portNow.trim();
+    if (a.problem != 0) return new Split(a, typed, portNow, 0, null);
+    if (a.port == null || a.port.equals(before)) return new Split(a, a.host, portNow, 0, null);
+    boolean replaces = !before.isEmpty() && !before.equals(fallback);
+    return new Split(a, a.host, a.port, replaces ? R.string.address_port_moved : R.string.address_port_set,
+        replaces ? before : null);
+  }
+
   static boolean takesPort(Kind k) {
     boolean host = false, port = false;
     for (Field f : k.fields) {

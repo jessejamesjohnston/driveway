@@ -22,8 +22,8 @@ The first public release.
 - The SFTP form's Server hint matches the other forms ("nas.local or 192.168.1.10").
 - A server that can't sign in again offers Remove on its card.
 - The Server field of SFTP, SMB, NFS and FTP accepts a port after the name, like
-  `nas.local:2222` or `[2001:db8::1]:2222`: the port moves to Port under More settings, and wins
-  over a different one already there (the form says so). A port that isn't a number from 1 to
+  `nas.local:2222` or `[2001:db8::1]:2222`: as soon as you leave the field, the port moves to Port
+  under More settings, and wins over a different one already there (the form says so). A port that isn't a number from 1 to
   65535, a folder, a user name, or another kind of server's address (`https://...`) is pointed
   out on the form instead of failing as "can't reach".
 - An error says what happened and what to do next, in Driveway's own words, on a server's card,
