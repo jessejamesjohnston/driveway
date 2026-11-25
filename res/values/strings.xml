@@ -184,6 +184,7 @@
   <string name="open_page_again">Open the page again</string>
   <string name="cancel_sign_in">Cancel sign-in</string>
   <string name="setup_question">%1$s asks: %2$s</string>
+  <string name="setup_answer_refused">%1$s couldn\'t use the last answer. Check it, or choose another, and continue.</string>
   <string name="err_setup">Signed in, but Driveway couldn\'t finish connecting to %1$s. Try again.</string>
   <string name="err_setup_ended">Setting up %1$s stopped before it finished. Check your answers, or choose another option where it asks, then connect again.</string>
   <string name="answer">Continue</string>
