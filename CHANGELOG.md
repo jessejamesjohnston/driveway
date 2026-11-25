@@ -32,8 +32,11 @@ The first public release.
   (`https://you:password@host/dav`) move to User name and Password when those are empty; when
   they already hold a login, that one is used and the address's copy is taken out. The form says
   which. An address Driveway can't use, such as one without `https://`, with a stray `%`, or with
-  a password that holds a space, a quote or a slash, is pointed out on its field, without
-  repeating it, instead of failing as "can't reach". A saved server whose address can't be used
+  a password that holds a space or a quote, is pointed out on its field, without repeating it,
+  instead of failing as "can't reach". So is one that reads two ways, like a password with a `/`
+  in it typed after the user name, which looks like a server, a port and a folder with an `@`:
+  the form says to type the login in User name and Password, or to write an `@` in a folder's
+  name as `%40`. A saved server whose address can't be used
   says so on its card and in Files, naming the setting to change.
 - An error says what happened and what to do next, in Driveway's own words, on a server's card,
   in Files and in a failed save's notification. The technical detail from the server or the

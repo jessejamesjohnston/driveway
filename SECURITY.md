@@ -19,9 +19,20 @@ About) you tested. You will get an answer as soon as I can manage; this is a one
   those are empty; when they hold a login, that login is used and the address's copy is taken
   out, and the form says which. A service without such settings refuses a user name and password
   in an address, except where rclone documents the address as the way to sign in (the HTTP kind,
-  a proxy). An address Go's url package can't read (a password with a space or a quote in it, a
-  stray `%`, a missing `https://`) is refused before it reaches rclone, naming the setting and
-  never repeating the address, because Go's own error repeats the address whole. Settings the
+  a proxy); Storj's satellite address takes only a node ID before its `@`. An address Go's url
+  package can't read (a password with a space or a quote in it, a stray `%`, a missing
+  `https://`) is refused before it reaches rclone, naming the setting and never repeating the
+  address, because Go's own error repeats the address whole. One rule covers an address that
+  reads two ways: when what follows the last colon of its authority is empty or only digits and
+  an `@` comes after it, `https://alice:2024/word@host` reads as a user name and a password with
+  a `/` in it as easily as a server, a port and a folder. The check refuses it, whatever the
+  host or user name looks like and however far down the `@` is; nothing in it is moved, and the
+  sentence gives both ways out (the login in User name and Password, or `%40` for an `@` in a
+  folder's name, as in `https://host:8443/remote.php/dav/files/me%40example.com/`). A
+  generated test (`engine/address_matrix_test.go`) puts every combination of user name,
+  password, host and folder shapes into every address setting rclone has and checks the verdict,
+  the redaction of Go's errors, and, with the network cut, what a connection attempt returns and
+  logs. Settings the
   engine refuses replace the server's earlier ones, so nothing goes on working on the settings
   the person changed.
 - **What reaches the log.** An error's text can carry a credential: some services put an API key
@@ -33,8 +44,12 @@ About) you tested. You will get an answer as soon as I can manage; this is a one
   the app's and the harness's code for any log call or console write that goes around it.
   Redaction keeps an address's scheme, host, port and path and drops its query string and
   fragment, and its user name and password in the shapes the cases file covers (among them an
-  address Go couldn't read, a scheme typed twice or with one slash, and a password that starts
-  with digits and holds a `/`); it replaces with `***` the values of settings, JSON and XML fields
+  address Go couldn't read and a scheme typed twice or with one slash). An address that reads two
+  ways (the same rule, for text the check never saw) loses everything from its `//` to its last
+  `@`, and an
+  address with an `@` in its path loses the path up to that `@` (Go's HTTP client drops an empty
+  port, and with it the colon a password followed), so a folder's name can be lost from the log
+  but its host stays; it replaces with `***` the values of settings, JSON and XML fields
   and HTTP headers named like credentials (the whole value of `Authorization`, also written as a
   setting, and of a mnemonic or passphrase of several words), private key blocks of any length,
   and the tokens some services put in an

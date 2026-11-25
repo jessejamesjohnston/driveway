@@ -30,6 +30,26 @@ them:
   the engine, and `KindsTest` runs the same cases through the form's side, answered with the real
   engine's verdicts (written by `TestAddressVerdictsJSON`). `TestEveryAddressSettingClassified`
   fails on any setting rclone describes as an address that the check doesn't know.
+- `engine/address_matrix_test.go` generates the addresses instead of listing them: 7 user name
+  shapes, 33 password shapes (each with a marker on both sides of what makes it hard), 8 hosts
+  and 6 folders, with and without `https://`, in every address setting of every service rclone
+  has, with and without a login in User name and Password. `TestAddressMatrix` runs the check on
+  all of them (about 1.8 million runs) and asserts that a refusal never repeats the password, an
+  accepted address keeps no password except where the service's own sign-in stays in it (the
+  HTTP kind, a proxy), and a login moves whole or not at all; it then runs the redactor on every error Go writes about them (its parse
+  error, and a request's error as the HTTP client prints it). `TestAddressMatrixNetwork` calls
+  SetRemote and Check, with the network cut, for a pairwise sample of the accepted ones (every
+  pair of a setting and a shape, or of two shapes, at least once; `DRIVEWAY_MATRIX_FULL=1` runs
+  every accepted value that keeps the password in an address) and of the refused ones, and
+  asserts that no returned error, log line or request holds the password. It also names the
+  settings a connection attempt doesn't reach (a service that stops first for want of a key or a
+  sign-in): for those, the check's own assertion is what stands. `TestValidAddresses` holds 155
+  realistic addresses with the verdict each must get, and `TestPercent40OnServer` lists a folder
+  named for an email address through a `%40` address on the WebDAV test server. It runs itself inside
+  a namespace with no network (`bwrap --unshare-net`) when it can, and otherwise in-process with
+  requests sent to a proxy that answers none, name lookups failing and connections bound to the
+  loopback address. `TestRedactGenJSON` writes the redactor's output for every generated error,
+  and `LogsTest` requires the app's redactor to give the same.
 - `TestRefusedReplace` checks that settings SetRemote refuses leave nothing of the server's
   earlier settings working, and `TestServerTextIsNoSettingsError` that a server's own answer is
   never taken for a settings error.
