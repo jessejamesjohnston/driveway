@@ -268,10 +268,14 @@ final class Kinds {
    * without brackets ("::1", two colons or more) is a host with no port. A
    * trailing colon has no port. Anything else that can't be a host (a port
    * that isn't 1 to 65535, another kind's link, a folder, a user name before
-   * an "@") is a problem, said in plain words, never a host to look up.
+   * an "@") is a problem, said in plain words, never a host to look up. On
+   * SMB, the Windows form "\\nas\share" is read as "nas/share": the
+   * name, and a folder said in the form it was typed.
    */
   static Address address(String typed, String backend) {
     String s = typed.trim();
+    boolean windows = backend.equals("smb") && s.indexOf('\\') >= 0;
+    if (windows) s = s.replaceFirst("^\\\\\\\\", "").replace('\\', '/');
     java.util.regex.Matcher m = java.util.regex.Pattern.compile("^([A-Za-z][A-Za-z0-9+.-]*)://(.*)$").matcher(s);
     if (m.matches()) {
       String scheme = m.group(1).toLowerCase(java.util.Locale.ROOT);
@@ -280,7 +284,10 @@ final class Kinds {
     }
     int slash = s.indexOf('/');
     if (slash >= 0) {
-      if (!s.substring(slash).matches("/*")) return new Address(s, null, R.string.address_folder, s.substring(slash));
+      if (!s.substring(slash).matches("/*")) {
+        String folder = s.substring(slash);
+        return new Address(s, null, R.string.address_folder, windows ? folder.replace('/', '\\') : folder);
+      }
       s = s.substring(0, slash);
     }
     int at = s.lastIndexOf('@');

@@ -198,6 +198,12 @@ public final class KindsTest {
     address("sftp", "sftp://nas.local:22/srv/files", null, null, R.string.address_folder, "/srv/files");
     address("smb", "smb://nas.local/share", null, null, R.string.address_folder, "/share");
     address("smb", "nas.local/share", null, null, R.string.address_folder, "/share");
+    // SMB's Windows form: the name is understood, a share is pointed out as typed.
+    address("smb", "\\\\nas", "nas", null, 0, null);
+    address("smb", "\\\\nas.local\\", "nas.local", null, 0, null);
+    address("smb", "\\\\nas\\share", null, null, R.string.address_folder, "\\share");
+    address("smb", "\\\\192.0.2.10\\share\\photos", null, null, R.string.address_folder, "\\share\\photos");
+    address("smb", "nas\\share", null, null, R.string.address_folder, "\\share");
     address("sftp", "https://cloud.example.com/dav", null, null, R.string.address_scheme, "https://");
     address("sftp", "smb://nas.local", null, null, R.string.address_scheme, "smb://");
     address("nfs", "ftp://nas.local", null, null, R.string.address_scheme, "ftp://");
