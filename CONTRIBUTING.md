@@ -18,9 +18,10 @@ computer with USB or wireless debugging on, reproduce the problem, and run:
 adb logcat -d -s Driveway GoLog > driveway-log.txt
 ```
 
-`Driveway` is the app's own lines, `GoLog` the file engine's. The log names your servers, their
-addresses and the files you opened, so read it through and remove anything personal before you
-attach it.
+`Driveway` is the app's own lines, `GoLog` the file engine's. Driveway takes passwords, API keys
+and sign-in tokens out of what it logs, but it finds them by their shape, so read the log through
+before you attach it anyway. Remove any API key, token or password you still find, and anything
+personal: the log names your servers, their addresses, your user names and the files you opened.
 
 ## Pull requests
 

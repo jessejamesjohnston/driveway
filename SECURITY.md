@@ -10,8 +10,22 @@ About) you tested. You will get an answer as soon as I can manage; this is a one
 ## What is in scope
 
 - **Stored sign-ins** (`Servers.java`): passwords, keys, key files and tokens are kept in the
-  server list, encrypted under an Android Keystore key, excluded from backup (`allowBackup` is off)
-  and never logged.
+  server list, encrypted under an Android Keystore key and excluded from backup (`allowBackup` is
+  off). The app never writes them to its log.
+- **What reaches the log.** An error's text can carry a credential: some services put an API key
+  or token in the request address (premiumize.me, Mail.ru, Linkbox), and Go includes the address
+  in a network error. The engine redacts every error it returns and every line it logs (rclone's
+  logger, Go's `log` package and, on Android, everything written to stdout and stderr, which
+  appears under the `GoLog` tag), and the app redacts each line it logs again (`Logs.java`, the
+  `Driveway` tag; the debug-only test harness too). Redaction keeps an address's scheme, host,
+  port and path and drops its user name, password, query string and fragment; it replaces with
+  `***` the values of settings, JSON and XML fields and HTTP headers named like credentials, and
+  the tokens some services put in an address's path (`engine/redact.go`, with its cases in
+  `test/redact_cases.json`). It works by pattern: a credential in a shape it doesn't know, such
+  as a field printed as `Name:value`, would pass, so the contributing guide asks people to read a
+  log before sharing it. The log does name servers, their addresses, user names and files. A
+  crash of the engine (a Go panic) is written by Go's runtime straight to the system log under
+  the `Go` tag, without redaction; that tag is not part of the log the guide asks for.
 - **Browser sign-in** (`engine/pkce.go`, `engine/signin.go`): PKCE with no client secret in the
   app for Dropbox and OneDrive; the loopback receiver on port 53682 holds both `127.0.0.1` and
   `[::1]`, or refuses to start, so another app on the device can't take the answer.

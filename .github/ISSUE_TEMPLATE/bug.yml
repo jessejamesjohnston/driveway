@@ -32,4 +32,4 @@ body:
     id: more
     attributes:
       label: Anything else
-      description: The exact message Driveway showed helps most. The technical detail behind it is in the device's log (with the device connected over adb, run `adb logcat -d -s Driveway GoLog`; CONTRIBUTING.md has the steps). Please leave out server addresses, user names and anything personal, in the log too.
+      description: The exact message Driveway showed helps most. The technical detail behind it is in the device's log (with the device connected over adb, run `adb logcat -d -s Driveway GoLog`; CONTRIBUTING.md has the steps). Driveway takes passwords, API keys and tokens out of its log, but read it before you paste it, and remove any API key, token or password you still find, along with server addresses, user names and anything else personal.
