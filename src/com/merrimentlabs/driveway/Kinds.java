@@ -478,16 +478,26 @@ final class Kinds {
     return SENTENCE_CASE.keySet();
   }
 
+  private static final java.util.regex.Pattern SENTENCE_END = java.util.regex.Pattern.compile("[.!?](?=\\s|$)");
+
   /**
-   * The hint shown under a setting from rclone's help: its first line. A
-   * single sentence loses its closing period (Driveway's own hints have
-   * none); two or more keep theirs. "e.g." and "i.e." don't end a sentence.
+   * The hint shown under a setting from rclone's help: its first line, or,
+   * when that line stops mid-sentence and the help goes on, up to the end of
+   * that sentence on the lines after it. A single sentence loses its closing
+   * period (Driveway's own hints have none); two or more keep theirs. "e.g."
+   * and "i.e." don't end a sentence.
    */
   static String hint(String help) {
-    String first = help.split("\n", 2)[0].trim();
+    String[] lines = help.split("\n");
+    String first = lines[0].trim();
+    for (int i = 1; i < lines.length && !first.isEmpty() && !first.matches(".*[.!?:)]$") && !lines[i].trim().isEmpty(); i++) {
+      String next = lines[i].trim();
+      java.util.regex.Matcher end = SENTENCE_END.matcher(next.replaceAll("\\b(e\\.g|i\\.e)\\.", "e_g_"));
+      first = (first + " " + (end.find() ? next.substring(0, end.end()) : next)).replaceAll("\\s+", " ");
+    }
     String bare = first.replaceAll("\\b(e\\.g|i\\.e)\\.", "");
     int ends = 0;
-    for (java.util.regex.Matcher m = java.util.regex.Pattern.compile("[.!?](?=\\s|$)").matcher(bare); m.find(); ) ends++;
+    for (java.util.regex.Matcher m = SENTENCE_END.matcher(bare); m.find(); ) ends++;
     if (ends == 1 && first.endsWith(".") && !first.endsWith("..")) first = first.substring(0, first.length() - 1);
     return SENTENCE_CASE.getOrDefault(first, first);
   }

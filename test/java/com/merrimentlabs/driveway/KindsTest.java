@@ -657,6 +657,13 @@ public final class KindsTest {
     check(Kinds.hint("Storage Connection String.").equals("Storage connection string"), "hint: rclone's Title Case in sentence case");
     check(Kinds.hint("Wait...").equals("Wait..."), "hint: an ellipsis stays");
     check(Kinds.hint("").isEmpty(), "hint: none");
+    check(Kinds.hint("The API endpoint to connect to. It's fine to leave\nthis at default. Only for testing.")
+        .equals("The API endpoint to connect to. It's fine to leave this at default."),
+        "hint: a sentence that goes on to the next line is finished there");
+    check(Kinds.hint("A key associated\nwith  the object, e.g. a file. More.").equals("A key associated with the object, e.g. a file"),
+        "hint: finished at the first sentence end on the next line, not at e.g.");
+    check(Kinds.hint("Choose one:\n1) this").equals("Choose one:") && Kinds.hint("Mid sentence\n\nNext paragraph").equals("Mid sentence"),
+        "hint: a list or a new paragraph isn't joined");
     java.util.Set<String> seen = new HashSet<>();
     List<String> periods = new ArrayList<>(), titleCase = new ArrayList<>();
     for (Kinds.Kind k : Kinds.others()) {
@@ -694,6 +701,12 @@ public final class KindsTest {
     }
     check(own.isEmpty(), "every kind's own label, blurb, note and setting follows the wording rules " + own);
     check(seen.size() > 300, "the real catalog's hints are read (" + seen.size() + ")");
+    java.util.Map<String, String> finished = new java.util.HashMap<>();
+    for (Kinds.Kind k : Kinds.others()) for (Kinds.Field f : k.fields) finished.put(k.backend + "." + f.key, f.hint);
+    check(String.valueOf(finished.get("oracleobjectstorage.sse_customer_key_file")).endsWith("key associated with the object")
+        && String.valueOf(finished.get("pixeldrain.api_url")).endsWith("fine to leave this at default.")
+        && String.valueOf(finished.get("ulozto.root_folder_slug")).endsWith("without any root slug set."),
+        "hints that went on to a second line end where their sentence ends");
     check(periods.isEmpty(), "no single-sentence hint ends in a period " + periods);
     check(titleCase.isEmpty(), "no hint is in Title Case " + titleCase);
     for (String from : Kinds.sentenceCaseKeys()) {
