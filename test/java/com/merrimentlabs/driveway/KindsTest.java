@@ -119,12 +119,15 @@ public final class KindsTest {
   }
 
   /**
-   * An address in a URL setting, checked as the engine checks it
-   * (engine/address_test.go has the same rows): what Go can't read is
-   * refused with where to type the user name and password instead, and a
-   * user name and password that read cleanly come out of the address.
+   * Addresses, on the shared cases (test/address_cases.json, which
+   * engine/address_test.go checks the engine against): the form asks the
+   * engine (Kinds.checkAddresses, answered here with the real engine's
+   * verdicts) and shows, for each refusal, the case's sentence, naming the
+   * field; for each user name and password typed in an address, the case's
+   * note and settings. The Server field's own splitter (Kinds.address, which
+   * moves a port) never accepts a sign-in the engine refuses.
    */
-  private static void urlAddresses() {
+  private static void urlAddresses() throws Exception {
     Set<String> logins = new HashSet<>();
     List<Kinds.Kind> all = new ArrayList<>(Kinds.MAIN);
     all.addAll(Kinds.others());
@@ -135,40 +138,52 @@ public final class KindsTest {
     }
     check(logins.contains("webdav") && !logins.contains("http"),
         "an address with User name and Password beside it: WebDAV, not HTTP (got " + logins + ")");
-    String[] login = {
-        "https://alice:pa ssMADEUP1@dav.example.com/x", "https://alice:pa\"MADEUP2@dav.example.com/x",
-        "https://alice:pa<MADEUP3@dav.example.com/x", "https://alice:pa>MADEUP4@dav.example.com/x",
-        "https://alice:pa\\MADEUP5@dav.example.com/x", "https://alice:pa`MADEUP6@dav.example.com/x",
-        "https://alice:pa%zzMADEUP@dav.example.com/x",
-    };
-    for (String u : login) {
-      Kinds.UrlParts p = Kinds.urlParts(u, true, true);
-      check(p.problem == R.string.address_url_login && p.user == null, "refused, with User name and Password: " + u);
+    JSONArray cases = new JSONObject(new String(java.nio.file.Files.readAllBytes(new java.io.File("test/address_cases.json").toPath()),
+        java.nio.charset.StandardCharsets.UTF_8)).getJSONArray("cases");
+    int refused = 0, accepted = 0;
+    for (int i = 0; i < cases.length(); i++) {
+      JSONObject c = cases.getJSONObject(i);
+      String backend = c.getString("backend");
+      Kinds.Kind k = Kinds.of(backend);
+      if (k == null) k = new Kinds.Kind(backend, backend, "", null);
+      JSONObject settings = c.getJSONObject("settings");
+      Kinds.AddressCheck a = Kinds.checkAddresses(k, settings);
+      String what = backend + " " + c.getString("why");
+      if (c.has("reason")) {
+        refused++;
+        int want = R.string.class.getField(c.getString("message")).getInt(null);
+        check(a.problem == want && c.getString("field").equals(a.field) && a.settings == null,
+            "refused with " + c.getString("message") + " on " + c.getString("field") + ": " + what);
+        if (c.getString("field").equals("host") && Kinds.takesPort(k) && c.getString("reason").equals("credentials")) {
+          check(Kinds.address(settings.getString("host"), backend).problem != 0, "the Server field refuses it too: " + what);
+        }
+      } else {
+        accepted++;
+        JSONObject out = c.getJSONObject("settings_out");
+        boolean same = a.problem == 0 && a.settings != null && a.settings.length() == out.length();
+        for (java.util.Iterator<String> it = out.keys(); same && it.hasNext(); ) {
+          String key = it.next();
+          same = out.getString(key).equals(a.settings.optString(key, null));
+        }
+        int note = c.isNull("note") ? 0 : R.string.class.getField(c.getString("note")).getInt(null);
+        check(same && a.note == note && eq(a.noteField, c.optString("login_field", null)),
+            "accepted" + (note == 0 ? "" : ", with " + c.getString("note")) + ": " + what);
+      }
     }
-    for (String u : new String[] {"https://alice:hunterMADEUP/abc@dav.example.com/x", "https://alice:hunterMADEUP?abc@dav.example.com/x",
-        "https://alice:hunterMADEUP#abc@dav.example.com/x", "https://nas.example.com:80a/dav"}) {
-      check(Kinds.urlParts(u, true, true).problem == R.string.address_url_port, "refused, not a port: " + u);
+    check(refused > 30 && accepted > 15, "the shared cases ran: " + refused + " refused, " + accepted + " accepted");
+    // Every reason the engine gives has its own sentence, and each names the field (its first argument).
+    String xml = new String(java.nio.file.Files.readAllBytes(new java.io.File("res/values/strings.xml").toPath()),
+        java.nio.charset.StandardCharsets.UTF_8);
+    for (String reason : new String[] {"scheme", "hostonly", "login", "escape", "port", "credentials", "ambiguous", "unreadable"}) {
+      for (Kinds.Kind k : new Kinds.Kind[] {Kinds.WEBDAV, Kinds.of("http")}) {
+        String name = null;
+        for (java.lang.reflect.Field f : R.string.class.getFields()) {
+          if (f.getInt(null) == Kinds.addressProblem(k, reason)) name = f.getName();
+        }
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("<string name=\"" + name + "\">([^<]*)<").matcher(xml);
+        check(name != null && m.find() && m.group(1).contains("%1$s"), "the reason " + reason + " on " + k.backend + " names the field: " + name);
+      }
     }
-    check(Kinds.urlParts("https://alice:pa ssMADEUP8@files.example.com/", true, false).problem == R.string.address_url_escape,
-        "refused without User name and Password: says how to write the character");
-    check(Kinds.urlParts("alice:MADEUPNS@dav.example.com/x", true, true).problem == R.string.address_url_scheme
-        && Kinds.urlParts("dav.example.com/x", true, true).problem == R.string.address_url_scheme
-        && Kinds.urlParts("alice:MADEUP@s3.example.com", false, false).problem == R.string.address_url_scheme,
-        "refused without a scheme");
-    check(Kinds.urlParts("s3.example.com", false, false).problem == 0 && Kinds.urlParts("", true, true).problem == 0,
-        "an endpoint may be a bare host, and an empty field is left to the required check");
-    check(Kinds.urlParts("http://[2001:db8::1/x", true, false).problem == R.string.address_url_escape,
-        "an IPv6 address without its closing bracket is refused");
-    Kinds.UrlParts p = Kinds.urlParts(" https://alice:s3cr%40t%20x@dav.example.com:8443/remote.php/dav/files/alice@example.com/ ",
-        true, true);
-    check(p.problem == 0 && p.address.equals("https://dav.example.com:8443/remote.php/dav/files/alice@example.com/")
-        && "alice".equals(p.user) && "s3cr@t x".equals(p.pass), "moved, escapes decoded, the path's @ kept");
-    p = Kinds.urlParts("http://u:p@[2001:db8::1]:2222/files/", true, true);
-    check(p.address.equals("http://[2001:db8::1]:2222/files/") && "u".equals(p.user) && "p".equals(p.pass), "moved from an IPv6 address");
-    p = Kinds.urlParts("https://alice@dav.example.com/x", true, true);
-    check(p.address.equals("https://dav.example.com/x") && "alice".equals(p.user) && p.pass == null, "a user name alone");
-    p = Kinds.urlParts("https://dav.example.com/x?y=1#z", true, true);
-    check(p.problem == 0 && p.user == null && p.address.equals("https://dav.example.com/x?y=1#z"), "a plain address as typed");
   }
 
   /**
@@ -176,7 +191,7 @@ public final class KindsTest {
    * kinds split it, and how every shape of address splits, against the real
    * catalog.
    */
-  private static void addresses() {
+  private static void addresses() throws Exception {
     // The kinds with a Server and a Port setting, and only those.
     Set<String> splits = new HashSet<>();
     List<Kinds.Kind> all = new ArrayList<>(Kinds.MAIN);

@@ -125,7 +125,9 @@ need() {
 # update check (UpdateCheck) and the parsing half of Errors, run against AOSP's
 # org.json with stand-ins for the gomobile Engine class and the Android
 # classes they name (test/stubs). Kinds
-# reads the engine's real catalog (engine/backends_json_test.go writes it).
+# reads the engine's real catalog (engine/backends_json_test.go writes it),
+# and the engine's real verdicts on the shared address cases
+# (engine/address_test.go writes them).
 # $1: an option for the JVM (cover's JaCoCo agent).
 JT=build/test-java
 jvm_tests() {
@@ -144,12 +146,13 @@ for kind, names, base in (("drawable", drawables, 0x7f010000), ("string", string
     lines.append("  }")
 open(out, "w").write("\n".join(lines + ["}", ""]))
 PY
-  (cd engine && DRIVEWAY_BACKENDS_JSON=../$JT/backends.json go test -count=1 -run '^TestBackendsJSON$' . >/dev/null) || return 1
+  (cd engine && DRIVEWAY_BACKENDS_JSON=../$JT/backends.json DRIVEWAY_VERDICTS_JSON=../$JT/verdicts.json \
+    go test -count=1 -run '^(TestBackendsJSON|TestAddressVerdictsJSON)$' . >/dev/null) || return 1
   javac --release 17 -Xlint:all -Werror -encoding UTF-8 -cp "$C/android-37.jar" -d $JT/classes \
     src/com/merrimentlabs/driveway/{NewLabels,Kinds,Errors,Logs,UpdateCheck}.java $JT/gen/R.java \
     $(find test/java test/stubs -name '*.java') || return 1
   for t in NewLabelsTest KindsTest ErrorsTest LogsTest UpdateCheckTest StringStyleTest; do
-    java ${1:+"$1"} -Ddriveway.backends=$JT/backends.json -cp "$JT/classes:$B/$JSON_JAR:$C/android-37.jar" \
+    java ${1:+"$1"} -Ddriveway.backends=$JT/backends.json -Ddriveway.verdicts=$JT/verdicts.json -cp "$JT/classes:$B/$JSON_JAR:$C/android-37.jar" \
       com.merrimentlabs.driveway.$t || return 1
   done
 }

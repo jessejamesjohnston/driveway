@@ -1273,16 +1273,17 @@ public final class ServerActivity extends Activity implements Connection.Listene
         boolean optional = !Kinds.required(kind, f, server.params);
         EditText e = FormViews.field(this, parent, f.label + (optional && !f.advanced ? getString(R.string.optional) : ""), hint, value, type);
         inputs.put(f.key, e);
-        // A port typed after the name moves to Port as soon as focus leaves Server.
+        // A port typed after the name moves to Port as soon as focus leaves
+        // Server; then, as for any other text setting, the engine's address
+        // check has its say (a user name and password typed in an address
+        // go to their own fields).
         if (f.key.equals("host") && Kinds.takesPort(kind)) {
           e.setOnFocusChangeListener((v, has) -> {
-            if (!has && form != null && !busy()) splitAddress(true);
+            if (!has && form != null && !busy() && splitAddress(true)) leftField(f.key);
           });
-        }
-        // So do a user name and password typed in an address, to their own fields.
-        if (Kinds.URL_KEYS.contains(f.key)) {
+        } else if (f.type == Kinds.Type.TEXT && !f.masked) {
           e.setOnFocusChangeListener((v, has) -> {
-            if (!has && form != null && !busy()) splitUrl(f.key, true);
+            if (!has && form != null && !busy()) leftField(f.key);
           });
         }
       }
@@ -1576,12 +1577,13 @@ public final class ServerActivity extends Activity implements Connection.Listene
     splitAddress(false);
   }
 
+
   /**
    * leaving: focus just left the Server field. A port moved then says so on
    * the form's status line; what can't be used is said there too and left
    * as typed (Connect points to the field). On Connect a problem stops it.
    */
-  private void splitAddress(boolean leaving) {
+  private boolean splitAddress(boolean leaving) {
     // On Connect the note starts empty: it is kept below only while it still holds.
     String kept = leaving ? null : addressNote;
     String keptPort = leaving ? null : addressNotePort;
@@ -1589,9 +1591,9 @@ public final class ServerActivity extends Activity implements Connection.Listene
       addressNote = null;
       addressNotePort = null;
     }
-    if (!Kinds.takesPort(kind)) return;
+    if (!Kinds.takesPort(kind)) return true;
     View hv = inputs.get("host"), pv = inputs.get("port");
-    if (!(hv instanceof EditText) || !(pv instanceof EditText)) return;
+    if (!(hv instanceof EditText) || !(pv instanceof EditText)) return true;
     EditText hostField = (EditText) hv, portField = (EditText) pv;
     String fallback = "";
     for (Kinds.Field f : kind.fields) if (f.key.equals("port")) fallback = f.fallback;
@@ -1607,7 +1609,7 @@ public final class ServerActivity extends Activity implements Connection.Listene
       if (leaving) {
         formStatus.setText(problem);
         leftSaid = problem;
-        return;
+        return false;
       }
       throw new Missing(problem, hostField);
     }
@@ -1623,13 +1625,14 @@ public final class ServerActivity extends Activity implements Connection.Listene
         addressNote = note;
         addressNotePort = sp.port;
       }
-      return;
+      return true;
     }
     if (sp.note == R.string.address_port_moved) {
       addressNote = note;
     } else if (sp.note == 0 && keptPort != null && keptPort.equals(portField.getText().toString().trim())) {
       addressNote = kept;
     }
+    return true;
   }
 
   /** The label of the kind's field for key, or key itself. */
@@ -1638,55 +1641,85 @@ public final class ServerActivity extends Activity implements Connection.Listene
     return key;
   }
 
+  /** What the status line was given when focus last left a text setting. */
+  private String urlSaid;
+
   /**
-   * An address in a URL setting (key): a user name and password typed in it
-   * go to User name and Password, on a kind that has them, and the form
-   * says so; a kind without them keeps them in the address. What Go can't
-   * read as an address is said in plain words, without repeating what was
-   * typed. leaving: focus just left the field, so the form's status line
-   * says it; else (on Connect) a problem stops it.
+   * Focus left the text setting key: the engine's address check
+   * (Kinds.checkAddresses) reads the form as typed, and what it says about
+   * this setting goes on the form's status line. A refusal names the field
+   * and the next step, never repeating what was typed; a user name and
+   * password typed in an address move to their own fields (or are taken out
+   * where those already hold a login), and the form says which. Connect
+   * and Save ask again (collect), and a refusal stops them.
    */
-  private void splitUrl(String key, boolean leaving) {
-    View uv = inputs.get(key);
-    if (!(uv instanceof EditText)) return;
-    EditText field = (EditText) uv;
-    boolean login = Kinds.takesLogin(kind);
-    Kinds.UrlParts u = Kinds.urlParts(field.getText().toString(), key.equals("url"), login);
-    // What the last time focus left the field said goes, unless it still holds.
-    if (leaving && urlSaid != null && urlSaid.contentEquals(formStatus.getText())) formStatus.setText("");
-    if (leaving) urlSaid = null;
-    if (u.problem != 0) {
-      String problem = getString(u.problem, fieldLabel(key), fieldLabel("user"), fieldLabel("pass"));
-      if (leaving) {
-        formStatus.setText(problem);
-        urlSaid = problem;
-        return;
-      }
-      throw new Missing(problem, field);
+  private void leftField(String key) {
+    // What the last time focus left a field said goes, unless it still holds.
+    if (urlSaid != null && urlSaid.contentEquals(formStatus.getText())) formStatus.setText("");
+    urlSaid = null;
+    Kinds.AddressCheck a;
+    try {
+      a = Kinds.checkAddresses(kind, typedSettings());
+    } catch (org.json.JSONException e) {
+      // Nothing to say yet: Connect and Save ask again, and stop on it.
+      Logs.w("can't check the form's addresses", e);
+      return;
     }
-    if (u.user == null || !login) return;
-    View user = inputs.get("user"), pass = inputs.get("pass");
-    if (!(user instanceof EditText) || !(pass instanceof EditText)) return;
-    field.setText(u.address);
-    ((EditText) user).setText(u.user);
-    if (u.pass != null) ((EditText) pass).setText(u.pass);
-    String note = u.pass != null
-        ? getString(R.string.address_url_moved, fieldLabel(key), fieldLabel("user"), fieldLabel("pass"))
-        : getString(R.string.address_url_user_moved, fieldLabel(key), fieldLabel("user"));
-    if (leaving) {
-      formStatus.setText(note);
-      urlSaid = note;
-    } else {
-      addressNote = note;
+    String said = null;
+    if (a.problem != 0) {
+      if (key.equals(a.field)) said = addressSentence(a.problem, a.field);
+    } else if (key.equals(a.noteField)) {
+      said = applyAddressCheck(a);
+    }
+    if (said != null) {
+      formStatus.setText(said);
+      urlSaid = said;
     }
   }
 
-  /** What the status line was given when focus last left an address field. */
-  private String urlSaid;
+  /** An address sentence (Kinds.addressProblem, or a note), with the field's and the sign-in fields' labels. */
+  private String addressSentence(int res, String field) {
+    return getString(res, fieldLabel(field), fieldLabel("user"), fieldLabel("pass"));
+  }
+
+  /** Whether a setting's value is used as typed (a password), not trimmed. */
+  private static boolean asTyped(Kinds.Field f) {
+    return f.type == Kinds.Type.PASSWORD || f.key.equals("pass") || f.key.equals("password");
+  }
+
+  /** The text settings as typed, without Connect's checks: what the address check reads as focus leaves a field. */
+  private JSONObject typedSettings() throws org.json.JSONException {
+    JSONObject p = new JSONObject();
+    for (Kinds.Field f : kind.fields) {
+      View v = inputs.get(f.key);
+      if (!(v instanceof EditText)) continue;
+      String raw = ((EditText) v).getText().toString();
+      String value = asTyped(f) ? raw : raw.trim();
+      if (!value.isEmpty()) p.put(f.key, value);
+    }
+    return p;
+  }
+
+  /**
+   * Puts the settings the engine will use back in the form's fields (an
+   * address without the user name and password typed in it, those in User
+   * name and Password), so the form shows what is used. Returns the note
+   * that says what moved, or null.
+   */
+  private String applyAddressCheck(Kinds.AddressCheck a) {
+    for (Kinds.Field f : kind.fields) {
+      View v = inputs.get(f.key);
+      if (!(v instanceof EditText) || !a.settings.has(f.key)) continue;
+      EditText e = (EditText) v;
+      String now = a.settings.optString(f.key);
+      String shown = asTyped(f) ? e.getText().toString() : e.getText().toString().trim();
+      if (!shown.equals(now)) e.setText(now);
+    }
+    return a.note == 0 ? null : addressSentence(a.note, a.noteField);
+  }
 
   private Servers.Server collect() throws IllegalArgumentException {
     splitAddress();
-    for (String key : Kinds.URL_KEYS) splitUrl(key, false);
     Servers.Server s = server.copy();
     s.backend = kind.backend;
     JSONObject p = new JSONObject();
@@ -1705,9 +1738,8 @@ public final class ServerActivity extends Activity implements Connection.Listene
         String raw = v instanceof EditText ? ((EditText) v).getText().toString() : null;
         // Passwords as typed; anything else (a pasted API key) without the
         // space or line break that came with it.
-        boolean asTyped = f.type == Kinds.Type.PASSWORD || f.key.equals("pass") || f.key.equals("password");
         String value = f.type == Kinds.Type.FILE ? fileValues.getOrDefault(f.key, "")
-            : raw != null ? (asTyped ? raw : raw.trim())
+            : raw != null ? (asTyped(f) ? raw : raw.trim())
             : v instanceof Spinner ? String.valueOf(((Spinner) v).getSelectedItem()) : "";
         if ("drive-folder".equals(f.link)) value = driveFolderId(value);
         // A single-use token is needed only until the service has given its
@@ -1746,6 +1778,21 @@ public final class ServerActivity extends Activity implements Connection.Listene
           if (!onForm.contains(key) && !p.has(key)) p.put(key, from.get(key));
         }
       }
+      // The engine's address check, the one SetRemote runs: what it refuses
+      // stops here, on its field, and what it moves shows on the form.
+      Kinds.AddressCheck a = Kinds.checkAddresses(kind, p);
+      if (a.problem != 0) {
+        View field = a.field == null ? null : inputs.get(a.field);
+        String problem = a.field == null ? getString(a.problem) : addressSentence(a.problem, a.field);
+        if (field != null) throw new Missing(problem, field);
+        throw new IllegalArgumentException(problem);
+      }
+      String note = applyAddressCheck(a);
+      for (java.util.Iterator<String> it = a.settings.keys(); it.hasNext(); ) {
+        String key = it.next();
+        if (!a.settings.optString(key).equals(p.optString(key))) p.put(key, a.settings.get(key));
+      }
+      if (note != null) addressNote = note;
     } catch (org.json.JSONException e) {
       Logs.w("can't read the form", e);
       throw new IllegalArgumentException(getString(R.string.form_failed), e);

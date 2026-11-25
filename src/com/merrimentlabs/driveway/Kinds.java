@@ -283,13 +283,6 @@ final class Kinds {
     return false;
   }
 
-  /**
-   * Settings that hold a whole address (a URL), which the form and the
-   * engine (SetRemote, engine/address.go) check with the same rules. Only
-   * url needs its scheme: an endpoint may be a bare host.
-   */
-  static final List<String> URL_KEYS = Arrays.asList("url", "endpoint", "api_url", "auth_url", "token_url");
-
   /** Whether the kind has User name and Password settings of its own (user and pass). */
   static boolean takesLogin(Kind k) {
     boolean user = false, pass = false;
@@ -301,111 +294,81 @@ final class Kinds {
   }
 
   /**
-   * An address typed in a URL setting, checked and taken apart. A user name
-   * and password typed in it ("https://alice:secret@host/dav") are taken
-   * out when they read cleanly, so a kind with User name and Password
-   * settings keeps them there. What Go's url package can't read is refused
-   * without repeating it (its own error would, password and all).
+   * The engine's verdict on the addresses in a server's settings
+   * (Engine.checkSettings, engine/address.go): the one address check, which
+   * SetRemote runs too, so the form never accepts an address the engine
+   * refuses. Refused: the setting and the sentence that says why and what to
+   * do, never repeating what was typed. Accepted: the settings to use (a
+   * user name and password typed in an address moved to User name and
+   * Password, or taken out where those already hold a login) and the note
+   * that says so.
    */
-  static final class UrlParts {
-    /** Why it can't be used (an R.string id), or 0. */
+  static final class AddressCheck {
+    /** The refused setting, or null. */
+    final String field;
+    /** Why it was refused (an R.string id taking the field's, User name's and Password's labels), or 0. */
     final int problem;
-    /** The address without its user name and password. */
-    final String address;
-    /** The user name and password typed in it, decoded; null when there were none. */
-    final String user, pass;
+    /** Accepted: the settings to use. */
+    final org.json.JSONObject settings;
+    /** What became of a user name and password typed in an address (an R.string id), or 0. */
+    final int note;
+    /** The setting they were typed in, or null. */
+    final String noteField;
 
-    UrlParts(int problem, String address, String user, String pass) {
+    AddressCheck(String field, int problem, org.json.JSONObject settings, int note, String noteField) {
+      this.field = field;
       this.problem = problem;
-      this.address = address;
-      this.user = user;
-      this.pass = pass;
+      this.settings = settings;
+      this.note = note;
+      this.noteField = noteField;
     }
   }
 
-  private static final java.util.regex.Pattern URL_SCHEME = java.util.regex.Pattern.compile("^[A-Za-z][A-Za-z0-9+.-]*://");
+  /** Asks the engine about the addresses in params, for the kind k. */
+  static AddressCheck checkAddresses(Kind k, org.json.JSONObject params) throws org.json.JSONException {
+    org.json.JSONObject v = new org.json.JSONObject(Engine.checkSettings(k.backend, params.toString()));
+    if (v.has("category")) {
+      String field = v.optString("field", null);
+      return new AddressCheck(field, field == null ? R.string.form_failed : addressProblem(k, v.optString("reason")), null, 0, null);
+    }
+    String login = v.optString("login");
+    int note = login.equals("moved") ? R.string.address_url_moved
+        : login.equals("moveduser") ? R.string.address_url_user_moved
+        : login.equals("dropped") ? R.string.address_url_dropped : 0;
+    return new AddressCheck(null, 0, v.getJSONObject("settings"), note, note == 0 ? null : v.optString("login_field"));
+  }
 
   /**
-   * needScheme: the url setting, which must start with one. login: the kind
-   * has User name and Password settings (a user name or password that
-   * can't be read is refused with where to type it instead).
+   * The sentence for an address the engine refused, by its reason (the
+   * engine's reason* constants): one mapping, for the form and for an error
+   * the engine returns (Errors.message).
    */
-  static UrlParts urlParts(String typed, boolean needScheme, boolean login) {
-    String s = typed.trim();
-    java.util.regex.Matcher m = URL_SCHEME.matcher(s);
-    if (!m.find()) {
-      if (s.isEmpty()) return new UrlParts(0, s, null, null);
-      if (needScheme) return new UrlParts(R.string.address_url_scheme, s, null, null);
-      String authority = s.split("[/?#]", 2)[0];
-      return new UrlParts(authority.contains("@") ? R.string.address_url_scheme : 0, s, null, null);
+  static int addressProblem(Kind k, String reason) {
+    boolean login = k != null && takesLogin(k);
+    switch (reason) {
+      case "scheme":
+        return R.string.address_url_scheme;
+      case "hostonly":
+        return R.string.address_hostonly;
+      case "login":
+        return R.string.address_url_login;
+      case "escape":
+        return R.string.address_url_escape;
+      case "port":
+        return login ? R.string.address_url_port : R.string.address_url_escape;
+      case "credentials":
+        return R.string.address_credentials;
+      case "ambiguous":
+        return login ? R.string.address_ambiguous_login : R.string.address_ambiguous;
+      default:
+        return R.string.address_unreadable;
     }
-    String scheme = m.group(), rest = s.substring(scheme.length());
-    int end = 0;
-    while (end < rest.length() && "/?#".indexOf(rest.charAt(end)) < 0) end++;
-    String authority = rest.substring(0, end), after = rest.substring(end);
-    int at = authority.lastIndexOf('@');
-    String userinfo = at < 0 ? null : authority.substring(0, at);
-    String host = authority.substring(at + 1);
-    if (userinfo != null && !cleanUserinfo(userinfo)) {
-      return new UrlParts(login ? R.string.address_url_login : R.string.address_url_escape, s, null, null);
-    }
-    if (!cleanHostPort(host)) return new UrlParts(login ? R.string.address_url_port : R.string.address_url_escape, s, null, null);
-    if (userinfo == null) return new UrlParts(0, s, null, null);
-    int colon = userinfo.indexOf(':');
-    String user = unescape(colon < 0 ? userinfo : userinfo.substring(0, colon));
-    String pass = colon < 0 ? null : unescape(userinfo.substring(colon + 1));
-    return new UrlParts(0, scheme + host + after, user, pass);
   }
 
-  /** What Go's url package reads as a user name and password: these characters, and % escapes. */
-  private static boolean cleanUserinfo(String u) {
-    for (int i = 0; i < u.length(); i++) {
-      char c = u.charAt(i);
-      if (c == '%') {
-        if (i + 2 >= u.length() || hex(u.charAt(i + 1)) < 0 || hex(u.charAt(i + 2)) < 0) return false;
-        i += 2;
-      } else if (!(c < 128 && (Character.isLetterOrDigit(c) || "-._:~!$&'()*+,;=@".indexOf(c) >= 0))) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  /** A host, then an optional port that is a number; an IPv6 address in brackets. */
-  private static boolean cleanHostPort(String h) {
-    String port;
-    if (h.startsWith("[")) {
-      int close = h.indexOf(']');
-      if (close < 0) return false;
-      port = h.substring(close + 1);
-      if (port.isEmpty()) return true;
-      if (!port.startsWith(":")) return false;
-      port = port.substring(1);
-    } else {
-      int c = h.lastIndexOf(':');
-      if (c < 0) return true;
-      port = h.substring(c + 1);
-    }
-    return port.matches("[0-9]*");
-  }
-
-  private static int hex(char c) {
-    return Character.digit(c, 16);
-  }
-
-  private static String unescape(String s) {
-    java.io.ByteArrayOutputStream b = new java.io.ByteArrayOutputStream();
-    for (int i = 0; i < s.length(); i++) {
-      char c = s.charAt(i);
-      if (c == '%') {
-        b.write(hex(s.charAt(i + 1)) * 16 + hex(s.charAt(i + 2)));
-        i += 2;
-      } else {
-        byte[] u = String.valueOf(c).getBytes(java.nio.charset.StandardCharsets.UTF_8);
-        b.write(u, 0, u.length);
-      }
-    }
-    return new String(b.toByteArray(), java.nio.charset.StandardCharsets.UTF_8);
+  /** The label of the kind's field for key, or key itself. */
+  static String fieldLabel(Kind k, String key) {
+    if (k != null) for (Field f : k.fields) if (f.key.equals(key)) return f.label;
+    return key;
   }
 
   /** Whether the kind has a Server (host) setting and a Port setting of its own. */
