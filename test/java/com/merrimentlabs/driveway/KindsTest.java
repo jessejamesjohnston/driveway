@@ -136,6 +136,17 @@ public final class KindsTest {
 
     leavingTheServerField();
 
+    // Name in Files follows the host, and never keeps what the form refuses.
+    check(Kinds.followedName("192.0.2.10:2222", Kinds.SFTP, true).equals("192.0.2.10")
+        && Kinds.followedName("[2001:db8::1]:2222", Kinds.SMB, true).equals("2001:db8::1")
+        && Kinds.followedName("\\\\nas", Kinds.SMB, true).equals("nas"), "Name in Files: the host typed");
+    check(Kinds.followedName("driveway@192.0.2.10", Kinds.SFTP, true).isEmpty()
+        && Kinds.followedName("nas.local/share", Kinds.SMB, true).isEmpty()
+        && Kinds.followedName("https://192.0.2.10", Kinds.SFTP, true).isEmpty()
+        && Kinds.followedName("nas.local:99999", Kinds.NFS, true).isEmpty(), "Name in Files: empty for what the form refuses");
+    check(Kinds.followedName("https://cloud.example.com/dav", Kinds.WEBDAV, false).equals("cloud.example.com"),
+        "Name in Files: a URL is named for its host");
+
     // The identity step names the file of the key type the server presented.
     check(Arrays.equals(Kinds.hostKeyFile("ssh-rsa"), new String[] {"RSA", "ssh_host_rsa_key.pub"})
         && Arrays.equals(Kinds.hostKeyFile("ssh-ed25519"), new String[] {"Ed25519", "ssh_host_ed25519_key.pub"})

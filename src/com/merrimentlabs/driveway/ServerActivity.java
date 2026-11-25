@@ -1189,12 +1189,7 @@ public final class ServerActivity extends Activity implements Connection.Listene
     if (host instanceof EditText) {
       ((EditText) host).addTextChangedListener(new Watcher(() -> {
         if (!labelEdited) {
-          String typed = ((EditText) host).getText().toString();
-          // A host with a port ("nas.local:2222", "[2001:db8::1]:2222") is named for the host.
-          Kinds.Address a = isHost ? Kinds.address(typed, k.backend) : null;
-          String h = a != null && a.problem == 0 ? a.host
-              : typed.replaceFirst("^https?://", "").replaceFirst("[/:].*$", "");
-          labelInput.setText(h);
+          labelInput.setText(Kinds.followedName(((EditText) host).getText().toString(), k, isHost));
           labelEdited = false;
         }
       }));

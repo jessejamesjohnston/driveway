@@ -236,6 +236,20 @@ final class Kinds {
     return null;
   }
 
+  /**
+   * What "Name in Files" shows while it follows the server's address (host
+   * true: a Server field, else a URL): the host, so "nas.local:2222" and
+   * "[2001:db8::1]:2222" are named for the host. Text the form refuses
+   * ("driveway@nas", a folder, another kind's link) leaves it empty, never
+   * holding what can't be saved.
+   */
+  static String followedName(String typed, Kind k, boolean host) {
+    Address a = host ? address(typed, k.backend) : null;
+    if (a != null && a.problem == 0) return a.host;
+    if (a != null && takesPort(k)) return "";
+    return typed.trim().replaceFirst("^https?://", "").replaceFirst("[/:].*$", "");
+  }
+
   /** Whether the kind has a Server (host) setting and a Port setting of its own. */
   static boolean takesPort(Kind k) {
     boolean host = false, port = false;
