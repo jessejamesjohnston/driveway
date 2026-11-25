@@ -126,8 +126,9 @@ need() {
 # org.json with stand-ins for the gomobile Engine class and the Android
 # classes they name (test/stubs). Kinds
 # reads the engine's real catalog (engine/backends_json_test.go writes it),
-# and the engine's real verdicts on the shared address cases
-# (engine/address_test.go writes them).
+# the engine's real verdicts on the shared address cases
+# (engine/address_test.go writes them), and the engine's redaction of the
+# errors Go writes about every generated address (engine/address_matrix_test.go).
 # $1: an option for the JVM (cover's JaCoCo agent).
 JT=build/test-java
 jvm_tests() {
@@ -147,12 +148,14 @@ for kind, names, base in (("drawable", drawables, 0x7f010000), ("string", string
 open(out, "w").write("\n".join(lines + ["}", ""]))
 PY
   (cd engine && DRIVEWAY_BACKENDS_JSON=../$JT/backends.json DRIVEWAY_VERDICTS_JSON=../$JT/verdicts.json \
-    go test -count=1 -run '^(TestBackendsJSON|TestAddressVerdictsJSON)$' . >/dev/null) || return 1
+    DRIVEWAY_REDACT_GEN_JSON=../$JT/redact_generated.json \
+    go test -count=1 -run '^(TestBackendsJSON|TestAddressVerdictsJSON|TestRedactGenJSON)$' . >/dev/null) || return 1
   javac --release 17 -Xlint:all -Werror -encoding UTF-8 -cp "$C/android-37.jar" -d $JT/classes \
     src/com/merrimentlabs/driveway/{NewLabels,Kinds,Errors,Logs,UpdateCheck}.java $JT/gen/R.java \
     $(find test/java test/stubs -name '*.java') || return 1
   for t in NewLabelsTest KindsTest ErrorsTest LogsTest UpdateCheckTest StringStyleTest; do
-    java ${1:+"$1"} -Ddriveway.backends=$JT/backends.json -Ddriveway.verdicts=$JT/verdicts.json -cp "$JT/classes:$B/$JSON_JAR:$C/android-37.jar" \
+    java ${1:+"$1"} -Ddriveway.backends=$JT/backends.json -Ddriveway.verdicts=$JT/verdicts.json \
+      -Ddriveway.redactgen=$JT/redact_generated.json -cp "$JT/classes:$B/$JSON_JAR:$C/android-37.jar" \
       com.merrimentlabs.driveway.$t || return 1
   done
 }

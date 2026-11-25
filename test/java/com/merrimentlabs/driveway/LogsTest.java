@@ -85,6 +85,32 @@ public final class LogsTest {
     return out;
   }
 
+  /**
+   * The errors Go writes about every generated address with a password in it
+   * (engine/address_matrix_test.go, written by ./build.sh to the file named by
+   * -Ddriveway.redactgen): each comes out exactly as the engine's redactor makes
+   * it, and holds no part of the password. A missing file fails: the app's
+   * redactor is never checked against a copy.
+   */
+  private static void generated() throws Exception {
+    String path = System.getProperty("driveway.redactgen");
+    if (path == null) throw new IllegalStateException("no generated cases: run with -Ddriveway.redactgen=FILE");
+    JSONObject doc = new JSONObject(new String(Files.readAllBytes(new File(path).toPath()), StandardCharsets.UTF_8));
+    JSONArray markers = doc.getJSONArray("markers"), cases = doc.getJSONArray("cases");
+    int same = 0, leaks = 0, differ = 0;
+    for (int i = 0; i < cases.length(); i++) {
+      JSONObject c = cases.getJSONObject(i);
+      String got = Logs.clean(c.getString("in"));
+      boolean leak = false;
+      for (int m = 0; m < markers.length(); m++) leak |= got.contains(markers.getString(m));
+      if (leak && leaks++ < 4) check(false, "the password is left in: " + got);
+      if (!got.equals(c.getString("out")) && differ++ < 4) check(false, "not as the engine makes it: " + c.getString("in") + "\n got  " + got + "\n want " + c.getString("out"));
+      if (!leak && got.equals(c.getString("out"))) same++;
+    }
+    check(cases.length() > 10000 && same == cases.length(),
+        "every generated error comes out as the engine's does, with no password (" + same + " of " + cases.length() + ", " + leaks + " leaks, " + differ + " different)");
+  }
+
   public static void main(String[] args) throws Exception {
     JSONArray cases = new JSONObject(new String(Files.readAllBytes(new File("test/redact_cases.json").toPath()),
         StandardCharsets.UTF_8)).getJSONArray("cases");
@@ -100,6 +126,7 @@ public final class LogsTest {
       }
     }
     check(same == cases.length(), "every shared case comes out as the engine's does (" + same + ")");
+    generated();
     check(Logs.clean(null) == null, "no text stays no text");
 
     // An exception's message and its cause's, as Logs.w writes them.
