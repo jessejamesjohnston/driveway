@@ -105,6 +105,10 @@ final class Errors {
     String name = s == null ? theServer : s.label;
     switch (kind(e)) {
       case "network":
+        // A cloud service at its own address: the internet connection is
+        // the only thing to check (no address, port or spelling of its own,
+        // and no local network).
+        if (s != null && !Kinds.typedAddress(Kinds.of(s.backend), s.params)) return new Message(R.string.err_network_service, name);
         if (!localNetwork.getAsBoolean()) return new Message(R.string.err_local_network, name);
         // A name that doesn't look up: misspelled, or a local name off its
         // network. Anything else may also be the wrong port (a server that

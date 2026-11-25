@@ -163,6 +163,23 @@ public final class ErrorsTest {
           "a name that doesn't look up" + where + ": the next step is its spelling");
       m = Errors.message(sftp, err("[network] dial tcp: lookup nohost.invalid: no such host"), onForm, () -> false, "The server");
       check(m.res == R.string.err_local_network, "without Nearby devices" + where + ": that comes first");
+      // A cloud service has no address of its own to check: the internet
+      // connection is the next step, whatever the network error, and the
+      // local network permission doesn't matter.
+      for (String error : new String[] {"[network] ssh: handshake failed: EOF", "[network] dial tcp: lookup api.dropboxapi.com: no such host"}) {
+        for (boolean local : new boolean[] {true, false}) {
+          m = Errors.message(servers.get("dropbox"), err(error), onForm, () -> local, "The server");
+          check(m.res == R.string.err_network_service && text.get(m.res).contains("internet") && !text.get(m.res).contains("address"),
+              "Dropbox" + where + (local ? "" : " without Nearby devices") + ": check the internet connection, not an address (" + error + ")");
+        }
+      }
+      m = Errors.message(server("s3", "{\"provider\":\"AWS\"}"), err("[network] dial tcp: i/o timeout"), onForm, () -> true, "The server");
+      check(m.res == R.string.err_network_service, "S3 at Amazon" + where + ": the internet connection");
+      m = Errors.message(server("s3", "{\"provider\":\"Minio\",\"endpoint\":\"http://nas.local:9000\"}"), err("[network] dial tcp: i/o timeout"),
+          onForm, () -> true, "The server");
+      check(m.res == (onForm ? R.string.err_network_form : R.string.err_network), "S3 at a typed endpoint" + where + ": its address and port");
+      m = Errors.message(server("webdav", "{\"url\":\"https://dav.example.com\"}"), err("[network] dial tcp: i/o timeout"), onForm, () -> true, "The server");
+      check(m.res == (onForm ? R.string.err_network_form : R.string.err_network), "WebDAV" + where + ": its address and port");
       // The two setup failures that used to say only "couldn't finish connecting":
       // each says what stopped and what to do.
       m = Errors.message(sftp, err("[setupended] No Shared Drives found in your account"), onForm, () -> true, "The server");

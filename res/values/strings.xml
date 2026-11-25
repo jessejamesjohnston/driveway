@@ -271,6 +271,7 @@
 
   <string name="the_server">The server</string>
   <string name="err_local_network">Can\'t reach %1$s without the Nearby devices permission. Allow it for Driveway in Settings.</string>
+  <string name="err_network_service">Can\'t reach %1$s. Check that this device is connected to the internet, then try again.</string>
   <string name="err_network">Can\'t reach %1$s. Check that it\'s on, and that this device is on its network or on Tailscale. If both are true, open Driveway and choose Change on its card to check its address and port.</string>
   <string name="err_network_form">Can\'t reach %1$s. Check that it\'s on, and that this device is on its network or on Tailscale. If both are true, check the server\'s address and port.</string>
   <string name="err_no_host">Can\'t find %1$s on the network. Check that this device is on its network or on Tailscale. If so, open Driveway and choose Change on its card to check the spelling of its address.</string>

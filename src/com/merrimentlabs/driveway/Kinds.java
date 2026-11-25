@@ -250,6 +250,27 @@ final class Kinds {
     return typed.trim().replaceFirst("^https?://", "").replaceFirst("[/:].*$", "");
   }
 
+  /** Settings that hold an address: a Server or Address field, or a service's own endpoint. */
+  private static final List<String> ADDRESS_KEYS =
+      Arrays.asList("host", "url", "endpoint", "api_url", "hostname", "namenode", "auth", "server");
+
+  /**
+   * Whether the server's address is one the person typed (a Server or
+   * Address field, or a service's endpoint changed from its default), so a
+   * connection that fails may be the address's fault. A cloud service at its
+   * own address (Dropbox, OneDrive, S3 at Amazon) has no address to check.
+   * Without a kind, it counts as typed.
+   */
+  static boolean typedAddress(Kind k, org.json.JSONObject params) {
+    if (k == null) return true;
+    for (Field f : k.fields) {
+      if (!ADDRESS_KEYS.contains(f.key)) continue;
+      String v = params == null ? "" : params.optString(f.key).trim();
+      if (f.required || (!v.isEmpty() && !v.equals(f.fallback))) return true;
+    }
+    return false;
+  }
+
   /** Whether the kind has a Server (host) setting and a Port setting of its own. */
   static boolean takesPort(Kind k) {
     boolean host = false, port = false;
