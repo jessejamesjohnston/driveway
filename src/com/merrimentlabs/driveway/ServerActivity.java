@@ -169,6 +169,11 @@ public final class ServerActivity extends Activity implements Connection.Listene
     String publicLine;
     boolean moreOpen;
     CharSequence status;
+    // What leaving a field put on the status line, so a later leave can clear it.
+    String leftSaid;
+    String urlSaid;
+    String addressNote;
+    String addressNotePort;
     String initial;
     Connection run;
     String search;
@@ -268,6 +273,10 @@ public final class ServerActivity extends Activity implements Connection.Listene
       labelEdited = k.labelEdited;
       if (moreBox != null && k.moreOpen != (moreBox.getVisibility() == View.VISIBLE)) toggleMore();
       formStatus.setText(k.status);
+      leftSaid = k.leftSaid;
+      urlSaid = k.urlSaid;
+      addressNote = k.addressNote;
+      addressNotePort = k.addressNotePort;
       initial = k.initial;
     }
     switch (k.screen == null ? Screen.WHERE : k.screen) {
@@ -329,6 +338,10 @@ public final class ServerActivity extends Activity implements Connection.Listene
     k.publicLine = publicLine;
     k.moreOpen = moreBox != null && moreBox.getVisibility() == View.VISIBLE;
     k.status = formStatus.getText();
+    k.leftSaid = leftSaid;
+    k.urlSaid = urlSaid;
+    k.addressNote = addressNote;
+    k.addressNotePort = addressNotePort;
     k.initial = initial;
     return k;
   }
