@@ -198,6 +198,14 @@ func intlRows() []intlRow {
 	return rows
 }
 
+// intlPunycode: the ASCII form of each international host in intlRows.
+var intlPunycode = map[string]string{
+	"\u4f8b\u3048.example":             "xn--r8jz45g.example",
+	"\u0434\u0430\u0447\u0430.example": "xn--80aak1f.example",
+	"b\u00fccher.example":              "xn--bcher-kva.example",
+	"minio.b\u00fccher.example":        "minio.xn--bcher-kva.example",
+}
+
 // intlTwin: the row with each of its punctuation characters in a name
 // swapped for a plain letter (字). The two must get the same verdict: the
 // punctuation changes nothing.
@@ -744,6 +752,7 @@ func TestAddressMatrixNetwork(t *testing.T) {
 		if kept != r.value {
 			fails.add(t, "a legitimate international address was changed", "%s.%s %q -> %q", r.backend, r.setting, r.value, kept)
 		}
+		before := len(seen())
 		err := Check(id)
 		RemoveRemote(id)
 		txt := ""
@@ -753,9 +762,15 @@ func TestAddressMatrixNetwork(t *testing.T) {
 		if strings.Contains(txt, "badsettings") || strings.Contains(txt, "lookalike") || strings.Contains(txt, "looks like") {
 			fails.add(t, "a legitimate international address got a refusal", "%s.%s %q: %s", r.backend, r.setting, r.value, txt)
 		}
-		hit := strings.Contains(txt, r.host) || strings.Contains(txt, "xn--")
-		for _, h := range seen() {
-			hit = hit || strings.Contains(h, r.host) || strings.Contains(h, "xn--")
+		// This row's own host, as typed or as its punycode, in its error or
+		// among the requests the proxy saw during this attempt only.
+		ascii := intlPunycode[r.host]
+		if ascii == "" {
+			ascii = r.host
+		}
+		hit := strings.Contains(txt, r.host) || strings.Contains(txt, ascii)
+		for _, h := range seen()[before:] {
+			hit = hit || strings.Contains(h, r.host) || strings.Contains(h, ascii)
 		}
 		if hit {
 			intlReached++
