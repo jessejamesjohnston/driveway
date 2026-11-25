@@ -13,7 +13,9 @@
 #                            asks for it (so it needs a terminal).
 #   DRIVEWAY_EXPECTED_CERT   the SHA-256 of the certificate the APK must be signed with. Default:
 #                            the certificate of the published Driveway releases. Set it to your own
-#                            certificate when you sign with your own key.
+#                            certificate when you sign with your own key. Either form printed
+#                            for it works: uppercase pairs with colons (keytool) or lowercase
+#                            hex with none (apksigner).
 #
 # The password and the alias are checked against the keystore, and the password must unlock the
 # key, before anything is cloned or built, so a wrong one fails at once.
@@ -28,7 +30,11 @@
 set -euo pipefail
 
 OFFICIAL_CERT="C5:19:F7:89:47:10:A0:7D:A2:F0:18:88:7C:93:9F:A6:55:27:9F:4C:56:B2:39:F3:DB:9F:3F:D0:70:EC:07:9E"
-EXPECTED_CERT="${DRIVEWAY_EXPECTED_CERT:-$OFFICIAL_CERT}"
+# One form for a certificate digest, whichever was given: uppercase pairs joined by colons.
+cert_form() { tr -d ': \t' <<<"$1" | tr 'a-f' 'A-F' | sed 's/../&:/g; s/:$//'; }
+EXPECTED_CERT="$(cert_form "${DRIVEWAY_EXPECTED_CERT:-$OFFICIAL_CERT}")"
+[[ "$EXPECTED_CERT" =~ ^([0-9A-F]{2}:){31}[0-9A-F]{2}$ ]] \
+    || { echo "release: DRIVEWAY_EXPECTED_CERT is not a SHA-256 digest (64 hex digits, with or without colons)" >&2; exit 1; }
 VCS_ENTRY=META-INF/version-control-info.textproto
 
 die() { echo "release: $*" >&2; exit 1; }
@@ -60,7 +66,7 @@ verify() {
         return 1
     fi
     grep -E "^Verified using|^Verifies" <<<"$out" || true
-    sha=$(sed -n 's/^.*[Ss]igner.* certificate SHA-256 digest: //p' <<<"$out" | head -1 | tr 'a-f' 'A-F' | sed 's/../&:/g; s/:$//')
+    sha=$(cert_form "$(sed -n 's/^.*[Ss]igner.* certificate SHA-256 digest: //p' <<<"$out" | head -1)")
     dn=$(sed -n 's/^.*[Ss]igner.* certificate DN: //p' <<<"$out" | head -1)
     echo "Certificate SHA-256: $sha"
     echo "Expected:            $EXPECTED_CERT"

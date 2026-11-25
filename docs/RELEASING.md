@@ -13,7 +13,8 @@ its tag and signed on the maintainer's machine with the app's release key, by
   an APK):
   `C5:19:F7:89:47:10:A0:7D:A2:F0:18:88:7C:93:9F:A6:55:27:9F:4C:56:B2:39:F3:DB:9F:3F:D0:70:EC:07:9E`
   (`apksigner verify --print-certs` prints the same digest in lowercase with no colons:
-  `c519f7894710a07da2f018887c939fa655279f4c56b239f3db9f3fd070ec079e`). `scripts/release.sh --verify <apk>` checks it for you.
+  `c519f7894710a07da2f018887c939fa655279f4c56b239f3db9f3fd070ec079e`). `scripts/release.sh --verify <apk>` checks it for you,
+  and `DRIVEWAY_EXPECTED_CERT` takes either form.
 - Never commit a keystore (`*.jks`, `*.keystore`, `*.p12` and `*.pfx` are gitignored) and never put the
   password in a file, a command line or a log.
 
