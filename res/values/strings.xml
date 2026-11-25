@@ -124,7 +124,7 @@
   <string name="address_credentials">Type just the address in %1$s, without a user name or password</string>
   <string name="address_hostonly">Type just the server\'s name in %1$s, like files.example.com, without https:// or a folder</string>
   <string name="address_unreadable">%1$s can\'t be used as typed. Check that it starts with https:// or http:// and that the server\'s name has no space. A %% must be followed by two characters from 0 to 9 and A to F, so write a %% on its own as %%25.</string>
-  <string name="address_ambiguous_login">%1$s can be read two ways: a server, a port, and a folder with an @ in its name, or a user name and a password with a /, ?, or # in it. Type the user name and password in %2$s and %3$s. If the @ is part of a folder\'s name, write it as %%40.</string>
+  <string name="address_ambiguous_login">%1$s can be read two ways: a server, a port, and a folder with an @ in its name, or a user name and a password with a /, ?, or # in it. If the @ is part of a folder\'s name, write it as %%40. If it ends a user name and password, type them in %2$s and %3$s instead.</string>
   <string name="address_ambiguous">%1$s can be read two ways: a server, a port, and a folder with an @ in its name, or a user name and a password with a /, ?, or # in it. A user name and password can\'t go in %1$s. If the @ is part of a folder\'s name, write it as %%40.</string>
   <string name="address_lookalike">%1$s has a character that only looks like @, :, /, ?, #, or a dot. Retype the address with your keyboard\'s ordinary characters.</string>
   <string name="address_proxy_at">A user name or password in %1$s can\'t hold an @</string>
