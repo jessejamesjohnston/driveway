@@ -237,7 +237,7 @@ func remote(c context.Context, id string) (fs.Fs, error) {
 			return r.f, r.err
 		}
 		if try == 2 {
-			return nil, tag("other", errors.New("the server's settings changed while connecting; try again"))
+			return nil, tag("retry", errors.New("the server's settings changed while connecting"))
 		}
 	}
 }

@@ -393,7 +393,7 @@ public final class MainActivity extends Activity {
       discard.setContentDescription(getString(R.string.discard_named, f.path, s.label));
       discard.setTag(s.id + "/discard/" + f.path);
       // Why it didn't arrive, as the notification says (full, offline...).
-      String said = getString(R.string.save_waiting, f.name(), s.label) + (f.why == null ? "" : " " + f.why);
+      String said = getString(R.string.save_waiting, f.name(), s.label) + (f.why == null ? "" : " " + Errors.closed(f.why));
       problems.addView(Ui.strip(this, false, said, again, discard), stripParams());
     }
     if (failed.size() > 3) {
@@ -543,8 +543,9 @@ public final class MainActivity extends Activity {
           try {
             Servers.get(this).remove(s.id);
           } catch (Exception e) {
+            android.util.Log.w("Driveway", "can't remove " + s.label, e);
             new AlertDialog.Builder(this)
-                .setMessage(getString(R.string.remove_failed, s.label, e.getMessage()))
+                .setMessage(getString(R.string.remove_failed, s.label))
                 .setPositiveButton(android.R.string.ok, null)
                 .show();
           }

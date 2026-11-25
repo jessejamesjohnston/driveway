@@ -142,7 +142,7 @@ func pickOneDrive(id string, m map[string]any) (string, error) {
 		return "", classify(err)
 	}
 	if status == http.StatusUnauthorized {
-		return "", tag("signin", errors.New("OneDrive didn't accept the new sign-in"))
+		return "", tag("signinfailed", errors.New("OneDrive didn't accept the new sign-in"))
 	}
 	if status/100 == 2 && realDrive(me) {
 		return finishOneDrive(id, m, me)

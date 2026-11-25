@@ -22,13 +22,17 @@ separate runs.
 `./build.sh cover` starts and stops the servers the way `test` does (and leaves them up if they
 were already running), then prints the engine's statement coverage over both its
 packages and JaCoCo's line and branch coverage of the plain Java (NewLabels,
-Kinds, UpdateCheck, and Errors without explain(), which needs Android); the screens and
+Kinds, UpdateCheck, and Errors without explain()'s last step, which needs Android); the screens and
 the documents provider are covered by the harness below, not by a number.
 The Java checks run against AOSP's org.json and read the engine's real
 catalog, so Kinds can't drift from forms.go. They are plain `main()` programs
 with a small `check(condition, description)` helper rather than JUnit: the
 build has no Gradle or Maven to resolve a test framework, and each check's
 description is printed as it passes, so the output reads as the specification.
+`ErrorsTest` fills in the sentence for every kind of engine error from the real
+`strings.xml` and checks that none carries the engine's own words, and that the
+app's code puts no exception's message on screen. `StringStyleTest` checks the
+wording of every string in `strings.xml`.
 
 More harness actions, one at a time (`tools/act.sh ACTION ID [key value]...`; `add` never
 prints PASS, so run it with `WAIT=4` rather than waiting out the default 600 s):

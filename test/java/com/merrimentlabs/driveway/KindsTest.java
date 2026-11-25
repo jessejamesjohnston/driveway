@@ -241,8 +241,9 @@ public final class KindsTest {
         "Jottacloud's login token is used once, and masked");
 
     // More settings.
+    rcloneHintsFollowTheWordingRules();
     Kinds.Field chunk = field(Kinds.other("s3"), "chunk_size");
-    check(chunk.label.equals("Chunk size") && chunk.hint.equals("Chunk size to use for uploading.")
+    check(chunk.label.equals("Chunk size") && chunk.hint.equals("Chunk size to use for uploading")
         && chunk.fallback.equals("5Mi") && chunk.advanced && !chunk.required && chunk.type == Kinds.Type.TEXT,
         "a setting under More: its name as a label, help's first line, rclone's default");
     Kinds.Field filePass = field(Kinds.other("fichier"), "file_password");
@@ -325,7 +326,7 @@ public final class KindsTest {
         keyPw = field(a, "key_password");
     check(secret.label.equals("Client secret of your own app") && secret.hint.equals("Leave empty to use the usual sign-in"),
         "client_ settings: plain words instead of rclone's");
-    check(region.hint.equals("Where.") && region.fallback.equals("eu") && region.advanced, "help's first line only");
+    check(region.hint.equals("Where") && region.fallback.equals("eu") && region.advanced, "help's first line only, without its period");
     check(nohelp.hint.isEmpty() && nohelp.fallback.isEmpty(), "no help: no hint");
     check(keyPw.type == Kinds.Type.PASSWORD && keyPw.masked && keyPw.label.equals("Key password"),
         "a password setting under More");
@@ -582,5 +583,64 @@ public final class KindsTest {
         "signInField: the rest belong to the server");
     check(!Kinds.SFTP.fields.get(0).masked && field(Kinds.SFTP, "pass").masked, "a hand-made password field is masked");
     check(eq(field(Kinds.SFTP, "port").fallback, "22") && field(Kinds.SFTP, "port").advanced, "SFTP's port: 22, under More");
+  }
+
+  /**
+   * The hints under More settings come from rclone's help: shown without a
+   * single sentence's closing period, and in sentence case, across the whole
+   * real catalog.
+   */
+  private static void rcloneHintsFollowTheWordingRules() {
+    check(Kinds.hint("Chunk size to use for uploading.\nMore here.").equals("Chunk size to use for uploading"),
+        "hint: a single sentence loses its period");
+    check(Kinds.hint("Cutoff for chunked upload. Larger files go in chunks.").equals("Cutoff for chunked upload. Larger files go in chunks."),
+        "hint: two sentences keep theirs");
+    check(Kinds.hint("Tags to add, e.g. \"a,b\".").equals("Tags to add, e.g. \"a,b\""), "hint: e.g. doesn't end a sentence");
+    check(Kinds.hint("User name (usually an email address)").equals("User name (usually an email address)"), "hint: no period, as it is");
+    check(Kinds.hint("Storage Connection String.").equals("Storage connection string"), "hint: rclone's Title Case in sentence case");
+    check(Kinds.hint("Wait...").equals("Wait..."), "hint: an ellipsis stays");
+    check(Kinds.hint("").isEmpty(), "hint: none");
+    java.util.Set<String> seen = new HashSet<>();
+    List<String> periods = new ArrayList<>(), titleCase = new ArrayList<>();
+    for (Kinds.Kind k : Kinds.others()) {
+      for (Kinds.Field f : k.fields) {
+        if (!f.advanced || f.hint.isEmpty()) continue;
+        seen.add(f.hint);
+        java.util.Map<StringStyleTest.Rule, String> v = StringStyleTest.violations(f.hint);
+        if (v.containsKey(StringStyleTest.Rule.SINGLE_SENTENCE_PERIOD)) periods.add(k.backend + "." + f.key + ": " + f.hint);
+        String[] words = f.hint.replaceAll("\\(.*\\)", "").trim().split("\\s+");
+        boolean title = words.length >= 2;
+        boolean anyLower = false;
+        for (int i = 1; i < words.length; i++) {
+          String w = words[i];
+          if (w.isEmpty() || !Character.isLetter(w.charAt(0))) continue;
+          if (!Character.isUpperCase(w.charAt(0))) title = false;
+          else if (!w.equals(w.toUpperCase(java.util.Locale.ROOT))) anyLower = true;
+        }
+        if (title && anyLower) titleCase.add(k.backend + "." + f.key + ": " + f.hint);
+      }
+    }
+    // Driveway's own words for each kind (the four main kinds, and the
+    // labels, blurbs and settings the engine's catalog curates) follow every
+    // wording rule.
+    List<String> own = new ArrayList<>();
+    List<Kinds.Kind> kinds = new ArrayList<>(Kinds.MAIN);
+    kinds.addAll(Kinds.others());
+    for (Kinds.Kind k : kinds) {
+      List<String> texts = new ArrayList<>(Arrays.asList(k.label, k.blurb, k.note, k.folderHint));
+      for (Kinds.Field f : k.fields) if (!f.advanced) texts.addAll(Arrays.asList(f.label, f.hint));
+      for (String t : texts) {
+        if (t == null || t.isEmpty()) continue;
+        java.util.Map<StringStyleTest.Rule, String> v = StringStyleTest.violations(t);
+        if (!v.isEmpty()) own.add(k.backend + ": " + v.keySet() + " " + t);
+      }
+    }
+    check(own.isEmpty(), "every kind's own label, blurb, note and setting follows the wording rules " + own);
+    check(seen.size() > 300, "the real catalog's hints are read (" + seen.size() + ")");
+    check(periods.isEmpty(), "no single-sentence hint ends in a period " + periods);
+    check(titleCase.isEmpty(), "no hint is in Title Case " + titleCase);
+    for (String from : Kinds.sentenceCaseKeys()) {
+      check(seen.contains(Kinds.hint(from)), "the sentence-case fix is still needed by the catalog: " + from);
+    }
   }
 }

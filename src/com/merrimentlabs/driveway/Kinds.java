@@ -8,7 +8,10 @@ import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * The kinds of server Driveway connects to. The four tested ones have
@@ -139,7 +142,7 @@ final class Kinds {
       new Field("gid", "Group ID", "", Type.NUMBER, false, true, "1000"),
       new Field("port", "Port", "0 asks the server, which suits most", Type.NUMBER, false, true, "0"));
 
-  static final Kind WEBDAV = new Kind("webdav", "WebDAV", "Nextcloud, ownCloud, Synology and other web file servers",
+  static final Kind WEBDAV = new Kind("webdav", "WebDAV", "Nextcloud, ownCloud, Synology, and other web file servers",
       null,
       new Field("url", "Address", "https://cloud.example.com/remote.php/dav/files/you", Type.TEXT, true, false, ""),
       new Field("user", "User name", "", Type.TEXT, false, false, ""),
@@ -332,7 +335,7 @@ final class Kinds {
           String help = o.optString("help", "");
           Type type = o.optBoolean("password") ? Type.PASSWORD : Type.TEXT;
           // rclone's words for these ("OAuth Client Id.") say nothing to most people.
-          String hint = key.startsWith("client_") ? "Leave empty to use the usual sign-in" : help.split("\n", 2)[0];
+          String hint = key.startsWith("client_") ? "Leave empty to use the usual sign-in" : hint(help);
           fields.add(new Field(key, sentence(key), hint, type, false, true, o.optString("default", "")));
         }
         String description = b.optString("description", name);
@@ -382,6 +385,51 @@ final class Kinds {
   }
 
   /** rclone's setting name as a label: "chunk_size" is "Chunk size". */
+  /**
+   * rclone's Title Case hints, in sentence case. Exact text only: a general
+   * rule would lowercase product names and acronyms.
+   */
+  private static final Map<String, String> SENTENCE_CASE = new HashMap<>();
+  static {
+    SENTENCE_CASE.put("Storage Connection String", "Storage connection string");
+    SENTENCE_CASE.put("Box App Primary Access Token", "Box app primary access token");
+    SENTENCE_CASE.put("IAS3 Endpoint", "IAS3 endpoint");
+    SENTENCE_CASE.put("Siad User Agent", "Siad user agent");
+    SENTENCE_CASE.put("Sugarsync App ID", "Sugarsync app ID");
+    SENTENCE_CASE.put("Sugarsync Access Key ID", "Sugarsync access key ID");
+    SENTENCE_CASE.put("Sugarsync Private Access Key", "Sugarsync private access key");
+    SENTENCE_CASE.put("Master Keys (internal use only)", "Master keys (internal use only)");
+    SENTENCE_CASE.put("Private RSA Key (internal use only)", "Private RSA key (internal use only)");
+    SENTENCE_CASE.put("Public RSA Key (internal use only)", "Public RSA key (internal use only)");
+    SENTENCE_CASE.put("Authentication Version (internal use only)", "Authentication version (internal use only)");
+    SENTENCE_CASE.put("Use Implicit FTPS (FTP over TLS)", "Use implicit FTPS (FTP over TLS)");
+    SENTENCE_CASE.put("Use Explicit FTPS (FTP over TLS)", "Use explicit FTPS (FTP over TLS)");
+    SENTENCE_CASE.put("Application Credential ID (OS_APPLICATION_CREDENTIAL_ID)",
+        "Application credential ID (OS_APPLICATION_CREDENTIAL_ID)");
+    SENTENCE_CASE.put("Application Credential Name (OS_APPLICATION_CREDENTIAL_NAME)",
+        "Application credential name (OS_APPLICATION_CREDENTIAL_NAME)");
+    SENTENCE_CASE.put("Application Credential Secret (OS_APPLICATION_CREDENTIAL_SECRET)",
+        "Application credential secret (OS_APPLICATION_CREDENTIAL_SECRET)");
+  }
+
+  static Set<String> sentenceCaseKeys() {
+    return SENTENCE_CASE.keySet();
+  }
+
+  /**
+   * The hint shown under a setting from rclone's help: its first line. A
+   * single sentence loses its closing period (Driveway's own hints have
+   * none); two or more keep theirs. "e.g." and "i.e." don't end a sentence.
+   */
+  static String hint(String help) {
+    String first = help.split("\n", 2)[0].trim();
+    String bare = first.replaceAll("\\b(e\\.g|i\\.e)\\.", "");
+    int ends = 0;
+    for (java.util.regex.Matcher m = java.util.regex.Pattern.compile("[.!?](?=\\s|$)").matcher(bare); m.find(); ) ends++;
+    if (ends == 1 && first.endsWith(".") && !first.endsWith("..")) first = first.substring(0, first.length() - 1);
+    return SENTENCE_CASE.getOrDefault(first, first);
+  }
+
   static String sentence(String key) {
     switch (key) {
       case "client_id":

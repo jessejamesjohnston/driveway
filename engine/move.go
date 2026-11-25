@@ -183,7 +183,7 @@ func move(id, from, to string, rename bool, budgetMs int64) error {
 					// Can't tell whether the original is still there: keep
 					// the copy, so at least one of the two names holds the
 					// file.
-					return tag("other", fmt.Errorf("copied %s to %s but couldn't check that the original was removed; both names may now hold it", path.Base(from), path.Base(to)))
+					return tag("bothnames", fmt.Errorf("copied %s to %s but couldn't check that the original was removed; both names may now hold it", path.Base(from), path.Base(to)))
 				}
 				// The original is there for sure: take the copy back, so the
 				// rename can simply be tried again.
@@ -192,7 +192,7 @@ func move(id, from, to string, rename bool, budgetMs int64) error {
 			}
 			return nil
 		}
-		return tag("other", errors.New("this service can't rename files"))
+		return tag("norename", errors.New("this service can't rename files"))
 	}
 	if dm := f.Features().DirMove; dm != nil {
 		return classify(dm(c, f, from, to))
@@ -245,7 +245,7 @@ func move(id, from, to string, rename bool, budgetMs int64) error {
 	defer shutdown(dst)
 	if err := rsync.MoveDir(mc, dst, src, true, true); err != nil {
 		if mc.Err() != nil {
-			return tag("other", fmt.Errorf("the rename of %s stopped part way: some files are in %s and the rest are still in %s; move them across to finish", path.Base(from), path.Base(to), path.Base(from)))
+			return tag("partway", fmt.Errorf("the rename of %s stopped part way: some files are in %s and the rest are still in %s; move them across to finish", path.Base(from), path.Base(to), path.Base(from)))
 		}
 		return classify(err)
 	}

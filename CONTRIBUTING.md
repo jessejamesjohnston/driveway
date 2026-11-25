@@ -59,6 +59,12 @@ and `ANDROID_CACHE` move them). A Debian `aapt2` on PATH is used before the SDK'
   the secret where anyone holding the APK can read it ([SECURITY.md](SECURITY.md)).
 - **Test servers only.** The engine's checks run against the throwaway servers in `test/servers`,
   never a real NAS or account. Fixtures use made-up names, addresses and IDs.
+- **User-facing text** lives in `res/values/strings.xml`, in sentence case. `StringStyleTest`
+  checks it on every build: no closing period on a single sentence, an ellipsis only on something
+  in progress, a middle dot or a comma (never a dash or a semicolon) to join two parts, American
+  spelling and natural contractions. `KindsTest` holds each kind's own labels, blurbs and hints to
+  the same rules. An error says what happened and what to do, in Driveway's words; the engine's or
+  a library's own words go to the log, never on screen (`ErrorsTest` checks both).
 - **Zero warnings.** `javac -Xlint:all` runs with `-Werror`, and `go vet` runs before every build.
 - **Comments say why**, for a stranger reading the code later.
 - **A refactor changes no behavior** and lands apart from fixes.

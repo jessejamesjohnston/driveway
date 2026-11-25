@@ -1368,8 +1368,16 @@ public final class ServerActivity extends Activity implements Connection.Listene
       } catch (java.io.IOException | SecurityException e) {
         error = getString(R.string.file_unreadable);
       } catch (Exception e) {
-        // The engine's words: what the file is not, and where to get the right one.
-        error = Errors.detail(e);
+        // Driveway's own sentences from the engine's file check (untagged):
+        // what the file is not, and where to get the right one. Anything
+        // else goes to the log.
+        String m = e.getMessage();
+        if (e instanceof org.json.JSONException || m == null || m.startsWith("[")) {
+          android.util.Log.w("Driveway", "can't check the chosen file", e);
+          error = getString(R.string.file_unreadable);
+        } else {
+          error = m;
+        }
       }
       String err = error;
       JSONObject result = got;
@@ -1477,9 +1485,10 @@ public final class ServerActivity extends Activity implements Connection.Listene
           a.showKey(a.keyBox);
         });
       } catch (Exception e) {
+        android.util.Log.w("Driveway", "can't make a key", e);
         runOnUiThread(() -> {
           filled();
-          formStatus.setText(e.getMessage());
+          formStatus.setText(R.string.key_failed);
         });
       }
     }).start();
@@ -1644,7 +1653,8 @@ public final class ServerActivity extends Activity implements Connection.Listene
         }
       }
     } catch (org.json.JSONException e) {
-      throw new IllegalArgumentException(e);
+      android.util.Log.w("Driveway", "can't read the form", e);
+      throw new IllegalArgumentException(getString(R.string.form_failed), e);
     }
     s.params = p;
     String label = labelInput.getText().toString().trim();
@@ -1878,7 +1888,8 @@ public final class ServerActivity extends Activity implements Connection.Listene
       MainActivity.parkedAt = android.os.SystemClock.elapsedRealtime();
       finish();
     } catch (Exception e) {
-      formStatus.setText(e.getMessage());
+      android.util.Log.w("Driveway", "can't save " + s.label, e);
+      formStatus.setText(R.string.save_anyway_failed);
       if (isNew) showForm(kind);
     }
   }

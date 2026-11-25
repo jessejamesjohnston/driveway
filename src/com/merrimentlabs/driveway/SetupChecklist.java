@@ -183,7 +183,7 @@ final class SetupChecklist {
   void update() {
     for (Row r : rows) r.update();
     boolean failedSave = run.outcome == Connection.Outcome.FAILED && "save".equals(run.errorKind);
-    saveError.setText(failedSave ? a.getString(R.string.save_failed, run.error) : "");
+    saveError.setText(failedSave ? a.getString(R.string.save_failed) : "");
     saveError.setVisibility(failedSave ? View.VISIBLE : View.GONE);
   }
 

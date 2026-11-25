@@ -415,7 +415,7 @@ public final class DrivewayProvider extends DocumentsProvider {
       String k = e.getKey();
       Listing l = e.getValue();
       if (l.error != null && now - l.at < UNLISTED_MS && (k.equals(documentId) || k.startsWith(documentId + "/"))) {
-        throw new IllegalStateException(getContext().getString(R.string.err_delete_unlisted));
+        throw new Errors.Worded(getContext().getString(R.string.err_delete_unlisted));
       }
     }
     try {
@@ -455,7 +455,7 @@ public final class DrivewayProvider extends DocumentsProvider {
         // A service with no folder rename moves a folder's files one by one:
         // only folders small enough to finish in time, so the rename never
         // stops half way.
-        throw new IllegalStateException(getContext().getString(R.string.err_rename_folder_big, s.label));
+        throw new Errors.Worded(getContext().getString(R.string.err_rename_folder_big, s.label));
       }
       throw failed(s, e);
     }
@@ -511,11 +511,11 @@ public final class DrivewayProvider extends DocumentsProvider {
   private void settle(Servers.Server s, String path, long recentSince) throws Exception {
     switch (Uploads.settle(s.id, path, 10_000, recentSince)) {
       case Uploads.BUSY:
-        throw new IllegalStateException(getContext().getString(R.string.err_still_saving));
+        throw new Errors.Worded(getContext().getString(R.string.err_still_saving));
       case Uploads.FAILED_SAVE:
-        throw new IllegalStateException(getContext().getString(R.string.err_failed_save_pending));
+        throw new Errors.Worded(getContext().getString(R.string.err_failed_save_pending));
       case Uploads.RECENT:
-        throw new IllegalStateException(getContext().getString(R.string.err_copy_pending));
+        throw new Errors.Worded(getContext().getString(R.string.err_copy_pending));
       default:
     }
   }

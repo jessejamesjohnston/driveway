@@ -3,10 +3,12 @@ package com.merrimentlabs.driveway;
 
 import android.content.Context;
 
+import java.util.function.BooleanSupplier;
+
 /**
  * Turns the engine's errors into sentences. The engine starts each message
  * with a category in brackets ([network], [auth], [notfound], [exists],
- * [notempty], [other]).
+ * [notempty], [other]...). Only Driveway's own sentences reach the screen.
  */
 final class Errors {
   private Errors() {}
@@ -29,6 +31,15 @@ final class Errors {
     return m;
   }
 
+  /**
+   * A one-sentence message (which has no closing period on its own) as the
+   * last sentence of a longer block: with its period.
+   */
+  static String closed(String sentence) {
+    String t = sentence.trim();
+    return !t.isEmpty() && Character.isLetterOrDigit(t.charAt(t.length() - 1)) ? t + "." : t;
+  }
+
   static boolean isNotFound(Throwable e) {
     return kind(e).equals("notfound");
   }
@@ -38,67 +49,122 @@ final class Errors {
     return k != null ? k.label : fallback;
   }
 
+  /**
+   * Text Driveway wrote itself, from its own strings, for the person to read:
+   * the one kind of error whose message explain() shows as it is.
+   */
+  static final class Worded extends IllegalStateException {
+    private static final long serialVersionUID = 1L;
+
+    Worded(String sentence) {
+      super(sentence);
+    }
+  }
+
+  /** A sentence from strings.xml and what fills it in. */
+  static final class Message {
+    final int res;
+    final Object[] args;
+
+    Message(int res, Object... args) {
+      this.res = res;
+      this.args = args;
+    }
+  }
+
   static String explain(Context ctx, Servers.Server s, Throwable e) {
     return explain(ctx, s, e, false);
   }
 
   /** onForm: shown on the server's own form, whose checklist offers the fix itself. */
   static String explain(Context ctx, Servers.Server s, Throwable e, boolean onForm) {
-    android.util.Log.w("Driveway", (s == null ? "" : s.label + ": ") + e.getMessage());
-    if (e instanceof IllegalStateException && !String.valueOf(e.getMessage()).startsWith("[")) return e.getMessage();
-    String name = s == null ? ctx.getString(R.string.the_server) : s.label;
+    if (e instanceof Worded) return e.getMessage();
+    Message m = message(s, e, onForm, () -> MainActivity.hasLocalNetwork(ctx), ctx.getString(R.string.the_server));
+    return ctx.getString(m.res, m.args);
+  }
+
+  /**
+   * What the person reads about an error: one of Driveway's own sentences.
+   * The engine's or a library's own words go to the log, never on screen;
+   * the one exception is a service's answer to a sign-in, quoted as the
+   * service's ("Dropbox said: ...").
+   */
+  static Message message(Servers.Server s, Throwable e, boolean onForm, BooleanSupplier localNetwork, String theServer) {
+    android.util.Log.w("Driveway", (s == null ? "" : s.label + ": ") + (e.getMessage() == null ? e : e.getMessage()));
+    String name = s == null ? theServer : s.label;
     switch (kind(e)) {
       case "network":
-        if (!MainActivity.hasLocalNetwork(ctx)) return ctx.getString(R.string.err_local_network, name);
-        return ctx.getString(R.string.err_network, name);
+        if (!localNetwork.getAsBoolean()) return new Message(R.string.err_local_network, name);
+        return new Message(R.string.err_network, name);
       case "auth":
         if (detail(e).contains("knownhosts: key mismatch") || detail(e).contains("host key mismatch")) {
-          return ctx.getString(R.string.err_host_key, name);
+          return new Message(R.string.err_host_key, name);
         }
-        if (detail(e).contains("knownhosts: key is unknown")) return ctx.getString(R.string.err_host_unknown, name);
-        if (detail(e).contains("non-privileged ports")) return ctx.getString(R.string.err_nfs_ports, name);
+        if (detail(e).contains("knownhosts: key is unknown")) return new Message(R.string.err_host_unknown, name);
+        if (detail(e).contains("non-privileged ports")) return new Message(R.string.err_nfs_ports, name);
         Kinds.Kind kind = s == null ? null : Kinds.of(s.backend);
         if (s != null && Kinds.browser(kind, s.params)) {
-          if (onForm) return ctx.getString(R.string.err_signin_ended, name);
-          if (Kinds.signsInAgain(kind, s.params)) return ctx.getString(R.string.err_signin_again, name);
-          if (!Kinds.changeRestores(kind)) return ctx.getString(R.string.err_signin_none, name);
-          return ctx.getString(R.string.err_signin_change, name);
+          if (onForm) return new Message(R.string.err_signin_ended, name);
+          if (Kinds.signsInAgain(kind, s.params)) return new Message(R.string.err_signin_again, name);
+          if (!Kinds.changeRestores(kind)) return new Message(R.string.err_signin_none, name);
+          return new Message(R.string.err_signin_change, name);
         }
-        return ctx.getString(R.string.err_auth, name, detail(e));
+        return new Message(onForm ? R.string.err_auth_form : R.string.err_auth, name);
       // Driveway's own sign-in (Dropbox, OneDrive): named by the service.
       case "declined":
-        return ctx.getString(R.string.err_signin_declined, service(s, name));
+        return new Message(R.string.err_signin_declined, service(s, name));
       case "expired":
-        return ctx.getString(R.string.err_signin_expired, service(s, name));
+        return new Message(R.string.err_signin_expired, service(s, name));
       // The sign-in page couldn't open (Servers.browserProblem).
       case "background":
-        return ctx.getString(R.string.err_signin_background, service(s, name));
+        return new Message(R.string.err_signin_background, service(s, name));
       case "nobrowser":
-        return ctx.getString(R.string.err_signin_nobrowser, service(s, name));
+        return new Message(R.string.err_signin_nobrowser, service(s, name));
       // Another app holds the port the sign-in comes back to (the engine's
       // errV6Taken), so the sign-in didn't start.
       case "port":
-        return ctx.getString(R.string.err_signin_port, service(s, name));
+        return new Message(R.string.err_signin_port, service(s, name));
+      // The service refused the sign-in and said why: its words, labeled as its own.
       case "signin":
-        return ctx.getString(R.string.err_signin_failed, service(s, name), detail(e));
+        return new Message(R.string.err_signin_failed, service(s, name), detail(e));
+      // The sign-in failed without the service saying why.
+      case "signinfailed":
+        return new Message(R.string.err_signin_plain, service(s, name));
       // Signed in, but the service's setup didn't finish (Driveway's own
       // sign-ins never show the service's own setup words or errors).
       case "setup":
-        return ctx.getString(R.string.err_setup, service(s, name));
+        return new Message(R.string.err_setup, service(s, name));
       case "notfound":
-        return ctx.getString(R.string.err_not_found);
+        return new Message(R.string.err_not_found);
       case "exists":
-        return ctx.getString(R.string.err_exists);
+        return new Message(R.string.err_exists);
       case "notempty":
-        return ctx.getString(R.string.err_not_empty);
+        return new Message(R.string.err_not_empty);
       case "bucketname":
-        return ctx.getString(R.string.err_bucket_name, name);
+        return new Message(R.string.err_bucket_name, name);
       case "denied":
-        return ctx.getString(R.string.err_denied, name);
+        return new Message(R.string.err_denied, name);
       case "full":
-        return ctx.getString(R.string.err_full, name);
+        return new Message(R.string.err_full, name);
+      // The engine's own cases that each need their own next step.
+      case "retry":
+        return new Message(R.string.err_retry, name);
+      case "nosize":
+        return new Message(R.string.err_no_size);
+      case "changed":
+        return new Message(R.string.err_changed);
+      case "norename":
+        return new Message(R.string.err_no_rename, name);
+      case "bothnames":
+        return new Message(R.string.err_both_names);
+      case "partway":
+        return new Message(R.string.err_part_way);
+      case "keptold":
+        return new Message(R.string.err_kept_old, name);
+      case "short":
+        return new Message(R.string.err_short, name);
       default:
-        return ctx.getString(R.string.err_other, name, detail(e));
+        return new Message(onForm ? R.string.err_other_form : R.string.err_other, name);
     }
   }
 }

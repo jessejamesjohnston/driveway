@@ -166,7 +166,7 @@ var forms = map[string]form{
 		{Key: "api_key", Label: "API key", Required: true},
 		{Key: "api_secret", Label: "API secret", Required: true, Secret: true},
 	}},
-	"doi": {Label: "DOI datasets", Method: methodForm, Blurb: "Read-only datasets from Zenodo, Dataverse and others", Essentials: []essential{
+	"doi": {Label: "DOI datasets", Method: methodForm, Blurb: "Read-only datasets from Zenodo, Dataverse, and others", Essentials: []essential{
 		{Key: "doi", Label: "DOI", Hint: "Like 10.5281/zenodo.123456, or its doi.org link", Required: true},
 	}},
 	"drime": {Label: "Drime", Method: methodForm, Essentials: []essential{
@@ -221,7 +221,7 @@ var forms = map[string]form{
 	"gofile": {Label: "Gofile", Method: methodForm, Essentials: []essential{
 		{Key: "access_token", Label: "Access token", Hint: "From Gofile's web control panel", Required: true, Secret: true},
 	}},
-	"google cloud storage": {Label: "Google Cloud Storage", Method: methodAlt, FolderHint: bucketHint,
+	"google cloud storage": {Label: "Google Cloud Storage", Blurb: "Buckets in Google Cloud (not Google Drive)", Method: methodAlt, FolderHint: bucketHint,
 		Alt: &alt{With: "a service account key", Row: "Connect with a service account key",
 			How: "In the Google Cloud console, make a service account with a Storage role (Storage Admin, or Storage " +
 				"Viewer to only look) and add a JSON key. Newer Google Cloud accounts block key creation until it is " +
@@ -249,7 +249,7 @@ var forms = map[string]form{
 		{Key: "public_key", Label: "Public key", Required: true},
 		{Key: "private_key", Label: "Private key", Required: true, Secret: true},
 	}},
-	"internetarchive": {Label: "Internet Archive", Method: methodForm, FolderHint: "An item, or item/folder.", Essentials: []essential{
+	"internetarchive": {Label: "Internet Archive", Method: methodForm, FolderHint: "An item, or item/folder", Essentials: []essential{
 		{Key: "access_key_id", Label: "Access key", Hint: "From archive.org/account/s3.php. Leave empty to browse without one."},
 		{Key: "secret_access_key", Label: "Secret key", Secret: true},
 	}},

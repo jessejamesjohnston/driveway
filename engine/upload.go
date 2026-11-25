@@ -238,7 +238,7 @@ func replace(c context.Context, f fs.Fs, tmp fs.Object, p string) error {
 	}
 	if _, err := move(c, tmp, p); err != nil {
 		if _, rerr := move(c, moved, p); rerr != nil {
-			return tag("other", fmt.Errorf("couldn't replace %s, and couldn't put the old file back: it is %s", p, aside))
+			return tag("keptold", fmt.Errorf("couldn't replace %s, and couldn't put the old file back: it is %s", p, aside))
 		}
 		return classify(err)
 	}
@@ -248,7 +248,7 @@ func replace(c context.Context, f fs.Fs, tmp fs.Object, p string) error {
 
 func sizeCheck(o fs.Object, want int64) error {
 	if got := o.Size(); got >= 0 && got != want {
-		return tag("other", fmt.Errorf("the server stored %d bytes of %d", got, want))
+		return tag("short", fmt.Errorf("the server stored %d bytes of %d", got, want))
 	}
 	return nil
 }

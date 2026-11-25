@@ -49,7 +49,7 @@ func Open(id, p string) (*Reader, error) {
 		// A file the service makes on demand (a Google Docs document) has no
 		// size until it's made, and Android needs one: reads past "size -1"
 		// would look like the end of an empty file.
-		return nil, tag("other", errors.New("this file has no fixed size (the service makes it when it's downloaded); open it in the service's own app"))
+		return nil, tag("nosize", errors.New("this file has no fixed size (the service makes it when it's downloaded); open it in the service's own app"))
 	}
 	return &Reader{id: id, obj: o, size: o.Size()}, nil
 }
@@ -132,7 +132,7 @@ func (r *Reader) reconnect() error {
 		return classify(err)
 	}
 	if o.Size() != r.size || !o.ModTime(ctx()).Equal(r.obj.ModTime(ctx())) {
-		return tag("other", errors.New("the file changed on the server while it was being read"))
+		return tag("changed", errors.New("the file changed on the server while it was being read"))
 	}
 	r.obj = o
 	return nil

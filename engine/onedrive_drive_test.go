@@ -219,7 +219,7 @@ func TestOneDriveGraphRefusesSignIn(t *testing.T) {
 	g := newFakeGraph(t)
 	g.me = meStatus(401)
 	_, err := oneDriveSetup(t, "t-od-401", nil)
-	if err == nil || !strings.HasPrefix(err.Error(), "[signin]") {
+	if err == nil || !strings.HasPrefix(err.Error(), "[signinfailed]") {
 		t.Fatalf("got %v", err)
 	}
 }

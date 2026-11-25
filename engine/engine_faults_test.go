@@ -694,7 +694,7 @@ func TestConnectSuperseded(t *testing.T) {
 		return nil
 	}
 	f, err := remote(ctx(), id)
-	if f != nil || err == nil || err.Error() != "[other] the server's settings changed while connecting; try again" {
+	if f != nil || err == nil || err.Error() != "[retry] the server's settings changed while connecting" {
 		t.Fatalf("settings changing twice: %v, %v", f, err)
 	}
 	for i := 0; i < 2; i++ {
@@ -734,7 +734,7 @@ func TestOneDeadlinePerCall(t *testing.T) {
 		{"new folder", "mkdir", func(id string) error { return Mkdir(id, "d") }, "network", "deadline"},
 		{"delete", "remove", func(id string) error { return Delete(id, "a.txt") }, "network", "deadline"},
 		{"move", "move", func(id string) error { return Move(id, "a.txt", "b.txt") }, "network", "deadline"},
-		{"folder rename", "move", func(id string) error { return Rename(id, "from", "to") }, "other", "stopped part way"},
+		{"folder rename", "move", func(id string) error { return Rename(id, "from", "to") }, "partway", "stopped part way"},
 		{"copy", "copy", func(id string) error { return Copy(id, "a.txt", "b.txt") }, "network", "deadline"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
@@ -1194,7 +1194,7 @@ func TestUploadPutFailures(t *testing.T) {
 				return nil
 			}
 		}, "network", "broken pipe"},
-		{"short store", func(k *afFaults) { k.putExtra = 1 }, "other", "stored 4 bytes of 3"},
+		{"short store", func(k *afFaults) { k.putExtra = 1 }, "short", "stored 4 bytes of 3"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			id, k := afServer(t)
@@ -1222,7 +1222,7 @@ func TestUploadNoRename(t *testing.T) {
 	k.gone(t, "f.txt")
 	k.pre = nil
 	k.putExtra = 1
-	afWant(t, Upload(id, "f.txt", local(t, []byte("new"))), "other", "stored 4 bytes of 3")
+	afWant(t, Upload(id, "f.txt", local(t, []byte("new"))), "short", "stored 4 bytes of 3")
 	k.putExtra = 0
 	if err := Upload(id, "f.txt", local(t, []byte("newer"))); err != nil {
 		t.Fatal(err)
@@ -1329,7 +1329,7 @@ func TestReplaceCantPutBack(t *testing.T) {
 		return nil
 	}
 	err := Upload(id, "d/f.txt", local(t, []byte("new version")))
-	afWant(t, err, "other", "couldn't put the old file back: it is ")
+	afWant(t, err, "keptold", "couldn't put the old file back: it is ")
 	aside := err.Error()[strings.LastIndex(err.Error(), "it is ")+len("it is "):]
 	if !strings.HasPrefix(aside, "d/.driveway-old-") {
 		t.Fatalf("aside name %q", aside)
@@ -1440,7 +1440,7 @@ func TestMoveByCopy(t *testing.T) {
 				return afErr("i/o timeout")
 			}
 			return nil
-		}, nil, "other", "both names may now hold it", true, true},
+		}, nil, "bothnames", "both names may now hold it", true, true},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			id, k := afServer(t)
@@ -1478,7 +1478,7 @@ func TestMoveCantStart(t *testing.T) {
 	id, k := afServer(t)
 	k.write(t, "a.txt", "content")
 	k.disable = []string{"Move", "Copy"}
-	afWant(t, Move(id, "a.txt", "b.txt"), "other", "can't rename files")
+	afWant(t, Move(id, "a.txt", "b.txt"), "norename", "can't rename files")
 	k.has(t, "a.txt", "content")
 	k.disable = nil
 	k.pre = func(c afCall) error {
@@ -1549,7 +1549,7 @@ func TestFolderRenameFailures(t *testing.T) {
 				return c.ctx.Err()
 			}
 			return nil
-		}, "other", "the rename of from stopped part way: some files are in to and the rest are still in from"},
+		}, "partway", "the rename of from stopped part way: some files are in to and the rest are still in from"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			id, k := afServer(t)

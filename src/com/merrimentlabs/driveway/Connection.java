@@ -321,8 +321,10 @@ final class Connection {
             outcome = Outcome.SAVED;
           }
         } catch (Exception e) {
+          // What went wrong goes to the log; the form says the settings weren't kept.
+          android.util.Log.w("Driveway", "can't keep the settings of " + server.label, e);
           synchronized (lock) {
-            error = e.getMessage() == null ? e.toString() : e.getMessage();
+            error = app.getString(R.string.save_failed);
             errorKind = "save";
             outcome = Outcome.FAILED;
           }

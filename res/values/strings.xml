@@ -8,8 +8,8 @@
   <string name="settings">Settings</string>
   <string name="back">Back</string>
   <string name="your_servers">Your servers</string>
-  <string name="no_servers_title">No servers yet.</string>
-  <string name="no_servers">Add one, or pick one Driveway found on your network.</string>
+  <string name="no_servers_title">No servers yet</string>
+  <string name="no_servers">Add one, or pick one Driveway found on your network</string>
   <string name="add_server">Add a server</string>
   <string name="edit_server">Change server</string>
   <string name="open_files">Open Files</string>
@@ -29,26 +29,26 @@
   <string name="remove_title">Remove %1$s?</string>
   <string name="remove_message">It disappears from Files, and Driveway forgets how to sign in to it. Nothing on the server changes.</string>
   <plurals name="remove_unsent">
-    <item quantity="one">A save to it that hasn\'t reached the server yet will be deleted from this device.</item>
-    <item quantity="other">%1$d saves to it that haven\'t reached the server yet will be deleted from this device.</item>
+    <item quantity="one">A save to it hasn\'t reached the server yet. It will be deleted from this device.</item>
+    <item quantity="other">%1$d saves to it haven\'t reached the server yet. They\'ll be deleted from this device.</item>
   </plurals>
-  <string name="remove_failed">Couldn\'t remove %1$s: %2$s</string>
+  <string name="remove_failed">Couldn\'t remove %1$s. Try again.</string>
   <string name="no_files_title">No Files app</string>
   <string name="no_files">This device has no app that can open Driveway\'s servers. Any app\'s Open or Save dialog still lists them.</string>
   <string name="save_waiting">%1$s didn\'t reach %2$s. It\'s safe on this device until it does.</string>
   <plurals name="saves_waiting_more">
-    <item quantity="one">%1$d more save waiting.</item>
-    <item quantity="other">%1$d more saves waiting.</item>
+    <item quantity="one">%1$d more save waiting</item>
+    <item quantity="other">%1$d more saves waiting</item>
   </plurals>
   <string name="try_again_named">Try again: %1$s on %2$s</string>
   <string name="discard_named">Discard: %1$s on %2$s</string>
   <string name="discard_save_title">Discard your save of %1$s?</string>
   <string name="discard_save_message">The copy on this device is deleted and won\'t be sent. %1$s keeps the version it has.</string>
-  <string name="problem_signin">Driveway is no longer signed in to %1$s.</string>
+  <string name="problem_signin">Driveway is no longer signed in to %1$s</string>
   <string name="problem_signin_none">Driveway is no longer signed in to %1$s and can\'t sign in to it again. Removing it changes nothing in your %2$s account.</string>
-  <string name="problem_identity">%1$s answered as a different server than before, so Driveway won\'t connect to it.</string>
+  <string name="problem_identity">%1$s answered as a different server than before, so Driveway won\'t connect to it</string>
   <string name="check_identity">Check identity</string>
-  <string name="problem_unconfirmed">Driveway won\'t connect to %1$s until you check its identity.</string>
+  <string name="problem_unconfirmed">Driveway won\'t connect to %1$s until you check its identity</string>
   <string name="sign_in_again_named">Sign in again to %1$s</string>
   <string name="edit_named">Change %1$s</string>
   <string name="check_identity_named">Check the identity of %1$s</string>
@@ -56,7 +56,7 @@
     <item quantity="one">%1$d server found on your network</item>
     <item quantity="other">%1$d servers found on your network</item>
   </plurals>
-  <string name="local_network_needed">To reach servers on your network, Driveway needs the Nearby devices permission.</string>
+  <string name="local_network_needed">To reach servers on your network, Driveway needs the Nearby devices permission</string>
 
   <!-- Add a server: where are your files? -->
   <string name="step_of">Step %1$d of %2$d</string>
@@ -66,7 +66,7 @@
   <string name="a_cloud">A cloud service</string>
   <string name="looking">Looking for file servers…</string>
   <string name="look_for_servers">Look for servers</string>
-  <string name="look_hint">Driveway can find file servers that announce themselves on your network.</string>
+  <string name="look_hint">Driveway can find file servers that announce themselves on your network</string>
   <string name="nothing_found">None found. You can still add a server below, including one you reach over Tailscale.</string>
   <string name="add">Add</string>
   <string name="add_named">Add %1$s (%2$s)</string>
@@ -76,9 +76,9 @@
   <string name="new_label">New</string>
   <string name="new_named">%1$s, new</string>
   <string name="more_services">More services</string>
-  <string name="more_services_blurb">S3, FTP and %1$d more</string>
+  <string name="more_services_blurb">S3, FTP, and %1$d more</string>
   <string name="search_services">Search services</string>
-  <string name="no_service_matches">No service matches \u201c%1$s\u201d.</string>
+  <string name="no_service_matches">No service matches \u201c%1$s\u201d</string>
 
   <!-- The form -->
   <string name="add_kind">New %1$s server</string>
@@ -96,22 +96,24 @@
   <string name="expanded">Shown</string>
   <string name="collapsed">Hidden</string>
   <string name="key">Driveway\'s key</string>
-  <string name="key_none">Sign in with a password, or make a key for Driveway and add it to the server.</string>
+  <string name="key_none">Sign in with a password, or make a key for Driveway and add it to the server</string>
   <string name="key_create">Make a key</string>
+  <string name="key_failed">Couldn\'t make a key. Try again.</string>
   <string name="key_add">Add this line to ~/.ssh/authorized_keys on the server:</string>
   <string name="key_forget">Forget this key</string>
   <string name="copy">Copy</string>
   <string name="copy_key">Copy the key line</string>
   <string name="copied">Copied</string>
   <string name="needs">Fill in %1$s</string>
-  <string name="needs_login">Enter a password, or make a key.</string>
+  <string name="form_failed">Couldn\'t read this form. Try again.</string>
+  <string name="needs_login">Enter a password, or make a key</string>
   <string name="address_port_bad">\"%1$s\" after the colon isn\'t a port number. Type the server\'s name or address in %2$s, and its port in Port under More settings.</string>
-  <string name="address_port_range">Port %1$s is out of range: a port is a number from 1 to 65535.</string>
-  <string name="address_scheme">A %1$s address isn\'t for %2$s. Type just the server\'s name or address, like nas.local, or go back and choose the kind of server it is.</string>
+  <string name="address_port_range">Port %1$s is out of range: a port is a number from 1 to 65535</string>
+  <string name="address_scheme">A %1$s address isn\'t for %2$s. Type just the server\'s name or address, like nas.local, or go back and choose the right kind of server.</string>
   <string name="address_folder">Type just the server\'s name or address here, without %1$s. A folder goes in Start in folder, under More settings.</string>
-  <string name="address_user">Type just the server\'s name or address here, without \"%1$s\".</string>
-  <string name="address_ipv6">An IPv6 address with a port goes in brackets, like [2001:db8::1]:2222.</string>
-  <string name="address_port_moved">Port %1$s, typed with the server\'s name, replaces %2$s in Port under More settings.</string>
+  <string name="address_user">Type just the server\'s name or address here, without \"%1$s\"</string>
+  <string name="address_ipv6">An IPv6 address with a port goes in brackets, like [2001:db8::1]:2222</string>
+  <string name="address_port_moved">Port %1$s, typed with the server\'s name, replaces %2$s in Port under More settings</string>
   <string name="connect">Connect</string>
   <string name="save">Save</string>
   <string name="test">Test connection</string>
@@ -122,13 +124,13 @@
   <string name="discard_new_title">Discard this server?</string>
   <!-- A Dropbox or OneDrive server that signed in before Driveway had its own registration with the service. -->
   <string name="old_sign_in_note">Your %1$s account lists this sign-in as rclone, the open-source tool Driveway is built on. Sign in again to have it listed as Driveway.</string>
-  <string name="sign_in_note">Driveway keeps that access encrypted on this device.</string>
-  <string name="secret_note">Driveway keeps your sign-in encrypted on this device.</string>
+  <string name="sign_in_note">Driveway keeps that access encrypted on this device</string>
+  <string name="secret_note">Driveway keeps your sign-in encrypted on this device</string>
   <!-- A new service's form: one centered button under the few settings it needs. -->
   <string name="connect_to">Connect to %1$s</string>
-  <string name="connect_opens_browser">Opens %1$s\'s sign-in page in your browser.</string>
+  <string name="connect_opens_browser">Opens %1$s\'s sign-in page in your browser</string>
   <!-- A service Driveway sets up with a credential instead of a browser sign-in: the way in, on top of its form. -->
-  <string name="alt_connect">Connect with %1$s.</string>
+  <string name="alt_connect">Connect with %1$s</string>
   <string name="leave_empty_keep">Leave empty to keep the current sign-in</string>
   <!-- A key or settings file, chosen with Android's file picker. -->
   <string name="choose_file">Choose file</string>
@@ -138,9 +140,9 @@
   <string name="file_chosen">Chosen: %1$s</string>
   <string name="file_chosen_unnamed">a file</string>
   <string name="file_late">The file arrived after the connection started, so it isn\'t in what\'s being checked. Choose it again when the check ends.</string>
-  <string name="file_too_big">That file is too big to be a key or settings file.</string>
+  <string name="file_too_big">That file is too big to be a key or settings file</string>
   <string name="file_unreadable">Couldn\'t read that file. Choose it again, or copy it to this device first.</string>
-  <string name="no_file_picker">This device has no app for choosing files.</string>
+  <string name="no_file_picker">This device has no app for choosing files</string>
 
   <!-- Connecting: the checklist -->
   <string name="connecting_to">Connecting to %1$s</string>
@@ -176,8 +178,8 @@
   <string name="signing_in_body">Your browser opened %1$s\'s sign-in page. Sign in there, then come back.</string>
   <string name="signed_in_to">Signed in to %1$s</string>
   <string name="not_signed_in_to">Couldn\'t sign in to %1$s</string>
-  <string name="sign_in_cancelled">Sign-in cancelled</string>
-  <string name="setup_cancelled">Setup cancelled</string>
+  <string name="sign_in_cancelled">Sign-in canceled</string>
+  <string name="setup_cancelled">Setup canceled</string>
   <string name="open_page_again">Open the page again</string>
   <string name="cancel_sign_in">Cancel sign-in</string>
   <string name="setup_question">%1$s asks: %2$s</string>
@@ -193,7 +195,8 @@
   <string name="the_shares">the list of shares</string>
   <string name="your_service">your %1$s</string>
   <string name="save_anyway">Save anyway</string>
-  <string name="save_failed">Connected, but Driveway couldn\'t save the settings on this device: %1$s</string>
+  <string name="save_failed">Connected, but Driveway couldn\'t save the settings on this device. Try again.</string>
+  <string name="save_anyway_failed">Couldn\'t save the settings on this device. Try again.</string>
   <string name="try_connect_again">Try again</string>
   <string name="back_to_details">Back to details</string>
   <string name="change_sign_in">Change sign-in</string>
@@ -217,7 +220,7 @@
   <string name="permissions">Permissions</string>
   <string name="nearby_devices">Nearby devices</string>
   <string name="nearby_on">Allowed. Driveway can reach servers on your network.</string>
-  <string name="nearby_off">Off. Servers on your network can\'t be reached.</string>
+  <string name="nearby_off">Off. Driveway can\'t reach servers on your network.</string>
   <string name="notifications">Notifications</string>
   <string name="notifications_on">On. You\'ll hear about saves that need a hand.</string>
   <string name="notifications_off">Off. Driveway can\'t tell you when a save didn\'t reach the server.</string>
@@ -231,7 +234,7 @@
   <string name="source">Source code</string>
   <string name="source_sub" translatable="false">github.com/jessejamesjohnston/driveway</string>
   <string name="privacy">Privacy</string>
-  <string name="privacy_sub">Driveway connects to the servers you add, and to GitHub only when it checks for updates.</string>
+  <string name="privacy_sub">Driveway connects to the servers you add, and to GitHub only when it checks for updates</string>
   <string name="licenses">Open-source notices</string>
   <string name="licenses_sub">The open-source software Driveway is built with</string>
   <string name="license">License</string>
@@ -241,19 +244,19 @@
   <string name="update_check_sub">Asks GitHub for the latest release</string>
   <string name="update_checking">Checking GitHub…</string>
   <string name="update_available">Driveway %1$s is available</string>
-  <string name="update_latest">You have the latest version.</string>
-  <string name="update_no_release">No release is published yet.</string>
+  <string name="update_latest">You have the latest version</string>
+  <string name="update_no_release">No release is published yet</string>
   <string name="update_offline">Couldn\'t reach GitHub. Check your connection and try again.</string>
   <string name="update_failed">GitHub didn\'t answer with a release. Try again later.</string>
   <string name="update_weekly">Check weekly</string>
-  <string name="update_weekly_sub">Once a week, ask GitHub for a newer version and tell me in a notification. Nothing about you or this device is sent.</string>
+  <string name="update_weekly_sub">Asks GitHub once a week and notifies you when a newer version is out. Sends nothing about you or this device.</string>
   <string name="on">On</string>
   <string name="off">Off</string>
   <string name="update_channel">App updates</string>
-  <string name="update_notification_text">Tap to open the release page on GitHub.</string>
+  <string name="update_notification_text">Tap to open the release page on GitHub</string>
   <string name="copyright">Copyright © 2026 Jesse Johnston. Published by Merriment Labs.</string>
   <string name="no_browser_title">No browser</string>
-  <string name="no_browser">This device has no app to open %1$s.</string>
+  <string name="no_browser">This device has no app to open %1$s</string>
   <string name="no_email">This device has no email app. Write to %1$s.</string>
 
   <!-- Licenses -->
@@ -265,7 +268,8 @@
   <string name="the_server">The server</string>
   <string name="err_local_network">Can\'t reach %1$s without the Nearby devices permission. Allow it for Driveway in Settings.</string>
   <string name="err_network">Can\'t reach %1$s. Check that it\'s on, and that this device is on its network or on Tailscale.</string>
-  <string name="err_auth">%1$s refused the sign-in. %2$s</string>
+  <string name="err_auth">%1$s refused the sign-in. Open Driveway and choose Change on its card to check the sign-in.</string>
+  <string name="err_auth_form">%1$s refused the sign-in. Check the sign-in details and try again.</string>
   <string name="err_host_key">%1$s answered as a different server than before, so Driveway won\'t connect to it. If you know it was reinstalled, open Driveway and choose Check identity on its card.</string>
   <string name="err_host_unknown">Driveway won\'t connect to %1$s until you check its identity. Open Driveway and choose Check identity on its card.</string>
   <string name="err_nfs_ports">%1$s refused to share this folder with Driveway. Android apps connect from ports above 1024, which NFS servers refuse unless told otherwise: add \"insecure\" to the export in /etc/exports (on Synology, tick \"Allow connections from non-privileged ports\"), and check that the export allows this device\'s address and standard security (sec=sys), not only Kerberos.</string>
@@ -274,24 +278,34 @@
   <string name="err_signin_background">Couldn\'t sign in to %1$s: its sign-in page can\'t open while Driveway isn\'t on screen. Keep Driveway open and try again.</string>
   <string name="err_signin_nobrowser">Couldn\'t sign in to %1$s: no browser could open its sign-in page. Turn on a browser and try again.</string>
   <string name="err_signin_port">Couldn\'t sign in to %1$s: another app on this device is using the port the sign-in comes back to. Close other apps or restart the device, then try again.</string>
+  <string name="err_signin_plain">Couldn\'t sign in to %1$s. Try again.</string>
   <string name="err_signin_failed">Couldn\'t sign in to %1$s. Try again. (%1$s said: %2$s)</string>
   <string name="err_signin_again">Driveway is no longer signed in to %1$s. Open Driveway and choose Sign in again on its card.</string>
-  <string name="err_signin_ended">Driveway is no longer signed in to %1$s.</string>
+  <string name="err_signin_ended">Driveway is no longer signed in to %1$s</string>
   <string name="err_signin_change">Driveway is no longer signed in to %1$s. Open Driveway and choose Change on its card.</string>
   <string name="err_signin_none">Driveway is no longer signed in to %1$s and can\'t sign in to it again. Open Driveway and choose Remove on its card.</string>
-  <string name="err_bucket_name">Folders at the top of %1$s are buckets, and bucket names may only use lowercase letters, numbers, dots and hyphens.</string>
-  <string name="err_not_found">It\'s no longer on the server.</string>
-  <string name="err_exists">Something with that name is already there.</string>
+  <string name="err_bucket_name">Folders at the top of %1$s are buckets, and bucket names may only use lowercase letters, numbers, dots, and hyphens</string>
+  <string name="err_not_found">It\'s no longer on the server</string>
+  <string name="err_exists">Something with that name is already there</string>
   <string name="err_full">%1$s wouldn\'t store the file. It may be full, or the folder may be read-only.</string>
-  <string name="err_read_only">%1$s can only be read: Driveway can\'t save, rename or delete anything there.</string>
-  <string name="err_denied">You don\'t have permission to do that on %1$s.</string>
+  <string name="err_read_only">%1$s can only be read: Driveway can\'t save, rename, or delete anything there</string>
+  <string name="err_denied">You don\'t have permission to do that on %1$s</string>
   <string name="err_still_saving">That file is still being saved to the server. Try again in a moment.</string>
   <string name="err_failed_save_pending">A save of this file didn\'t reach the server. First choose Try again or Discard on its server\'s card in Driveway, or in its notification.</string>
-  <string name="err_not_empty">That folder isn\'t empty.</string>
+  <string name="err_not_empty">That folder isn\'t empty</string>
   <string name="err_copy_pending">A copy made a moment ago hasn\'t reached its server yet, so Driveway kept the original. Try again once the copy is saved.</string>
   <string name="err_delete_unlisted">Driveway couldn\'t read everything in that folder a moment ago, so it kept the folder. Try again once it opens.</string>
   <string name="err_rename_folder_big">%1$s can\'t rename a folder this big in one step. Make a new folder with the new name and move what\'s inside into it.</string>
-  <string name="err_other">%1$s: %2$s</string>
+  <string name="err_retry">The settings for %1$s changed while Driveway was connecting. Try again.</string>
+  <string name="err_no_size">This file has no fixed size, because the service makes it when it\'s downloaded. Open it in the service\'s own app.</string>
+  <string name="err_changed">The file changed on the server while Driveway was reading it. Open it again.</string>
+  <string name="err_no_rename">%1$s can\'t rename files. Make a copy with the new name instead.</string>
+  <string name="err_both_names">Driveway copied it to the new name but couldn\'t check that the original was removed. Both names may now hold it, so look in the folder before deleting either.</string>
+  <string name="err_part_way">The rename stopped part way: some files are in the new folder and the rest are still in the old one. Move them across to finish.</string>
+  <string name="err_kept_old">Couldn\'t replace the file on %1$s, and couldn\'t put the old one back. The old one is in the same folder, with a name that starts with .driveway-old-, so nothing is lost.</string>
+  <string name="err_short">%1$s didn\'t store the whole file. Save it again.</string>
+  <string name="err_other">Couldn\'t finish that on %1$s. Try again, and if it keeps happening, open Driveway and check its settings.</string>
+  <string name="err_other_form">Driveway couldn\'t finish connecting to %1$s. Check the details and try again.</string>
 
   <string name="channel_uploads">Saving to servers</string>
   <string name="channel_connected">Connected</string>

@@ -506,8 +506,8 @@ func TestExchangeFailures(t *testing.T) {
 	closed := "http://" + l.Addr().String() + "/token"
 	l.Close()
 	for _, c := range []struct{ url, want string }{
-		{p.URL + "/token500", "[signin] the token request failed (500 Internal Server Error)"},
-		{p.URL + "/tokenempty", "[signin] oauth2: server response missing access_token"},
+		{p.URL + "/token500", "[signinfailed] the token request failed (500 Internal Server Error)"},
+		{p.URL + "/tokenempty", "[signinfailed] oauth2: server response missing access_token"},
 		{closed, "[network] "},
 	} {
 		tok, err := exchange(context.Background(), reg, c.url, "code", "verifier")
@@ -546,7 +546,7 @@ func TestOwnSignInNoRefreshToken(t *testing.T) {
 	p.noRefresh = true
 	SetHost(&browserHost{testHost{saved: map[string]string{}}})
 	_, err := pkceSignIn(reg, map[string]any{"auth_url": p.URL + "/authorize", "token_url": p.URL + "/token"})
-	if err == nil || !strings.HasPrefix(err.Error(), "[signin] Dropbox didn't let Driveway stay signed in") {
+	if err == nil || !strings.HasPrefix(err.Error(), "[signinfailed] Dropbox didn't let Driveway stay signed in") {
 		t.Fatalf("no refresh token: %v", err)
 	}
 }

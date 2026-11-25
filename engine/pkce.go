@@ -496,7 +496,7 @@ func pkceSignIn(reg registration, m map[string]any) (string, error) {
 		return "", err
 	}
 	if tok.RefreshToken == "" {
-		return "", tag("signin", fmt.Errorf("%s didn't let Driveway stay signed in (no refresh token)", reg.Service))
+		return "", tag("signinfailed", fmt.Errorf("%s didn't let Driveway stay signed in (no refresh token)", reg.Service))
 	}
 	return tokenJSON(tok)
 }
@@ -522,14 +522,15 @@ func exchange(c context.Context, reg registration, tokenURL, code, verifier stri
 			d = re.ErrorCode
 		}
 		if d == "" {
-			d = fmt.Sprintf("the token request failed (%s)", re.Response.Status)
+			// No words from the service to quote: only Driveway's own.
+			return nil, tag("signinfailed", fmt.Errorf("the token request failed (%s)", re.Response.Status))
 		}
 		return nil, tag("signin", errors.New(d))
 	}
 	if e := classify(err); strings.HasPrefix(e.Error(), "[network]") {
 		return nil, e
 	}
-	return nil, tag("signin", err)
+	return nil, tag("signinfailed", err)
 }
 
 // ownSignInSettings runs the sign-in for ConfigStart and puts its outcome

@@ -148,7 +148,7 @@ PY
   javac --release 17 -Xlint:all -Werror -encoding UTF-8 -cp "$C/android-37.jar" -d $JT/classes \
     src/com/merrimentlabs/driveway/{NewLabels,Kinds,Errors,UpdateCheck}.java $JT/gen/R.java \
     $(find test/java test/stubs -name '*.java') || return 1
-  for t in NewLabelsTest KindsTest ErrorsTest UpdateCheckTest; do
+  for t in NewLabelsTest KindsTest ErrorsTest UpdateCheckTest StringStyleTest; do
     java ${1:+"$1"} -Ddriveway.backends=$JT/backends.json -cp "$JT/classes:$B/$JSON_JAR:$C/android-37.jar" \
       com.merrimentlabs.driveway.$t || return 1
   done
