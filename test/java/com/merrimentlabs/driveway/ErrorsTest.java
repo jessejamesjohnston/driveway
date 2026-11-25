@@ -222,8 +222,8 @@ public final class ErrorsTest {
       "ServerActivity.java: formStatus.setText(e.getMessage());",
       "2: e is collect()'s IllegalArgumentException, whose message is always one of Driveway's strings (needs, "
           + "needs_login, form_failed, the address problems)",
-      "ServerActivity.java: field.setError(e.getMessage());",
-      "1: the same collect() exception, on the field it names",
+      "ServerActivity.java: markProblem(field, e.getMessage());",
+      "1: the same collect() exception, as the state of the field it names",
       "ServerActivity.java: error = e.getMessage();",
       "1: e is an Errors.Worded (the catch above it), Driveway's own sentence",
       "DrivewayProvider.java: throw new UnsupportedOperationException(Errors.detail(e));",

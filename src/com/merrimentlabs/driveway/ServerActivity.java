@@ -1860,10 +1860,13 @@ public final class ServerActivity extends Activity implements Connection.Listene
     } catch (IllegalArgumentException e) {
       formStatus.setText(e.getMessage());
       if (e instanceof Missing && ((Missing) e).field instanceof EditText) {
-        // The field says what's missing, and takes focus (read out, too).
+        // The sentence is said once, on the status line below the fields
+        // (read out as it changes). The field is marked, says it in its
+        // state for a screen reader, and takes focus. No error popup: on a
+        // phone it would cover the next field with the same sentence.
         EditText field = (EditText) ((Missing) e).field;
+        markProblem(field, e.getMessage());
         field.requestFocus();
-        field.setError(e.getMessage());
       } else if (e instanceof Missing && ((Missing) e).field != null) {
         ((Missing) e).field.requestFocus();
       }
@@ -1880,6 +1883,26 @@ public final class ServerActivity extends Activity implements Connection.Listene
     if (isNew) showConnecting();
     else renderRun();
     updateMainButton();
+  }
+
+  /** Fields marked by markProblem, each with the watcher that unmarks it. */
+  private final java.util.Map<EditText, TextWatcher> marked = new java.util.HashMap<>();
+
+  /** Marks a field the status line says can't be used, until its text changes. */
+  private void markProblem(EditText field, String why) {
+    field.setBackground(Ui.outlined(this, true));
+    field.setStateDescription(why);
+    if (marked.containsKey(field)) return;
+    TextWatcher w = new Watcher(() -> {
+      TextWatcher gone = marked.remove(field);
+      if (gone == null) return;
+      field.setBackground(Ui.outlined(this));
+      field.setStateDescription(null);
+      // Not while the field is calling its watchers.
+      field.post(() -> field.removeTextChangedListener(gone));
+    });
+    marked.put(field, w);
+    field.addTextChangedListener(w);
   }
 
   /** Try again: the same request from the form as it is now. */

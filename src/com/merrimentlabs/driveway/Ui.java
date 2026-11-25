@@ -570,6 +570,14 @@ final class Ui {
    * page's color with a faint outline, and its text dims (fieldInk).
    */
   static Drawable outlined(Context c) {
+    return outlined(c, false);
+  }
+
+  /**
+   * A field's outline; with problem, in the red the form uses for trouble,
+   * focused or not (a field the status line below says can't be used).
+   */
+  static Drawable outlined(Context c, boolean problem) {
     GradientDrawable off = new GradientDrawable();
     off.setCornerRadius(dp(c, 12));
     off.setColor(color(c, R.color.page));
@@ -577,11 +585,12 @@ final class Ui {
     GradientDrawable idle = new GradientDrawable();
     idle.setCornerRadius(dp(c, 12));
     idle.setColor(color(c, R.color.card));
-    idle.setStroke(Math.max(1, dp(c, 1)), color(c, R.color.outline));
+    if (problem) idle.setStroke(dp(c, 2), color(c, R.color.trust_ink));
+    else idle.setStroke(Math.max(1, dp(c, 1)), color(c, R.color.outline));
     GradientDrawable focused = new GradientDrawable();
     focused.setCornerRadius(dp(c, 12));
     focused.setColor(color(c, R.color.card));
-    focused.setStroke(dp(c, 2), color(c, R.color.accent));
+    focused.setStroke(dp(c, 2), color(c, problem ? R.color.trust_ink : R.color.accent));
     StateListDrawable s = new StateListDrawable();
     s.addState(new int[] {-android.R.attr.state_enabled}, off);
     s.addState(new int[] {android.R.attr.state_focused}, focused);
