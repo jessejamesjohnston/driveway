@@ -121,6 +121,7 @@ final class Logs {
     s = looseUserinfo(s);
     s = cleanEscaped(s);
     s = replace(URL, s, m -> cleanUrl(m.group()));
+    s = looseForms(s);
     s = BARE_PAIR.matcher(s).replaceAll("$1***@$2");
     s = multiWord(s);
     s = AUTH_SETTING.matcher(s).replaceAll("$1$2$3***");
@@ -159,13 +160,22 @@ final class Logs {
     if (end < 0) end = rest.length();
     String authority = rest.substring(0, end), tail = rest.substring(end);
     int q = indexOfAny(tail, "?#");
-    if (q >= 0) tail = tail.substring(0, q) + "?***";
+    if (q > 0 && tail.indexOf('@', q) >= 0) {
+      tail = "/***?***";
+    } else if (q >= 0) {
+      tail = tail.substring(0, q) + "?***";
+    }
     int a = tail.lastIndexOf('@');
     if (a > 0 && !tail.substring(0, a).equals("/***")) tail = "/***" + tail.substring(a);
     tail = cleanPath(authority, tail);
     int c = authority.lastIndexOf(':');
-    if (c >= 0 && !authority.contains("[") && !authority.substring(c + 1).matches("[0-9]*")) {
-      authority = authority.substring(0, c + 1) + "***";
+    if (c >= 0 && !authority.contains("[")) {
+      int f = authority.indexOf(':');
+      if (f < c) {
+        authority = authority.substring(0, f + 1) + "***";
+      } else if (!authority.substring(c + 1).matches("[0-9]*")) {
+        authority = authority.substring(0, c + 1) + "***";
+      }
     }
     if (user >= 0) authority = "***@" + authority;
     return scheme + authority + tail + trail;
@@ -256,7 +266,10 @@ final class Logs {
       if (c != '@' || !hostFollows(s, j + 1)) continue;
       String u = s.substring(i, j);
       if (u.equals("***") || u.contains("://") || u.contains("\": ")) return -1;
-      if (containsAny(u, " \t\"'<>`\\") && (userPass(u) || quoted && ambiguousAt(s.substring(i, j + 1)) >= 0)) return j;
+      if (containsAny(u, " \t\"'<>`\\")
+          && (userPass(u) || quoted && (ambiguousAt(s.substring(i, j + 1)) >= 0 || u.contains(":") && !u.contains("\"")))) {
+        return j;
+      }
     }
     return -1;
   }
@@ -278,7 +291,7 @@ final class Logs {
   }
 
   private static boolean isHostChar(char c) {
-    return c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || ".-:[]%_".indexOf(c) >= 0;
+    return c >= 0x80 || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || ".-:[]%_".indexOf(c) >= 0;
   }
 
   private static boolean containsAny(String s, String chars) {
@@ -287,6 +300,15 @@ final class Logs {
 
   /** Where the user name and password before the host end (the @), or -1; see engine/redact.go userinfoEnd. */
   private static int userinfoEnd(String rest) {
+    int pair = pairAt(rest);
+    if (pair >= 0) return pair;
+    int end = indexOfAny(rest, "/?#");
+    if (end < 0) end = rest.length();
+    return rest.substring(0, end).lastIndexOf('@');
+  }
+
+  /** Where a user name and password holding a / ? or # end, or -1; see engine/redact.go pairAt. */
+  private static int pairAt(String rest) {
     int amb = ambiguousAt(rest);
     if (amb >= 0) return amb;
     int end = indexOfAny(rest, "/?#");
@@ -299,12 +321,85 @@ final class Logs {
       int a = rest.lastIndexOf('@');
       if (a >= end) return a;
     }
-    return rest.substring(0, end).lastIndexOf('@');
+    return -1;
+  }
+
+  private static final String LOOSE_STOPS = " \t\n\r\f\u000B\"'<>`\\(),=";
+
+  /** The user name and password of an address without the // after its scheme; see engine/redact.go looseForms. */
+  private static String looseForms(String s) {
+    StringBuilder b = new StringBuilder();
+    int last = 0;
+    for (int i = 0; i < s.length(); ) {
+      if (LOOSE_STOPS.indexOf(s.charAt(i)) >= 0) {
+        i++;
+        continue;
+      }
+      int j = i;
+      while (j < s.length() && LOOSE_STOPS.indexOf(s.charAt(j)) < 0) j++;
+      String w = s.substring(i, j);
+      int start = i, end = -1;
+      if (!hasScheme(w)) {
+        int k = oneSlash(w);
+        if (k > 0) {
+          start = i + k;
+          end = w.substring(k).lastIndexOf('@');
+        } else if (w.startsWith("//")) {
+          start = i + 2;
+          end = userinfoEnd(w.substring(2));
+        } else {
+          end = pairAt(w);
+          if (end < 0) end = loginAt(w);
+        }
+      }
+      if (end > 0 && !s.substring(start, start + end).equals("***")) {
+        b.append(s, last, start).append("***");
+        last = start + end;
+      }
+      i = j;
+    }
+    if (last == 0) return s;
+    return b.append(s.substring(last)).toString();
+  }
+
+  /** w holds a scheme and its :// (left to URL); see engine/redact.go hasScheme. */
+  private static boolean hasScheme(String w) {
+    for (int k = w.indexOf("://"); k >= 0; k = w.indexOf("://", k + 1)) {
+      if (k > 0) {
+        char c = w.charAt(k - 1);
+        if (isLetter(c) || c >= '0' && c <= '9' || "+.-".indexOf(c) >= 0) return true;
+      }
+    }
+    return false;
+  }
+
+  /** Where a user name and password end in an address without a scheme, or -1; see engine/redact.go loginAt. */
+  private static int loginAt(String w) {
+    int k = indexOfAny(w, "/?#");
+    String seg = k >= 0 ? w.substring(0, k) : w;
+    int c = seg.indexOf(':'), l = seg.lastIndexOf('@');
+    if (c < 0 || l < c) return -1;
+    return l;
+  }
+
+  /** Where what follows a scheme and one slash starts in w (https:/word), or 0. */
+  private static int oneSlash(String w) {
+    int k = 0;
+    while (k < w.length() && k <= 31 && (isLetter(w.charAt(k))
+        || k > 0 && (w.charAt(k) >= '0' && w.charAt(k) <= '9' || "+.-".indexOf(w.charAt(k)) >= 0))) {
+      k++;
+    }
+    if (k == 0 || k > 31 || !w.startsWith(":/", k) || w.startsWith("://", k)) return 0;
+    return k + 2;
+  }
+
+  private static boolean isLetter(char c) {
+    return c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z';
   }
 
   /**
-   * The address rule's reading for the redactor (engine/address.go ambiguousAt with anywhere true): when
-   * what follows the last colon of the authority is empty or only digits and an @ comes after it, the last @.
+   * The address rule's reading for the redactor (engine/address.go ambiguousAt): when what follows the
+   * last colon of the authority is empty or only digits and an @ comes after it, the last @.
    */
   private static int ambiguousAt(String rest) {
     int end = indexOfAny(rest, "/?#");

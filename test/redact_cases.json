@@ -600,6 +600,66 @@
       "why": "an email user name and a password with a / after a word, which Go can't read",
       "in": "parse \"https://alice@example.com:Zq9MADEUPh/Zq9MADEUPi@nas\": invalid port \":Zq9MADEUPh\" after host",
       "out": "parse \"https://***@nas\": invalid port \":***\" after host"
+    },
+    {
+      "why": "an address with one slash after its scheme, as Koofr's client rebuilds one: the word before the @ goes",
+      "in": "[network] Get \"https:/Zq9MADEUPj@nas/api/v2/mounts\": unexpected EOF",
+      "out": "[network] Get \"https:/***@nas/api/v2/mounts\": unexpected EOF"
+    },
+    {
+      "why": "an address that reads two ways, with one slash after its scheme",
+      "in": "Propfind \"https:/alice:2024/Zq9MADEUPk@nas/\": unexpected EOF",
+      "out": "Propfind \"https:/***@nas/\": unexpected EOF"
+    },
+    {
+      "why": "an address that reads two ways, written //host",
+      "in": "Propfind \"//alice:2024/Zq9MADEUPl@nas/\": unexpected EOF",
+      "out": "Propfind \"//***@nas/\": unexpected EOF"
+    },
+    {
+      "why": "an address that reads two ways with an empty port and no scheme (read as a scheme and one slash)",
+      "in": "Propfind \"alice:/Zq9MADEUPm@nas:22\": unexpected EOF",
+      "out": "Propfind \"alice:/***@nas:22\": unexpected EOF"
+    },
+    {
+      "why": "an address that reads two ways with no scheme",
+      "in": "can't reach \"alice:2024/Zq9MADEUPn@nas:22\": connection refused",
+      "out": "can't reach \"***@nas:22\": connection refused"
+    },
+    {
+      "why": "a password with a ? in it after an empty port, as Go's HTTP client sends it: the path goes with the query",
+      "in": "Propfind \"https://alice/Zq9MADEUPo?@nas/\": unexpected EOF",
+      "out": "Propfind \"https://alice/***?***\": unexpected EOF"
+    },
+    {
+      "why": "an @ in a query string: the query still goes whole",
+      "in": "came back to https://cb.example.com/done?email=a@b.example&code=Zq9MADEUPp",
+      "out": "came back to https://cb.example.com/***?***"
+    },
+    {
+      "why": "Go's parse error with a space in the user name: inside Go's quotes the user name and password go",
+      "in": "parse \"https://alice :Zq9MADEUPq@nas/\": net/url: invalid userinfo",
+      "out": "parse \"https://***@nas/\": net/url: invalid userinfo"
+    },
+    {
+      "why": "two colons in the host part (Go cut a password with a # in it): what follows the first goes",
+      "in": "parse \"https://alice:Zq9MADEUPr:2024\": invalid port \":Zq9MADEUPr:2024\" after host",
+      "out": "parse \"https://alice:***\": invalid port \":***\" after host"
+    },
+    {
+      "why": "a host and a port without a scheme, then an error: nothing is lost",
+      "in": "dial tcp 127.0.0.1:8080: connect: connection refused",
+      "out": "dial tcp 127.0.0.1:8080: connect: connection refused"
+    },
+    {
+      "why": "a host, a port and a folder without a scheme, and a mail address later in the sentence: nothing is lost",
+      "in": "couldn't reach nas.local:5006/dav, write to help@example.com",
+      "out": "couldn't reach nas.local:5006/dav, write to help@example.com"
+    },
+    {
+      "why": "a scheme with one slash and an @ in a file's name: what comes before the @ goes (a name lost in the log, never a password)",
+      "in": "can't open file:/storage/emulated/0/Download/mail@home.txt: access denied",
+      "out": "can't open file:/***@home.txt: access denied"
     }
   ]
 }

@@ -130,6 +130,7 @@ func redact(s string) string {
 	s = looseUserinfo(s)
 	s = redactEscaped(s)
 	s = urlPattern.ReplaceAllStringFunc(s, redactURL)
+	s = looseForms(s)
 	s = barePair.ReplaceAllString(s, "${1}***@${2}")
 	s = redactMultiWord(s)
 	s = authSetting.ReplaceAllString(s, "${1}${2}${3}***")
@@ -267,7 +268,12 @@ func redactURL(m string) string {
 		end = len(rest)
 	}
 	authority, tail := rest[:end], rest[end:]
-	if q := strings.IndexAny(tail, "?#"); q >= 0 {
+	// An @ after a ? or # in the path may end a password that holds the ?
+	// or # (https://alice/word?word@host, as Go's HTTP client sends
+	// https://alice:/word?word@host): the path goes with the query.
+	if q := strings.IndexAny(tail, "?#"); q > 0 && strings.Contains(tail[q:], "@") {
+		tail = "/***?***"
+	} else if q >= 0 {
 		tail = tail[:q] + "?***"
 	}
 	// An @ in the path: the part before it may be a password whose colon
@@ -279,10 +285,15 @@ func redactURL(m string) string {
 	}
 	tail = redactPath(authority, tail)
 	// What follows a colon in the host part and isn't a port is a password
-	// the address was cut before (Go cuts alice:pass#word@host at the #).
-	if c := strings.LastIndex(authority, ":"); c >= 0 && !strings.Contains(authority, "[") &&
-		strings.Trim(authority[c+1:], "0123456789") != "" {
-		authority = authority[:c+1] + "***"
+	// the address was cut before (Go cuts alice:pass#word@host at the #);
+	// so is what follows the first of two colons (alice:pass:2024, cut the
+	// same way).
+	if c := strings.LastIndex(authority, ":"); c >= 0 && !strings.Contains(authority, "[") {
+		if f := strings.Index(authority, ":"); f < c {
+			authority = authority[:f+1] + "***"
+		} else if strings.Trim(authority[c+1:], "0123456789") != "" {
+			authority = authority[:c+1] + "***"
+		}
 	}
 	if user >= 0 {
 		authority = "***@" + authority
@@ -346,7 +357,9 @@ func userinfoAt(s string, i int, quoted bool) int {
 			return -1
 		}
 		// A later @ may end it (a password holding an @ and a space).
-		if strings.ContainsAny(u, " \t\"'<>`\\") && (userPass(u) || quoted && ambiguousAt(s[i:j+1]) >= 0) {
+		// Inside Go's quotes, a user name with a space in it counts too.
+		if strings.ContainsAny(u, " \t\"'<>`\\") && (userPass(u) ||
+			quoted && (ambiguousAt(s[i:j+1]) >= 0 || strings.Contains(u, ":") && !strings.Contains(u, `"`))) {
 			return j
 		}
 	}
@@ -380,8 +393,9 @@ func hostFollows(s string, i int) bool {
 	return j == len(s) || strings.IndexByte("/?#\"'\\ \t\r\n),;>`", s[j]) >= 0
 }
 
+// isHostByte: a byte of a host's name, an international one's included.
 func isHostByte(c byte) bool {
-	return 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' || '0' <= c && c <= '9' ||
+	return c >= 0x80 || 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' || '0' <= c && c <= '9' ||
 		c == '.' || c == '-' || c == ':' || c == '[' || c == ']' || c == '%' || c == '_'
 }
 
@@ -394,6 +408,21 @@ func isHostByte(c byte) bool {
 // port (alice:p/ss@host), which Go can't read and repeats whole, also ends
 // at the last @.
 func userinfoEnd(rest string) int {
+	if a := pairAt(rest); a >= 0 {
+		return a
+	}
+	end := strings.IndexAny(rest, "/?#")
+	if end < 0 {
+		end = len(rest)
+	}
+	return strings.LastIndex(rest[:end], "@")
+}
+
+// pairAt is where a user name and password that hold a / ? or # end: the
+// last @ of an address that reads two ways (ambiguousAt), or of one whose
+// colon is followed by something that isn't a port before the / ? or #
+// (alice:p/ss@host). Otherwise -1.
+func pairAt(rest string) int {
 	if a := ambiguousAt(rest); a >= 0 {
 		return a
 	}
@@ -411,8 +440,114 @@ func userinfoEnd(rest string) int {
 			return a
 		}
 	}
-	return strings.LastIndex(rest[:end], "@")
+	return -1
 }
+
+// looseStops end a word for looseForms.
+const looseStops = " \t\n\r\f\v\"'<>`\\(),="
+
+// looseForms redacts the user name and password of an address written
+// without the // after its scheme, as a service may rebuild one and quote
+// it: with one slash (Koofr's client joins its paths into https:/word@host),
+// as //host, or with no scheme at all. Each word (up to a space, a quote,
+// a bracket, a comma or an =) that holds no scheme's :// (hasScheme) is read
+// as an address:
+//   - scheme:/rest: everything before the last @ goes (an address with one
+//     slash is never a host's own; https:/alice:2024/word@host and
+//     https:/word@host both keep only the host);
+//   - //rest: what userinfoEnd says goes, as after a scheme's //;
+//   - anything else: only an address that reads two ways (ambiguousAt),
+//     one whose colon is followed by a password with a / ? or # (pairAt),
+//     or a colon and then an @ before any / ? or # (loginAt), so a mail
+//     address in a sentence stays.
+func looseForms(s string) string {
+	var b strings.Builder
+	last := 0
+	for i := 0; i < len(s); {
+		if strings.IndexByte(looseStops, s[i]) >= 0 {
+			i++
+			continue
+		}
+		j := i
+		for j < len(s) && strings.IndexByte(looseStops, s[j]) < 0 {
+			j++
+		}
+		w := s[i:j]
+		start, end := i, -1
+		if !hasScheme(w) {
+			switch k := oneSlash(w); {
+			case k > 0:
+				start = i + k
+				end = strings.LastIndex(w[k:], "@")
+			case strings.HasPrefix(w, "//"):
+				start = i + 2
+				end = userinfoEnd(w[2:])
+			default:
+				if end = pairAt(w); end < 0 {
+					end = loginAt(w)
+				}
+			}
+		}
+		if end > 0 && s[start:start+end] != "***" {
+			b.WriteString(s[last:start])
+			b.WriteString("***")
+			last = start + end
+		}
+		i = j
+	}
+	if last == 0 {
+		return s
+	}
+	b.WriteString(s[last:])
+	return b.String()
+}
+
+// loginAt: where a user name and password end in an address without a
+// scheme, when barePair can't read them (a user name that is a mail address,
+// alice@example.com:pass@host, or an empty one, :pass@host): the last @
+// before any / ? or #, when a colon comes before it. Otherwise -1.
+func loginAt(w string) int {
+	seg := w
+	if k := strings.IndexAny(seg, "/?#"); k >= 0 {
+		seg = seg[:k]
+	}
+	c, l := strings.Index(seg, ":"), strings.LastIndex(seg, "@")
+	if c < 0 || l < c {
+		return -1
+	}
+	return l
+}
+
+// hasScheme: w holds a scheme and its :// (left to urlPattern); a :// with
+// nothing before it that a scheme can end with (https:/://word@host, from a
+// password that starts with //) doesn't count.
+func hasScheme(w string) bool {
+	for i := 0; ; {
+		k := strings.Index(w[i:], "://")
+		if k < 0 {
+			return false
+		}
+		if c := i + k - 1; c >= 0 && (isLetter(w[c]) || w[c] >= '0' && w[c] <= '9' || strings.IndexByte("+.-", w[c]) >= 0) {
+			return true
+		}
+		i += k + 1
+	}
+}
+
+// oneSlash: where what follows a scheme and one slash starts in w
+// (https:/word), or 0.
+func oneSlash(w string) int {
+	k := 0
+	for k < len(w) && k <= 31 && (isLetter(w[k]) || k > 0 && (w[k] >= '0' && w[k] <= '9' || strings.IndexByte("+.-", w[k]) >= 0)) {
+		k++
+	}
+	if k == 0 || k > 31 || !strings.HasPrefix(w[k:], ":/") || strings.HasPrefix(w[k:], "://") {
+		return 0
+	}
+	return k + 2
+}
+
+func isLetter(c byte) bool { return 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' }
 
 // secretPaths are credentials services put in an address's path: on the
 // service's own host, whatever the segment holds (OpenDrive's session id
