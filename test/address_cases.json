@@ -364,8 +364,8 @@
     "url": "https://alice:123/MADEUPw@h.example.com/p"
    },
    "field": "url",
-   "reason": "ambiguous",
-   "message": "address_ambiguous"
+   "reason": "ambiguousescape",
+   "message": "address_ambiguous_escape"
   },
   {
    "why": "reads the same as a password with a /: the @ written %40 passes (next row)",
@@ -419,13 +419,13 @@
    "note": null
   },
   {
-   "why": "moved to empty fields, escapes decoded, the path's @ kept",
+   "why": "moved to empty fields, escapes decoded, the path's %40 kept",
    "backend": "webdav",
    "settings": {
-    "url": "https://alice:s3cr%40t%20x@dav.example.com:8443/remote.php/dav/files/alice@example.com/"
+    "url": "https://alice:s3cr%40t%20x@dav.example.com:8443/remote.php/dav/files/alice%40example.com/"
    },
    "settings_out": {
-    "url": "https://dav.example.com:8443/remote.php/dav/files/alice@example.com/",
+    "url": "https://dav.example.com:8443/remote.php/dav/files/alice%40example.com/",
     "user": "alice",
     "pass": "s3cr@t x"
    },
@@ -475,9 +475,9 @@
     "url": "https://dav.example.com/x",
     "pass": "alices"
    },
-   "login": "dropped",
+   "login": "droppeduser",
    "login_field": "url",
-   "note": "address_url_dropped"
+   "note": "address_url_user_dropped"
   },
   {
    "why": "User name set, Password empty: still the fields, never a mix of the two logins",
@@ -580,15 +580,14 @@
    "note": null
   },
   {
-   "why": "an email address in the first folder after a dotted host",
+   "why": "an email address in the first folder after a dotted host and a port: reads two ways (review 3), written %40 it passes",
    "backend": "webdav",
    "settings": {
     "url": "https://nas.local:5006/alice@example.com/"
    },
-   "settings_out": {
-    "url": "https://nas.local:5006/alice@example.com/"
-   },
-   "note": null
+   "field": "url",
+   "reason": "ambiguous",
+   "message": "address_ambiguous_login"
   },
   {
    "why": "the emulator's test server",
@@ -668,6 +667,249 @@
     "http_proxy": "http://myUser:myPass@proxy.example.com:8000"
    },
    "note": null
+  },
+  {
+   "why": "a dotted user name, a password starting with digits and holding a / (review 3)",
+   "backend": "webdav",
+   "settings": {
+    "url": "https://alice.smith:2024/MADEUPc@h.example.com/dav"
+   },
+   "field": "url",
+   "reason": "ambiguous",
+   "message": "address_ambiguous_login"
+  },
+  {
+   "why": "the same on HTTP (review 3)",
+   "backend": "http",
+   "settings": {
+    "url": "https://alice.smith:2024/MADEUPc@h.example.com/"
+   },
+   "field": "url",
+   "reason": "ambiguousescape",
+   "message": "address_ambiguous_escape"
+  },
+  {
+   "why": "the same in an S3 endpoint (review 3)",
+   "backend": "s3",
+   "settings": {
+    "provider": "Other",
+    "endpoint": "https://alice.smith:2024/MADEUPl@h.example.com/"
+   },
+   "field": "endpoint",
+   "reason": "ambiguous",
+   "message": "address_ambiguous"
+  },
+  {
+   "why": "the same in Swift's sign-in address (review 3)",
+   "backend": "swift",
+   "settings": {
+    "auth": "https://alice.smith:2024/MADEUPs@h.example.com/v1"
+   },
+   "field": "auth",
+   "reason": "ambiguous",
+   "message": "address_ambiguous"
+  },
+  {
+   "why": "an email user name, a password starting with digits and holding a / (review 3)",
+   "backend": "webdav",
+   "settings": {
+    "url": "https://alice@example.com:2024/MADEUPc@h.example.com/dav"
+   },
+   "field": "url",
+   "reason": "ambiguous",
+   "message": "address_ambiguous_login"
+  },
+  {
+   "why": "the same on HTTP (review 3)",
+   "backend": "http",
+   "settings": {
+    "url": "https://alice@example.com:2024/MADEUPc@h.example.com/"
+   },
+   "field": "url",
+   "reason": "ambiguousescape",
+   "message": "address_ambiguous_escape"
+  },
+  {
+   "why": "the same in an S3 endpoint (review 3)",
+   "backend": "s3",
+   "settings": {
+    "provider": "Other",
+    "endpoint": "https://alice@example.com:2024/MADEUPl@h.example.com/"
+   },
+   "field": "endpoint",
+   "reason": "ambiguous",
+   "message": "address_ambiguous"
+  },
+  {
+   "why": "the same in Swift's sign-in address (review 3)",
+   "backend": "swift",
+   "settings": {
+    "auth": "https://alice@example.com:2024/MADEUPs@h.example.com/v1"
+   },
+   "field": "auth",
+   "reason": "ambiguous",
+   "message": "address_ambiguous"
+  },
+  {
+   "why": "a password starting with a /, which reads as an empty port (review 3)",
+   "backend": "webdav",
+   "settings": {
+    "url": "https://alice:/MADEUPd@h.example.com/dav"
+   },
+   "field": "url",
+   "reason": "ambiguous",
+   "message": "address_ambiguous_login"
+  },
+  {
+   "why": "the same on HTTP (review 3)",
+   "backend": "http",
+   "settings": {
+    "url": "https://alice:/MADEUPd@h.example.com/"
+   },
+   "field": "url",
+   "reason": "ambiguousescape",
+   "message": "address_ambiguous_escape"
+  },
+  {
+   "why": "the same in an S3 endpoint (review 3)",
+   "backend": "s3",
+   "settings": {
+    "provider": "Other",
+    "endpoint": "https://alice:/MADEUPd@h.example.com/"
+   },
+   "field": "endpoint",
+   "reason": "ambiguous",
+   "message": "address_ambiguous"
+  },
+  {
+   "why": "the same in Swift's sign-in address (review 3)",
+   "backend": "swift",
+   "settings": {
+    "auth": "https://alice:/MADEUPd@h.example.com/v1"
+   },
+   "field": "auth",
+   "reason": "ambiguous",
+   "message": "address_ambiguous"
+  },
+  {
+   "why": "a password of digits then a ? (review 3 should-fix 4)",
+   "backend": "webdav",
+   "settings": {
+    "url": "https://alice:12?MADEUPq@h.example.com/"
+   },
+   "field": "url",
+   "reason": "ambiguous",
+   "message": "address_ambiguous_login"
+  },
+  {
+   "why": "a password of digits then a # (review 3 should-fix 4)",
+   "backend": "webdav",
+   "settings": {
+    "url": "https://alice:12#MADEUPh@h.example.com/"
+   },
+   "field": "url",
+   "reason": "ambiguous",
+   "message": "address_ambiguous_login"
+  },
+  {
+   "why": "an email user name with a password of digits and two slashes: nothing is moved (review 3)",
+   "backend": "webdav",
+   "settings": {
+    "url": "https://alice@example.com:2024/MADEUPe/x@cloud.example.com/dav"
+   },
+   "field": "url",
+   "reason": "ambiguous",
+   "message": "address_ambiguous_login"
+  },
+  {
+   "why": "a user name and password typed in Storj's satellite address, which holds a node ID before its @",
+   "backend": "storj",
+   "settings": {
+    "satellite_address": "alice:MADEUPj@us1.storj.io:7777"
+   },
+   "field": "satellite_address",
+   "reason": "credentials",
+   "message": "address_credentials"
+  },
+  {
+   "why": "a Storj satellite address: a node ID, an @, a host and a port",
+   "backend": "storj",
+   "settings": {
+    "satellite_address": "12EayRS2V1kEsWESU9QMRseFhdxYxKicsiFmxrsLZHeLUtdps3S@us1.storj.io:7777"
+   },
+   "settings_out": {
+    "satellite_address": "12EayRS2V1kEsWESU9QMRseFhdxYxKicsiFmxrsLZHeLUtdps3S@us1.storj.io:7777"
+   },
+   "note": null
+  },
+  {
+   "why": "Nextcloud on a port with an email user name in the path: an @ after a port reads two ways (written %40 it passes, next row)",
+   "backend": "webdav",
+   "settings": {
+    "url": "https://cloud.example.com:8443/remote.php/dav/files/alice@example.com/"
+   },
+   "field": "url",
+   "reason": "ambiguous",
+   "message": "address_ambiguous_login"
+  },
+  {
+   "why": "the same written %40",
+   "backend": "webdav",
+   "settings": {
+    "url": "https://cloud.example.com:8443/remote.php/dav/files/alice%40example.com/"
+   },
+   "settings_out": {
+    "url": "https://cloud.example.com:8443/remote.php/dav/files/alice%40example.com/"
+   },
+   "note": null
+  },
+  {
+   "why": "an email-named folder right after a port, written %40",
+   "backend": "webdav",
+   "settings": {
+    "url": "https://nas.local:5006/alice%40example.com/"
+   },
+   "settings_out": {
+    "url": "https://nas.local:5006/alice%40example.com/"
+   },
+   "note": null
+  },
+  {
+   "why": "a user name alone with the fields filled: the note says only the user name was taken out (review 3 should-fix 5)",
+   "backend": "webdav",
+   "settings": {
+    "url": "https://alice@dav.example.com/dav",
+    "user": "bob",
+    "pass": "fieldpw"
+   },
+   "settings_out": {
+    "url": "https://dav.example.com/dav",
+    "user": "bob",
+    "pass": "fieldpw"
+   },
+   "login": "droppeduser",
+   "login_field": "url",
+   "note": "address_url_user_dropped"
+  },
+  {
+   "why": "a proxy's sign-in in an HTTP proxy typed without http://: rclone's own error would repeat it (found by the generated test)",
+   "backend": "sftp",
+   "settings": {
+    "http_proxy": "alice:MADEUPk@proxy.example.com:3128"
+   },
+   "field": "http_proxy",
+   "reason": "scheme",
+   "message": "address_url_scheme"
+  },
+  {
+   "why": "a password with an @ in a SOCKS proxy: rclone splits at the first @ and would put the rest in its error (found by the generated test)",
+   "backend": "ftp",
+   "settings": {
+    "socks_proxy": "alice:MADE@UPm@proxy.example.com:1080"
+   },
+   "field": "socks_proxy",
+   "reason": "proxyat",
+   "message": "address_proxy_at"
   }
  ]
 }

@@ -160,6 +160,8 @@ final class Logs {
     String authority = rest.substring(0, end), tail = rest.substring(end);
     int q = indexOfAny(tail, "?#");
     if (q >= 0) tail = tail.substring(0, q) + "?***";
+    int a = tail.lastIndexOf('@');
+    if (a > 0 && !tail.substring(0, a).equals("/***")) tail = "/***" + tail.substring(a);
     tail = cleanPath(authority, tail);
     int c = authority.lastIndexOf(':');
     if (c >= 0 && !authority.contains("[") && !authority.substring(c + 1).matches("[0-9]*")) {
@@ -237,7 +239,7 @@ final class Logs {
     int last = 0;
     while (m.find()) {
       if (m.start() < last) continue;
-      int start = m.end(), end = userinfoAt(s, start);
+      int start = m.end(), end = userinfoAt(s, start, m.start() > 0 && s.charAt(m.start() - 1) == '"');
       if (end < 0) continue;
       b.append(s, last, start).append("***");
       last = end;
@@ -246,7 +248,7 @@ final class Logs {
     return b.append(s.substring(last)).toString();
   }
 
-  private static int userinfoAt(String s, int i) {
+  private static int userinfoAt(String s, int i, boolean quoted) {
     int limit = Math.min(s.length(), i + 512);
     for (int j = i; j < limit; j++) {
       char c = s.charAt(j);
@@ -254,14 +256,14 @@ final class Logs {
       if (c != '@' || !hostFollows(s, j + 1)) continue;
       String u = s.substring(i, j);
       if (u.equals("***") || u.contains("://") || u.contains("\": ")) return -1;
-      if (containsAny(u, " \t\"'<>`\\") && userPass(u)) return j;
+      if (containsAny(u, " \t\"'<>`\\") && (userPass(u) || quoted && ambiguousAt(s.substring(i, j + 1)) >= 0)) return j;
     }
     return -1;
   }
 
   private static boolean userPass(String u) {
     int c = u.indexOf(':');
-    if (c <= 0 || containsAny(u.substring(0, c), " \t\"'/\\")) return false;
+    if (c < 0 || containsAny(u.substring(0, c), " \t\"'/\\")) return false;
     String p = u.substring(c + 1);
     int k = indexOfAny(p, "/?#");
     if (k >= 0) p = p.substring(0, k);
@@ -283,25 +285,37 @@ final class Logs {
     return indexOfAny(s, chars) >= 0;
   }
 
-  /** Where the user name and password before the host end (the @), or -1; see engine/redact.go. */
+  /** Where the user name and password before the host end (the @), or -1; see engine/redact.go userinfoEnd. */
   private static int userinfoEnd(String rest) {
-    int at = rest.indexOf('@');
-    if (at < 0) return -1;
+    int amb = ambiguousAt(rest);
+    if (amb >= 0) return amb;
     int end = indexOfAny(rest, "/?#");
-    if (end < 0 || at < end) return rest.substring(0, end < 0 ? rest.length() : end).lastIndexOf('@');
-    String host = rest.substring(0, end);
-    int c = host.indexOf(':');
-    if (c < 0 || host.contains("[")) return -1;
-    if (host.substring(c + 1).matches("[0-9]*")) {
-      if (c == host.length() - 1 || host.substring(0, c).contains(".") || rest.charAt(end) != '/') return -1;
-      String seg = rest.substring(end + 1);
-      int k = indexOfAny(seg, "/?#");
-      if (k >= 0) seg = seg.substring(0, k);
-      int a = seg.lastIndexOf('@');
-      if (a < 0 || !seg.substring(a + 1).contains(".")) return -1;
-      return end + 1 + a;
+    if (end < 0) end = rest.length();
+    String hostport = rest.substring(0, end);
+    int at = hostport.lastIndexOf('@');
+    if (at >= 0) hostport = hostport.substring(at + 1);
+    int c = hostport.lastIndexOf(':');
+    if (c >= 0 && !hostport.substring(c).contains("]") && !hostport.substring(c + 1).matches("[0-9]*")) {
+      int a = rest.lastIndexOf('@');
+      if (a >= end) return a;
     }
-    return at;
+    return rest.substring(0, end).lastIndexOf('@');
+  }
+
+  /**
+   * The address rule's reading for the redactor (engine/address.go ambiguousAt with anywhere true): when
+   * what follows the last colon of the authority is empty or only digits and an @ comes after it, the last @.
+   */
+  private static int ambiguousAt(String rest) {
+    int end = indexOfAny(rest, "/?#");
+    if (end < 0) return -1;
+    String hostport = rest.substring(0, end);
+    int at = hostport.lastIndexOf('@');
+    if (at >= 0) hostport = hostport.substring(at + 1);
+    int c = hostport.lastIndexOf(':');
+    if (c < 0 || hostport.substring(c).contains("]") || !hostport.substring(c + 1).matches("[0-9]*")) return -1;
+    int a = rest.substring(end).lastIndexOf('@');
+    return a < 0 ? -1 : end + a;
   }
 
   /** Services that put a credential in the path, by the end of the host. */

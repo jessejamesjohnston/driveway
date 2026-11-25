@@ -61,7 +61,14 @@ const (
 	reasonEscape      = "escape"      // a user name or password that can't be read, on a kind without those settings
 	reasonCredentials = "credentials" // a user name or password in a setting that has no use for one
 	reasonUnreadable  = "unreadable"  // anything else Go's url package can't read
-	reasonAmbiguous   = "ambiguous"   // a host, a port and an @ in the first folder: a password with a / in it, or a folder's name with an @
+	reasonAmbiguous   = "ambiguous"   // reads two ways (ambiguousAt): a password with a / ? or # in it, or a folder's name with an @
+	// The same where a user name and password stay in the address
+	// (loginInAddress), so the way out is escaping the password.
+	reasonAmbiguousEscape = "ambiguousescape"
+	// A second @ in a SOCKS proxy (user:pass@host:port): rclone splits at
+	// the first, so a user name or password can't hold one there, and the
+	// rest would reach its error as the proxy's host.
+	reasonProxyAt = "proxyat"
 )
 
 // What became of a user name and password typed in an address, on a kind
@@ -70,9 +77,10 @@ const (
 // something, those settings are what signs in, and the address's copy is
 // taken out (rclone sends the settings and ignores the address's anyway).
 const (
-	loginMoved     = "moved"     // a user name and password moved to User name and Password
-	loginMovedUser = "moveduser" // a user name alone moved to User name
-	loginDropped   = "dropped"   // taken out of the address; User name and Password sign in
+	loginMoved       = "moved"       // a user name and password moved to User name and Password
+	loginMovedUser   = "moveduser"   // a user name alone moved to User name
+	loginDropped     = "dropped"     // taken out of the address; User name and Password sign in
+	loginDroppedUser = "droppeduser" // the same, for a user name typed alone
 )
 
 // settingsError is SetRemote's refusal of an address: Driveway's own words,
@@ -157,8 +165,17 @@ func checkSettings(ri *fs.RegInfo, m map[string]any) verdict {
 		if a.reason == "" && a.at && !a.hasUser && atInAddress[name] == "" && loginInAddress[name] == "" {
 			a.reason = reasonCredentials
 		}
+		if a.reason == "" && a.at && atInAddress[name] != "" && !nodeID.MatchString(s[:strings.LastIndex(s, "@")]) {
+			a.reason = reasonCredentials
+		}
+		if a.reason == "" && o.Name == "socks_proxy" && strings.Count(s, "@") > 1 {
+			a.reason = reasonProxyAt
+		}
 		if a.reason == reasonLogin && !login {
 			a.reason = reasonEscape
+		}
+		if a.reason == reasonAmbiguous && loginInAddress[name] != "" {
+			a.reason = reasonAmbiguousEscape
 		}
 		if a.reason != "" {
 			return verdict{Field: o.Name, Reason: a.reason}
@@ -177,8 +194,10 @@ func checkSettings(ri *fs.RegInfo, m map[string]any) verdict {
 				m["pass"] = a.pass
 				out.Login = loginMoved
 			}
-		} else {
+		} else if a.hasPass {
 			out.Login = loginDropped
+		} else {
+			out.Login = loginDroppedUser
 		}
 	}
 	return out
@@ -202,6 +221,47 @@ func hasOption(ri *fs.RegInfo, name string) bool {
 	return false
 }
 
+// The rule for an address that reads two ways, in one sentence: when what
+// follows the last colon of an address's authority is empty or only digits,
+// and an @ comes anywhere after it, the address reads as
+// https://user:pass/word@host as easily as https://host:port/folder@x,
+// whatever the host or the user name looks like.
+//
+// ambiguousAt applies it to rest, an address after its scheme's //. The
+// authority is Go's reading of it: up to the first / ? or #. It returns
+// where the @ that would end a user name and password is (the last @), or
+// -1. Both readers use it as it is:
+//   - The address check refuses such an address, so nothing in it is moved
+//     and nothing is kept: a password in an accepted address would go with
+//     every request to the wrong host, and through each service's own way
+//     of building addresses into errors no redactor can predict. An @ in a
+//     folder's name after a port is written %40 (the refusal says so).
+//   - The redactor hides from the // to the last @, for text the check
+//     never saw (an error that quotes an address a service built).
+func ambiguousAt(rest string) int {
+	end := strings.IndexAny(rest, "/?#")
+	if end < 0 {
+		return -1
+	}
+	hostport := rest[:end]
+	if a := strings.LastIndex(hostport, "@"); a >= 0 {
+		hostport = hostport[a+1:]
+	}
+	c := strings.LastIndex(hostport, ":")
+	if c < 0 || strings.Contains(hostport[c:], "]") || strings.Trim(hostport[c+1:], "0123456789") != "" {
+		return -1
+	}
+	a := strings.LastIndex(rest[end:], "@")
+	if a < 0 {
+		return -1
+	}
+	return end + a
+}
+
+// nodeID: what goes before the @ in a Storj satellite address (a node's ID,
+// letters and digits); anything else there is a sign-in typed by mistake.
+var nodeID = regexp.MustCompile(`^[A-Za-z0-9]+$`)
+
 // readAddress is what an address typed in the setting named name comes to.
 type address struct {
 	reason string // why it can't be used, or ""
@@ -223,7 +283,9 @@ func readAddress(s, name string) address {
 	m := schemeAhead.FindStringSubmatch(s)
 	if m == nil {
 		switch {
-		case name == "url":
+		case name == "url" || name == "http_proxy":
+			// rclone reads these as whole addresses (a proxy's with
+			// url.Parse, whose error would repeat a sign-in typed in it).
 			return address{reason: reasonScheme}
 		case strings.HasPrefix(s, "/"):
 			// //alice:pw@host, or a path: rclone would put https:// before it.
@@ -253,6 +315,12 @@ func readAddress(s, name string) address {
 		end = len(rest)
 	}
 	authority, after := rest[:end], rest[end:]
+	// Decided on the text as typed, before Go's reading of it is trusted
+	// and before any user name is taken from it: an address that reads two
+	// ways moves nothing and keeps nothing.
+	if ambiguousAt(rest) >= 0 {
+		return address{reason: reasonAmbiguous}
+	}
 	at := strings.LastIndex(authority, "@")
 	bare := scheme + "://" + authority[at+1:] + after
 	u, err := url.Parse(whole)
@@ -269,15 +337,6 @@ func readAddress(s, name string) address {
 	}
 	if u.Host == "" || u.Hostname() == "" {
 		return address{reason: reasonUnreadable}
-	}
-	// A password that starts with digits and holds a / reads as a host and
-	// a port (https://alice:2024/Summer@host/dav): one word for a host, a
-	// port, and an @ in the first folder. A folder named for an email
-	// address right after such a host reads the same; written %40, its @
-	// passes.
-	if first, _, _ := strings.Cut(strings.TrimPrefix(u.EscapedPath(), "/"), "/"); u.Port() != "" &&
-		!strings.ContainsAny(u.Hostname(), ".:") && strings.Contains(first, "@") {
-		return address{reason: reasonAmbiguous}
 	}
 	a := address{whole: whole, addr: whole}
 	if u.User != nil {

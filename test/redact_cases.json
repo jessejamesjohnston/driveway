@@ -207,14 +207,14 @@
       "out": "can't open https://***@dav.example.com:8443/files/"
     },
     {
-      "why": "nothing secret: a port, then an @ in the path",
+      "why": "a port, then an @ in the path: it reads as a password with a / in it (the address rule), so everything before the last @ goes",
       "in": "Get \"https://dav.example.com:8443/files/a@b.txt\": EOF",
-      "out": "Get \"https://dav.example.com:8443/files/a@b.txt\": EOF"
+      "out": "Get \"https://***@b.txt\": EOF"
     },
     {
-      "why": "nothing secret: a colon and an @ in the path",
+      "why": "a colon and an @ in the path: the path up to its last @ goes (it could be a password whose colon Go's HTTP client took out), the host stays",
       "in": "Get \"https://dav.example.com/files/a:b@c.txt\": EOF",
-      "out": "Get \"https://dav.example.com/files/a:b@c.txt\": EOF"
+      "out": "Get \"https://dav.example.com/***@c.txt\": EOF"
     },
     {
       "why": "OpenDrive's session id in the path",
@@ -392,9 +392,9 @@
       "out": "see https://dav.example.com:8443/x and write to help@example.com"
     },
     {
-      "why": "an address with a path holding an email address, kept",
+      "why": "an address with a path holding an email address: the host stays, the path up to the @ goes",
       "in": "Propfind \"https://cloud.example.com/remote.php/dav/files/bob@example.com/\": 401 Unauthorized",
-      "out": "Propfind \"https://cloud.example.com/remote.php/dav/files/bob@example.com/\": 401 Unauthorized"
+      "out": "Propfind \"https://cloud.example.com/***@example.com/\": 401 Unauthorized"
     },
     {
       "why": "an address, Go's separator, and an email address in the error, kept",
@@ -503,17 +503,17 @@
     },
     {
       "in": "[network] couldn't list: Get \"https://HTTPS://alice:pwMADEUP1@H.EXAMPLE.COM/p?x-id=ListObjectsV2\": dial tcp: lookup HTTPS: no such host",
-      "out": "[network] couldn't list: Get \"https://HTTPS://***@H.EXAMPLE.COM/p?***\": dial tcp: lookup HTTPS: no such host",
-      "why": "S3 endpoint typed with an upper-case scheme: rclone adds its own scheme in front"
+      "out": "[network] couldn't list: Get \"https://***@H.EXAMPLE.COM/p?***\": dial tcp: lookup HTTPS: no such host",
+      "why": "S3 endpoint typed with an upper-case scheme, rclone's in front: HTTPS: reads as a host with an empty port, then an @ (the address rule), so everything before the @ goes"
     },
     {
       "in": "Get \"https://ftp://alice:pwMADEUP2@h.example.com/\": EOF",
-      "out": "Get \"https://ftp://***@h.example.com/\": EOF",
-      "why": "another scheme typed in an endpoint, rclone's https:// in front"
+      "out": "Get \"https://***@h.example.com/\": EOF",
+      "why": "another scheme typed in an endpoint, rclone's https:// in front: the same rule"
     },
     {
       "in": "Get \"https:////alice:pwMADEUP3@h.example.com/p\": EOF",
-      "out": "Get \"https:////***@h.example.com/p\": EOF",
+      "out": "Get \"https:///***@h.example.com/p\": EOF",
       "why": "an endpoint typed starting with //"
     },
     {
@@ -528,7 +528,7 @@
     },
     {
       "in": "[network] failed to get file id: Post \"https://https//alice:pwMADEUP6@h.example.com/p/api/1.0/file/id\": unexpected EOF",
-      "out": "[network] failed to get file id: Post \"https://https//***@h.example.com/p/api/1.0/file/id\": unexpected EOF",
+      "out": "[network] failed to get file id: Post \"https://https/***@h.example.com/p/api/1.0/file/id\": unexpected EOF",
       "why": "Quatrix's account address typed as a whole address: its https:// in front"
     },
     {
@@ -543,8 +543,8 @@
     },
     {
       "in": "Propfind \"https://nas:8443/team@home/x\": EOF",
-      "out": "Propfind \"https://nas:8443/team@home/x\": EOF",
-      "why": "a host and port with a folder holding an @ and no dotted name after it, kept"
+      "out": "Propfind \"https://***@home/x\": EOF",
+      "why": "a host and port with a folder holding an @: the same rule, whatever follows the @"
     },
     {
       "in": "Authorization= Bearer abcdefgh12345MADEUP8",
@@ -568,8 +568,38 @@
     },
     {
       "in": "Get \"https://dav.example.com/files/a:b@c.txt\": EOF",
-      "out": "Get \"https://dav.example.com/files/a:b@c.txt\": EOF",
-      "why": "a colon and an @ in a path after one slash, kept"
+      "out": "Get \"https://dav.example.com/***@c.txt\": EOF",
+      "why": "a colon and an @ in a path after one slash"
+    },
+    {
+      "why": "a password starting with a /, after the HTTP client dropped the empty port and its colon (review 3)",
+      "in": "[network] couldn't list files: Propfind \"https://alice/Zq9MADEUPa@h.example.com/dav/\": unexpected EOF",
+      "out": "[network] couldn't list files: Propfind \"https://alice/***@h.example.com/dav/\": unexpected EOF"
+    },
+    {
+      "why": "a dotted user name and a password starting with digits and holding a / (review 3)",
+      "in": "[network] couldn't list files: Propfind \"https://alice.smith:2024/Zq9MADEUPc@h.example.com/dav/\": unexpected EOF",
+      "out": "[network] couldn't list files: Propfind \"https://***@h.example.com/dav/\": unexpected EOF"
+    },
+    {
+      "why": "an email user name: the address rule hides through the last @, not just the user name (review 3)",
+      "in": "Propfind \"https://alice@example.com:2024/Zq9MADEUPd@cloud.example.com/dav/\": unexpected EOF",
+      "out": "Propfind \"https://***@cloud.example.com/dav/\": unexpected EOF"
+    },
+    {
+      "why": "a password with two slashes after digits: past the first folder, still hidden",
+      "in": "Get \"https://alice:2024/Zq9MADEUPe/x@h.example.com/v1\": unexpected EOF",
+      "out": "Get \"https://***@h.example.com/v1\": unexpected EOF"
+    },
+    {
+      "why": "Go's parse error repeats a password with a space whole: inside Go's quotes the address rule reaches the @",
+      "in": "parse \"https://al%40ice:2024/Zq9MADEUPf Zq9MADEUPg@nas/dav\": invalid URL escape \"%40\"",
+      "out": "parse \"https://***@nas/dav\": invalid URL escape \"%40\""
+    },
+    {
+      "why": "an email user name and a password with a / after a word, which Go can't read",
+      "in": "parse \"https://alice@example.com:Zq9MADEUPh/Zq9MADEUPi@nas\": invalid port \":Zq9MADEUPh\" after host",
+      "out": "parse \"https://***@nas\": invalid port \":***\" after host"
     }
   ]
 }

@@ -334,7 +334,8 @@ final class Kinds {
     String login = v.optString("login");
     int note = login.equals("moved") ? R.string.address_url_moved
         : login.equals("moveduser") ? R.string.address_url_user_moved
-        : login.equals("dropped") ? R.string.address_url_dropped : 0;
+        : login.equals("dropped") ? R.string.address_url_dropped
+        : login.equals("droppeduser") ? R.string.address_url_user_dropped : 0;
     return new AddressCheck(null, 0, v.getJSONObject("settings"), note, note == 0 ? null : v.optString("login_field"));
   }
 
@@ -360,6 +361,10 @@ final class Kinds {
         return R.string.address_credentials;
       case "ambiguous":
         return login ? R.string.address_ambiguous_login : R.string.address_ambiguous;
+      case "ambiguousescape":
+        return R.string.address_ambiguous_escape;
+      case "proxyat":
+        return R.string.address_proxy_at;
       default:
         return R.string.address_unreadable;
     }

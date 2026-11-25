@@ -270,6 +270,13 @@ func redactURL(m string) string {
 	if q := strings.IndexAny(tail, "?#"); q >= 0 {
 		tail = tail[:q] + "?***"
 	}
+	// An @ in the path: the part before it may be a password whose colon
+	// Go's HTTP client took out (it drops an empty port, so
+	// https://alice:/word@host is sent as https://alice/word@host), so the
+	// path up to its last @ goes and the host stays.
+	if a := strings.LastIndex(tail, "@"); a > 0 && tail[:a] != "/***" {
+		tail = "/***" + tail[a:]
+	}
 	tail = redactPath(authority, tail)
 	// What follows a colon in the host part and isn't a port is a password
 	// the address was cut before (Go cuts alice:pass#word@host at the #).
@@ -301,7 +308,7 @@ func looseUserinfo(s string) string {
 			continue
 		}
 		start := m[1]
-		end := userinfoAt(s, start)
+		end := userinfoAt(s, start, m[0] > 0 && s[m[0]-1] == '"')
 		if end < 0 {
 			continue
 		}
@@ -317,8 +324,11 @@ func looseUserinfo(s string) string {
 }
 
 // userinfoAt is where the loose user name and password that start at i end
-// (their @), or -1 when there are none for looseUserinfo to redact.
-func userinfoAt(s string, i int) int {
+// (their @), or -1 when there are none for looseUserinfo to redact. Inside
+// Go's quotes (quoted: parse "https://...": ...), where the closing quote
+// ends the address, an address that reads two ways (ambiguousAt) counts too,
+// space and all.
+func userinfoAt(s string, i int, quoted bool) int {
 	limit := i + 512
 	if limit > len(s) {
 		limit = len(s)
@@ -336,7 +346,7 @@ func userinfoAt(s string, i int) int {
 			return -1
 		}
 		// A later @ may end it (a password holding an @ and a space).
-		if strings.ContainsAny(u, " \t\"'<>`\\") && userPass(u) {
+		if strings.ContainsAny(u, " \t\"'<>`\\") && (userPass(u) || quoted && ambiguousAt(s[i:j+1]) >= 0) {
 			return j
 		}
 	}
@@ -347,7 +357,7 @@ func userinfoAt(s string, i int) int {
 // sentence ("https://host:8443/x and mail help@example.com").
 func userPass(u string) bool {
 	c := strings.Index(u, ":")
-	if c <= 0 || strings.ContainsAny(u[:c], " \t\"'/\\") {
+	if c < 0 || strings.ContainsAny(u[:c], " \t\"'/\\") {
 		return false
 	}
 	p := u[c+1:]
@@ -376,45 +386,32 @@ func isHostByte(c byte) bool {
 }
 
 // userinfoEnd is where the user name and password before an address's host
-// end (the @), or -1. A password typed with a / ? or # in it, which a
-// well-formed address escapes, still counts (alice:p/ss@host) unless what
-// follows the colon is a port (host:8080/path/a@b). A password that starts
-// with digits reads as a port (alice:2024/Summer@host): when the host is one
-// word with a port and the first folder holds an @ before a dotted name,
-// that counts too (over-redacting a folder named for an email address on
-// such a host, in the log only).
+// end (the @), or -1. An address that reads two ways (ambiguousAt, the same
+// rule the address check refuses by) ends at its last @, however far down:
+// https://alice:2024/word@host and https://host:8443/files/me@x.com/ both
+// lose everything before that @ (a folder's name lost in the log, never a
+// password). A password typed with a / ? or # in it after anything but a
+// port (alice:p/ss@host), which Go can't read and repeats whole, also ends
+// at the last @.
 func userinfoEnd(rest string) int {
-	at := strings.Index(rest, "@")
-	if at < 0 {
-		return -1
+	if a := ambiguousAt(rest); a >= 0 {
+		return a
 	}
 	end := strings.IndexAny(rest, "/?#")
-	if end < 0 || at < end {
-		if end < 0 {
-			end = len(rest)
-		}
-		return strings.LastIndex(rest[:end], "@")
+	if end < 0 {
+		end = len(rest)
 	}
-	host := rest[:end]
-	c := strings.Index(host, ":")
-	if c < 0 || strings.Contains(host, "[") {
-		return -1
+	hostport := rest[:end]
+	if a := strings.LastIndex(hostport, "@"); a >= 0 {
+		hostport = hostport[a+1:]
 	}
-	if strings.Trim(host[c+1:], "0123456789") == "" {
-		if c == len(host)-1 || strings.Contains(host[:c], ".") || rest[end] != '/' {
-			return -1
+	if c := strings.LastIndex(hostport, ":"); c >= 0 && !strings.Contains(hostport[c:], "]") &&
+		strings.Trim(hostport[c+1:], "0123456789") != "" {
+		if a := strings.LastIndex(rest, "@"); a >= end {
+			return a
 		}
-		seg := rest[end+1:]
-		if k := strings.IndexAny(seg, "/?#"); k >= 0 {
-			seg = seg[:k]
-		}
-		a := strings.LastIndex(seg, "@")
-		if a < 0 || !strings.Contains(seg[a+1:], ".") {
-			return -1
-		}
-		return end + 1 + a
 	}
-	return at
+	return strings.LastIndex(rest[:end], "@")
 }
 
 // secretPaths are credentials services put in an address's path: on the

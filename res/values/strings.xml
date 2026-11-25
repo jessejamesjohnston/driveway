@@ -120,11 +120,14 @@
   <string name="address_url_moved">The user name and password typed in %1$s are now in %2$s and %3$s</string>
   <string name="address_url_user_moved">The user name typed in %1$s is now in %2$s</string>
   <string name="address_url_dropped">The user name and password typed in %1$s are taken out. Driveway signs in with what\'s in %2$s and %3$s.</string>
+  <string name="address_url_user_dropped">The user name typed in %1$s is taken out. Driveway signs in with what\'s in %2$s and %3$s.</string>
   <string name="address_credentials">Type just the address in %1$s, without a user name or password</string>
   <string name="address_hostonly">Type just the server\'s name in %1$s, like files.example.com, without https:// or a folder</string>
-  <string name="address_unreadable">%1$s can\'t be used as typed. Check it for a space, a second colon, or a %% that isn\'t followed by two digits or letters.</string>
-  <string name="address_ambiguous_login">%1$s reads as a server\'s name and port, then a folder with an @ in it. A user name and password go in %2$s and %3$s, and an @ in a folder\'s name is written %%40.</string>
-  <string name="address_ambiguous">%1$s reads as a server\'s name and port, then a folder with an @ in it. Write a / in a password as %%2F, and an @ in a folder\'s name as %%40.</string>
+  <string name="address_unreadable">%1$s can\'t be used as typed. Check that it starts with https:// or http:// and that the server\'s name has no space. A %% must be followed by two characters from 0 to 9 and A to F, so write a %% on its own as %%25.</string>
+  <string name="address_ambiguous_login">%1$s can be read two ways: a server, a port, and a folder with an @ in its name, or a user name and a password with a /, ?, or # in it. Type the user name and password in %2$s and %3$s. If the @ is part of a folder\'s name, write it as %%40.</string>
+  <string name="address_ambiguous">%1$s can be read two ways: a server, a port, and a folder with an @ in its name, or a user name and a password with a /, ?, or # in it. A user name and password can\'t go in %1$s. If the @ is part of a folder\'s name, write it as %%40.</string>
+  <string name="address_proxy_at">A user name or password in %1$s can\'t hold an @</string>
+  <string name="address_ambiguous_escape">%1$s can be read two ways: a server, a port, and a folder with an @ in its name, or a user name and a password with a /, ?, or # in it. Write a / in the password as %%2F, a ? as %%3F, and a # as %%23. If the @ is part of a folder\'s name, write it as %%40.</string>
   <string name="address_ipv6">An IPv6 address with a port goes in brackets, like [2001:db8::1]:2222</string>
   <string name="address_port_set">Port %1$s, typed with the server\'s name, is now in Port under More settings</string>
   <string name="address_port_moved">Port %1$s, typed with the server\'s name, replaces %2$s in Port under More settings</string>

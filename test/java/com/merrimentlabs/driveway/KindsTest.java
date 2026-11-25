@@ -174,7 +174,7 @@ public final class KindsTest {
     // Every reason the engine gives has its own sentence, and each names the field (its first argument).
     String xml = new String(java.nio.file.Files.readAllBytes(new java.io.File("res/values/strings.xml").toPath()),
         java.nio.charset.StandardCharsets.UTF_8);
-    for (String reason : new String[] {"scheme", "hostonly", "login", "escape", "port", "credentials", "ambiguous", "unreadable"}) {
+    for (String reason : new String[] {"scheme", "hostonly", "login", "escape", "port", "credentials", "ambiguous", "ambiguousescape", "proxyat", "unreadable"}) {
       for (Kinds.Kind k : new Kinds.Kind[] {Kinds.WEBDAV, Kinds.of("http")}) {
         String name = null;
         for (java.lang.reflect.Field f : R.string.class.getFields()) {
@@ -183,6 +183,13 @@ public final class KindsTest {
         java.util.regex.Matcher m = java.util.regex.Pattern.compile("<string name=\"" + name + "\">([^<]*)<").matcher(xml);
         check(name != null && m.find() && m.group(1).contains("%1$s"), "the reason " + reason + " on " + k.backend + " names the field: " + name);
       }
+    }
+    // An address that reads two ways: each sentence gives the %40 way out for
+    // an @ in a folder's name, and the other way out that fits the setting.
+    String[][] ways = {{"address_ambiguous_login", "%2$s and %3$s"}, {"address_ambiguous_escape", "%%2F"}, {"address_ambiguous", "can\\'t go in %1$s"}};
+    for (String[] w : ways) {
+      java.util.regex.Matcher m = java.util.regex.Pattern.compile("<string name=\"" + w[0] + "\">([^<]*)<").matcher(xml);
+      check(m.find() && m.group(1).contains("write it as %%40") && m.group(1).contains(w[1]), w[0] + " gives both ways out");
     }
   }
 
