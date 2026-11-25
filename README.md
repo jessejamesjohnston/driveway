@@ -107,7 +107,12 @@ The release key's certificate SHA-256 is
 
 `C5:19:F7:89:47:10:A0:7D:A2:F0:18:88:7C:93:9F:A6:55:27:9F:4C:56:B2:39:F3:DB:9F:3F:D0:70:EC:07:9E`
 
-(check it with `apksigner verify --print-certs driveway-<version>.apk`). Each release also lists
+which `apksigner verify --print-certs driveway-<version>.apk` prints as
+
+`c519f7894710a07da2f018887c939fa655279f4c56b239f3db9f3fd070ec079e`
+
+The easy check, from a clone of this repository, is `scripts/release.sh --verify driveway-<version>.apk`:
+it verifies the signature and compares the certificate for you. Each release also lists
 the file's SHA-256 in `SHA256SUMS`. Every release is signed with that key, so a new one installs
 over the old. To hear about new versions, turn on Check weekly in Settings, watch this
 repository's releases, or add it to an updater such as

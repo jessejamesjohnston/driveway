@@ -6,7 +6,7 @@ Versions 0.1.0 to 0.2.13 were private test builds and were not published.
 
 ## [Unreleased]
 
-## [0.3.0] - 2026-11-24
+## [0.3.0] - 2026-11-25
 
 The first public release.
 

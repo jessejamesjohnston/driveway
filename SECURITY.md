@@ -28,8 +28,16 @@ About) you tested. You will get an answer as soon as I can manage; this is a one
   settings file instead. Neither is a vulnerability to report.
 - **SFTP host keys** (`engine/ssh.go`): a server's key is pinned on first use, after the person
   checks its fingerprint; a different key is refused.
-- **The documents provider** (`DrivewayProvider.java`): reachable only through Android's documents
-  UI (it requires `MANAGE_DOCUMENTS`); a document id never reaches outside the server's own folder.
+- **What other apps can reach.** The release build's manifest exports three components; everything
+  else (the other screens, both services, the notification receiver) is `exported="false"`.
+  - `MainActivity`: the launcher screen. It reads nothing from the intent that opens it.
+  - `ReturnActivity`: opened by the `driveway://signin` link on the page a browser sign-in comes
+    back to. It reads nothing from the link: it closes, or opens the server list.
+  - `DrivewayProvider` (`DrivewayProvider.java`), the documents provider: it requires
+    `MANAGE_DOCUMENTS`, which only Android's documents UI holds, so other apps reach a server only
+    through a file the person picks there; a document id never reaches outside the server's own
+    folder.
+  The weekly update job also requires `BIND_JOB_SERVICE`, so only the system can start it.
 - **Saves** (`Uploads.java`, `engine/upload.go`): a file on the server is replaced only by a
   complete upload; on NFS the temporary file is owner-only while it uploads (`engine/nfs`).
 - **The update check** (`UpdateCheck.java`): one request to GitHub's public API with no

@@ -2,5 +2,6 @@ build/
 dist/
 *.jks
 *.p12
+*.pfx
 *.keystore
 __pycache__/
