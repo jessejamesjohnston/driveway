@@ -46,8 +46,8 @@ About) you tested. You will get an answer as soon as I can manage; this is a one
   folder. With an `@` anywhere in the address (a user name and password typed in it, say),
   folders with those full-width characters or `⁉` are refused too; dot forms in a folder are
   still accepted. A refusal doesn't repeat the address, and says to set the
-  address to the server's top folder and open the folder in Files when the character is part
-  of a folder's name, or to retype it when it was meant as the ordinary character. The
+  address to the folder that holds that folder and open it in Files when the character is
+  part of a folder's name, or to retype it when it was meant as the ordinary character. The
   redaction below doesn't read a percent-encoded look-alike as an `@`, so this case rests on
   the check. Letters and digits in any script are accepted, in host names and in folders.
   A generated test (`engine/address_matrix_test.go`) puts every combination of user name,

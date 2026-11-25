@@ -103,8 +103,8 @@ func validRows() []validRow {
 	)
 	// The same folders with an @ in the address are refused: a password
 	// needs an @ after it, so there the look-alikes could end one. The way
-	// out is the server's top folder as the address, or the user name and
-	// password in their own settings.
+	// out is the folder that holds that folder as the address, or the user
+	// name and password in their own settings.
 	add("webdav", "url", reasonLookalike,
 		"https://alice:pw@nas:5006/dav/\u4f1a\u8bae\uff1a2024/",
 		"https://nas.local/dav/team@home/\u306a\u305c\uff1f/",

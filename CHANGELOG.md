@@ -22,28 +22,27 @@ The first public release.
 - The SFTP form's Server hint matches the other forms ("nas.local or 192.168.1.10").
 - A server that can't sign in again offers Remove on its card.
 - The Server field of SFTP, SMB, NFS and FTP accepts a port after the name, like
-  `nas.local:2222` or `[2001:db8::1]:2222`: as soon as you leave the field, the port moves to Port
-  under More settings, and wins over a different one already there (the form says so). A port that isn't a number from 1 to
-  65535, a folder, a user name, or another kind of server's address (`https://...`) is pointed
-  out on the form instead of failing as "can't reach".
+  `nas.local:2222` or `[2001:db8::1]:2222`: as soon as you leave the field, the port moves to
+  Port under More settings, and wins over a different one already there (the form says so). A
+  port that isn't a number from 1 to 65535, a folder, a user name, or another kind of server's
+  address (`https://...`) is pointed out on the form instead of failing as "can't reach".
 - An address in a server's settings (WebDAV's Address, a service's endpoint or host) is checked
   by the engine's own address check, the one the form uses as you leave the field and when you
   connect or save. A user name and password typed in WebDAV's Address
   (`https://you:password@host/dav`) move to User name and Password when those are empty; when
   they already hold a login, that one is used and the address's copy is taken out. The form says
-  which. An address Driveway can't use, such as one without `https://`, with a stray `%`, or with
-  a password that holds a space or a quote, is pointed out on its field, without repeating it,
-  instead of failing as "can't reach". So is one that reads two ways, like a password with a `/`
-  in it typed after the user name, which looks like a server, a port and a folder with an `@`:
-  the form says to type the login in User name and Password, or to write an `@` in a folder's
-  name as `%40`. So is one with a character that only looks like `@` (a full-width `＠`), or
-  like `:`, `/`, `?`, `#` or a dot in the server's name, or like `:`, `/`, `?` or `#` in a folder
-  when the address also holds an `@`: the form says to set the address to the server's top folder and open the folder
-  in Files, or to retype the character. International server names, and folder names in any
-  script, including the full-width `：`, `？`, `＃` and `／` that Chinese and Japanese names use,
-  are accepted as typed. A saved
-  server whose address can't be used
-  says so on its card and in Files, naming the setting to change.
+  which. An address Driveway can't use, such as one without `https://`, with a stray `%`, or
+  with a password that holds a space or a quote, is pointed out on its field, without repeating
+  it, instead of failing as "can't reach". So is one that reads two ways, like a password with a
+  `/` in it typed after the user name, which looks like a server, a port and a folder with an
+  `@`: the form says to type the login in User name and Password, or to write an `@` in a
+  folder's name as `%40`. So is one with a character that only looks like `@` (a full-width
+  `＠`), or like `:`, `/`, `?`, `#` or a dot in the server's name, or like `:`, `/`, `?` or `#`
+  in a folder when the address also holds an `@`: the form says to set the address to the folder
+  that holds that folder and open it in Files, or to retype the character. International server
+  names, and folder names in any script, including the full-width `：`, `？`, `＃` and `／` that
+  Chinese and Japanese names use, are accepted as typed. A saved server whose address can't be
+  used says so on its card and in Files, naming the setting to change.
 - An error says what happened and what to do next, in Driveway's own words, on a server's card,
   in Files and in a failed save's notification. The technical detail from the server or the
   network goes only to the app's log, with passwords, API keys, private keys and sign-in tokens
