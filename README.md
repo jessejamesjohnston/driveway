@@ -69,7 +69,7 @@ doesn't make a server at home reachable from outside on its own.
 </table>
 
 <p align="center">
-  <img src="docs/images/large-add.png" width="880" alt="Where are your files? on a large screen: DiskStation found on the network with an Add button; SFTP, SMB, NFS and WebDAV as tiles; then Box, Dropbox and OneDrive (sign in with your browser) and More services (S3, FTP and 42 more)">
+  <img src="docs/images/large-add.png" width="880" alt="Where are your files? on a large screen: DiskStation found on the network with an Add button; SFTP, SMB, NFS and WebDAV as tiles; then Box, Dropbox and OneDrive (sign in with your browser) and More services (S3, FTP, and 42 more)">
 </p>
 
 Driveway works with a keyboard as well as touch (Tab, Enter and Escape on every screen; the
