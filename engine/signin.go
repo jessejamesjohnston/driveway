@@ -190,6 +190,9 @@ func ConfigStart(id, backend, params string) (_ string, err error) {
 	// closed, the person never came back) would otherwise block every later one.
 	ConfigCancel()
 	if ri, err := fs.Find(backend); err == nil {
+		if err := checkAddresses(ri, m); err != nil {
+			return "", err
+		}
 		applyDefaults(ri, m)
 	}
 	applyPresets(forms[backend], m)

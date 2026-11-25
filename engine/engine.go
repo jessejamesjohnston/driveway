@@ -112,6 +112,9 @@ func SetRemote(id, backend, params string) (err error) {
 	if err := json.Unmarshal([]byte(params), &m); err != nil {
 		return tag("badsettings", fmt.Errorf("bad settings: %w", err))
 	}
+	if err := checkAddresses(ri, m); err != nil {
+		return err
+	}
 	secret := map[string]bool{}
 	for _, o := range ri.Options {
 		if o.IsPassword {

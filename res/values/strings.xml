@@ -112,6 +112,12 @@
   <string name="address_scheme">%2$s doesn\'t use %1$s addresses. Type just the server\'s name or address, like nas.local, or go back and choose the right kind of server.</string>
   <string name="address_folder">Type just the server\'s name or address here, without %1$s. A folder goes in Start in folder, under More settings.</string>
   <string name="address_user">Type just the server\'s name or address here, without \"%1$s\"</string>
+  <string name="address_url_scheme">Type the whole address in %1$s, starting with https:// or http://</string>
+  <string name="address_url_login">Type the user name and password in %2$s and %3$s, not in %1$s</string>
+  <string name="address_url_port">What follows the colon in %1$s isn\'t a port number. A user name and password go in %2$s and %3$s.</string>
+  <string name="address_url_escape">A user name or password in %1$s can\'t hold a space, a quote, or a character like / ? # as typed. Write each one as %% and its code, like %%20 for a space.</string>
+  <string name="address_url_moved">The user name and password typed in %1$s are now in %2$s and %3$s</string>
+  <string name="address_url_user_moved">The user name typed in %1$s is now in %2$s</string>
   <string name="address_ipv6">An IPv6 address with a port goes in brackets, like [2001:db8::1]:2222</string>
   <string name="address_port_set">Port %1$s, typed with the server\'s name, is now in Port under More settings</string>
   <string name="address_port_moved">Port %1$s, typed with the server\'s name, replaces %2$s in Port under More settings</string>

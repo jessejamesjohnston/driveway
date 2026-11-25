@@ -1279,6 +1279,12 @@ public final class ServerActivity extends Activity implements Connection.Listene
             if (!has && form != null && !busy()) splitAddress(true);
           });
         }
+        // So do a user name and password typed in an address, to their own fields.
+        if (Kinds.URL_KEYS.contains(f.key)) {
+          e.setOnFocusChangeListener((v, has) -> {
+            if (!has && form != null && !busy()) splitUrl(f.key, true);
+          });
+        }
       }
     }
   }
@@ -1626,8 +1632,50 @@ public final class ServerActivity extends Activity implements Connection.Listene
     }
   }
 
+  /** The label of the kind's field for key, or key itself. */
+  private String fieldLabel(String key) {
+    for (Kinds.Field f : kind.fields) if (f.key.equals(key)) return f.label;
+    return key;
+  }
+
+  /**
+   * An address in a URL setting (key): a user name and password typed in it
+   * go to User name and Password, on a kind that has them, and the form
+   * says so; a kind without them keeps them in the address. What Go can't
+   * read as an address is said in plain words, without repeating what was
+   * typed. leaving: focus just left the field, so the form's status line
+   * says it; else (on Connect) a problem stops it.
+   */
+  private void splitUrl(String key, boolean leaving) {
+    View uv = inputs.get(key);
+    if (!(uv instanceof EditText)) return;
+    EditText field = (EditText) uv;
+    boolean login = Kinds.takesLogin(kind);
+    Kinds.UrlParts u = Kinds.urlParts(field.getText().toString(), key.equals("url"), login);
+    if (u.problem != 0) {
+      String problem = getString(u.problem, fieldLabel(key), fieldLabel("user"), fieldLabel("pass"));
+      if (leaving) {
+        formStatus.setText(problem);
+        return;
+      }
+      throw new Missing(problem, field);
+    }
+    if (u.user == null || !login) return;
+    View user = inputs.get("user"), pass = inputs.get("pass");
+    if (!(user instanceof EditText) || !(pass instanceof EditText)) return;
+    field.setText(u.address);
+    ((EditText) user).setText(u.user);
+    if (u.pass != null) ((EditText) pass).setText(u.pass);
+    String note = u.pass != null
+        ? getString(R.string.address_url_moved, fieldLabel(key), fieldLabel("user"), fieldLabel("pass"))
+        : getString(R.string.address_url_user_moved, fieldLabel(key), fieldLabel("user"));
+    if (leaving) formStatus.setText(note);
+    else addressNote = note;
+  }
+
   private Servers.Server collect() throws IllegalArgumentException {
     splitAddress();
+    for (String key : Kinds.URL_KEYS) splitUrl(key, false);
     Servers.Server s = server.copy();
     s.backend = kind.backend;
     JSONObject p = new JSONObject();

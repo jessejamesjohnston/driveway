@@ -119,6 +119,59 @@ public final class KindsTest {
   }
 
   /**
+   * An address in a URL setting, checked as the engine checks it
+   * (engine/address_test.go has the same rows): what Go can't read is
+   * refused with where to type the user name and password instead, and a
+   * user name and password that read cleanly come out of the address.
+   */
+  private static void urlAddresses() {
+    Set<String> logins = new HashSet<>();
+    List<Kinds.Kind> all = new ArrayList<>(Kinds.MAIN);
+    all.addAll(Kinds.others());
+    for (Kinds.Kind k : all) {
+      boolean url = false;
+      for (Kinds.Field f : k.fields) url |= f.key.equals("url");
+      if (url && Kinds.takesLogin(k)) logins.add(k.backend);
+    }
+    check(logins.contains("webdav") && !logins.contains("http"),
+        "an address with User name and Password beside it: WebDAV, not HTTP (got " + logins + ")");
+    String[] login = {
+        "https://alice:pa ssMADEUP1@dav.example.com/x", "https://alice:pa\"MADEUP2@dav.example.com/x",
+        "https://alice:pa<MADEUP3@dav.example.com/x", "https://alice:pa>MADEUP4@dav.example.com/x",
+        "https://alice:pa\\MADEUP5@dav.example.com/x", "https://alice:pa`MADEUP6@dav.example.com/x",
+        "https://alice:pa%zzMADEUP@dav.example.com/x",
+    };
+    for (String u : login) {
+      Kinds.UrlParts p = Kinds.urlParts(u, true, true);
+      check(p.problem == R.string.address_url_login && p.user == null, "refused, with User name and Password: " + u);
+    }
+    for (String u : new String[] {"https://alice:hunterMADEUP/abc@dav.example.com/x", "https://alice:hunterMADEUP?abc@dav.example.com/x",
+        "https://alice:hunterMADEUP#abc@dav.example.com/x", "https://nas.example.com:80a/dav"}) {
+      check(Kinds.urlParts(u, true, true).problem == R.string.address_url_port, "refused, not a port: " + u);
+    }
+    check(Kinds.urlParts("https://alice:pa ssMADEUP8@files.example.com/", true, false).problem == R.string.address_url_escape,
+        "refused without User name and Password: says how to write the character");
+    check(Kinds.urlParts("alice:MADEUPNS@dav.example.com/x", true, true).problem == R.string.address_url_scheme
+        && Kinds.urlParts("dav.example.com/x", true, true).problem == R.string.address_url_scheme
+        && Kinds.urlParts("alice:MADEUP@s3.example.com", false, false).problem == R.string.address_url_scheme,
+        "refused without a scheme");
+    check(Kinds.urlParts("s3.example.com", false, false).problem == 0 && Kinds.urlParts("", true, true).problem == 0,
+        "an endpoint may be a bare host, and an empty field is left to the required check");
+    check(Kinds.urlParts("http://[2001:db8::1/x", true, false).problem == R.string.address_url_escape,
+        "an IPv6 address without its closing bracket is refused");
+    Kinds.UrlParts p = Kinds.urlParts(" https://alice:s3cr%40t%20x@dav.example.com:8443/remote.php/dav/files/alice@example.com/ ",
+        true, true);
+    check(p.problem == 0 && p.address.equals("https://dav.example.com:8443/remote.php/dav/files/alice@example.com/")
+        && "alice".equals(p.user) && "s3cr@t x".equals(p.pass), "moved, escapes decoded, the path's @ kept");
+    p = Kinds.urlParts("http://u:p@[2001:db8::1]:2222/files/", true, true);
+    check(p.address.equals("http://[2001:db8::1]:2222/files/") && "u".equals(p.user) && "p".equals(p.pass), "moved from an IPv6 address");
+    p = Kinds.urlParts("https://alice@dav.example.com/x", true, true);
+    check(p.address.equals("https://dav.example.com/x") && "alice".equals(p.user) && p.pass == null, "a user name alone");
+    p = Kinds.urlParts("https://dav.example.com/x?y=1#z", true, true);
+    check(p.problem == 0 && p.user == null && p.address.equals("https://dav.example.com/x?y=1#z"), "a plain address as typed");
+  }
+
+  /**
    * "host:port" in the Server field (the port has its own setting): which
    * kinds split it, and how every shape of address splits, against the real
    * catalog.
@@ -135,6 +188,7 @@ public final class KindsTest {
         "Quatrix's account address (no Port setting) is left as typed");
 
     leavingTheServerField();
+    urlAddresses();
 
     // Name in Files follows the host, and never keeps what the form refuses.
     check(Kinds.followedName("192.0.2.10:2222", Kinds.SFTP, true).equals("192.0.2.10")
