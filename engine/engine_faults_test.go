@@ -503,7 +503,7 @@ func TestFaultyServerClean(t *testing.T) {
 // empty setting is left out rather than stored as "".
 func TestSetRemoteRefusals(t *testing.T) {
 	afWant(t, SetRemote("a-x", "no-such-service", `{}`), "other", `unknown service "no-such-service"`)
-	afWant(t, SetRemote("a-x", "sftp", `{"host":`), "other", "bad settings")
+	afWant(t, SetRemote("a-x", "sftp", `{"host":`), "badsettings", "bad settings")
 	if err := SetRemote("a-x", "sftp", `{"host":"example.com","user":""}`); err != nil {
 		t.Fatal(err)
 	}

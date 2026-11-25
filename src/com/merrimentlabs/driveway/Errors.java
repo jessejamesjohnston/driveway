@@ -138,6 +138,13 @@ final class Errors {
       // sign-ins never show the service's own setup words or errors).
       case "setup":
         return new Message(R.string.err_setup, service(s, name));
+      // rclone's own setup steps (a service's questions) stopped on an error,
+      // such as no shared drive to choose.
+      case "setupended":
+        return new Message(R.string.err_setup_ended, service(s, name));
+      // The settings handed to the engine weren't readable.
+      case "badsettings":
+        return new Message(onForm ? R.string.err_bad_settings_form : R.string.err_bad_settings, name);
       case "notfound":
         return new Message(R.string.err_not_found);
       case "exists":

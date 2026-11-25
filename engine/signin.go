@@ -180,7 +180,7 @@ func ConfigStart(id, backend, params string) (string, error) {
 	setup()
 	var m map[string]any
 	if err := json.Unmarshal([]byte(params), &m); err != nil {
-		return "", tag("other", err)
+		return "", tag("badsettings", fmt.Errorf("bad settings: %w", err))
 	}
 	mu.Lock()
 	dropRemote(id)
@@ -299,13 +299,14 @@ func next(id string, out *fs.ConfigOut, err error) (string, error) {
 		return "", classify(err)
 	}
 	// A setup that ended on an error (Google Drive found no shared drive):
-	// say so, rather than finish as if all went well.
+	// say so, rather than finish as if all went well. rclone's reason goes
+	// to the log; the app says the setup stopped and what to check.
 	if out != nil && out.State == "" && out.Error != "" {
 		endRun(id)
 		if run.own != "" {
 			return "", tag("setup", errors.New(out.Error))
 		}
-		return "", tag("other", errors.New(out.Error))
+		return "", tag("setupended", errors.New(out.Error))
 	}
 	// Driveway's own sign-ins ask nothing more: a question rclone still has
 	// would be in its words (drive IDs, SharePoint), so the setup stops

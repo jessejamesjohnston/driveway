@@ -204,14 +204,14 @@ func TestConfigQuestion(t *testing.T) {
 	out, _ = ConfigStart("c-setup1", "c-setup", `{}`)
 	q = question{}
 	_ = json.Unmarshal([]byte(out), &q)
-	if _, err := ConfigAnswer("c-setup1", q.State, "green"); err == nil || err.Error() != "[other] no green here" {
+	if _, err := ConfigAnswer("c-setup1", q.State, "green"); err == nil || err.Error() != "[setupended] no green here" {
 		t.Fatalf("a setup that ends on an error: %v", err)
 	}
 }
 
 // Settings that aren't JSON are refused before anything starts.
 func TestConfigStartBadSettings(t *testing.T) {
-	if _, err := ConfigStart("c-setup2", "c-setup", `{"c_color":`); err == nil || !strings.HasPrefix(err.Error(), "[other] ") {
+	if _, err := ConfigStart("c-setup2", "c-setup", `{"c_color":`); err == nil || !strings.HasPrefix(err.Error(), "[badsettings] bad settings: ") {
 		t.Fatalf("broken settings: %v", err)
 	}
 }

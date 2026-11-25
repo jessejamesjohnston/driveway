@@ -99,7 +99,7 @@ public final class ErrorsTest {
     servers.put("dropbox", server("dropbox", "{\"token\":\"{}\"}"));
     servers.put("none", null);
     List<String> kinds = List.of("network", "auth", "declined", "expired", "background", "nobrowser", "port", "signin",
-        "signinfailed", "setup", "notfound", "exists", "notempty", "bucketname", "denied", "full", "retry", "nosize",
+        "signinfailed", "setup", "setupended", "badsettings", "notfound", "exists", "notempty", "bucketname", "denied", "full", "retry", "nosize",
         "changed", "norename", "bothnames", "partway", "keptold", "short", "other", "unsupported", "a-kind-from-later");
     List<Throwable> errors = new java.util.ArrayList<>();
     for (String k : kinds) errors.add(err("[" + k + "] " + RAW));
@@ -151,6 +151,13 @@ public final class ErrorsTest {
           "a name that doesn't look up" + where + ": the next step is its spelling");
       m = Errors.message(sftp, err("[network] dial tcp: lookup nohost.invalid: no such host"), onForm, () -> false, "The server");
       check(m.res == R.string.err_local_network, "without Nearby devices" + where + ": that comes first");
+      // The two setup failures that used to say only "couldn't finish connecting":
+      // each says what stopped and what to do.
+      m = Errors.message(sftp, err("[setupended] No Shared Drives found in your account"), onForm, () -> true, "The server");
+      check(m.res == R.string.err_setup_ended, "a service's setup that stopped on an error" + where + ": says so");
+      m = Errors.message(sftp, err("[badsettings] bad settings: unexpected end of JSON input"), onForm, () -> true, "The server");
+      check(m.res == (onForm ? R.string.err_bad_settings_form : R.string.err_bad_settings),
+          "settings the engine couldn't read" + where + ": says so");
     }
     check(String.format(text.get(Errors.message(null, err("[signin] " + RAW), false, () -> true, "The server").res),
         Errors.message(null, err("[signin] " + RAW), false, () -> true, "The server").args).contains("said: " + RAW),

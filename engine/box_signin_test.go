@@ -271,7 +271,7 @@ func TestSetupLoopEndings(t *testing.T) {
 		{"erroropt", "[setup]", ""},
 		{"boom", "[setup]", "[other]"},
 		{"offline", "[network]", "[network]"},
-		{"enderr", "[setup]", "[other]"},
+		{"enderr", "[setup]", "[setupended]"},
 	}
 	for _, c := range cases {
 		own(true)

@@ -185,6 +185,7 @@
   <string name="cancel_sign_in">Cancel sign-in</string>
   <string name="setup_question">%1$s asks: %2$s</string>
   <string name="err_setup">Signed in, but Driveway couldn\'t finish connecting to %1$s. Try again.</string>
+  <string name="err_setup_ended">Setting up %1$s stopped before it finished. Check your answers, or choose another option where it asks, then connect again.</string>
   <string name="answer">Continue</string>
   <string name="answer_for">Answer for %1$s</string>
   <string name="open_folder">Open %1$s</string>
@@ -309,6 +310,8 @@
   <string name="err_kept_old">Couldn\'t replace the file on %1$s, and couldn\'t put the old one back. The old one is in the same folder, with a name that starts with .driveway-old-, and your new version is safe on this device.</string>
   <string name="err_short">%1$s didn\'t store the file as it was sent. Save it again.</string>
   <string name="err_other">Couldn\'t finish that on %1$s. Try again, and if it keeps happening, open Driveway and check its settings.</string>
+  <string name="err_bad_settings">Driveway couldn\'t read the saved settings for %1$s. Open Driveway, choose Change on its card, and save it again.</string>
+  <string name="err_bad_settings_form">Driveway couldn\'t read the settings for %1$s. Check each one and try again.</string>
   <string name="err_other_form">Driveway couldn\'t finish connecting to %1$s. Check the details and try again.</string>
 
   <string name="channel_uploads">Saving to servers</string>

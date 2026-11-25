@@ -108,7 +108,7 @@ func SetRemote(id, backend, params string) error {
 	}
 	var m map[string]any
 	if err := json.Unmarshal([]byte(params), &m); err != nil {
-		return tag("other", fmt.Errorf("bad settings: %w", err))
+		return tag("badsettings", fmt.Errorf("bad settings: %w", err))
 	}
 	secret := map[string]bool{}
 	for _, o := range ri.Options {
