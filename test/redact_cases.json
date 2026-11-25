@@ -400,6 +400,21 @@
       "why": "an address, Go's separator, and an email address in the error, kept",
       "in": "Get \"https://dav.example.com/x\": dial tcp: lookup for help@example.com failed",
       "out": "Get \"https://dav.example.com/x\": dial tcp: lookup for help@example.com failed"
+    },
+    {
+      "why": "an address in JSON that escapes its slashes",
+      "in": "{\"error\":\"bad link https:\\/\\/dl.example.com\\/f?token=MADEUP&code=MADEUP2\"}",
+      "out": "{\"error\":\"bad link https:\\/\\/dl.example.com\\/f?***\"}"
+    },
+    {
+      "why": "the same, quoted again by Go, so its slashes are escaped twice",
+      "in": "unexpected answer: \"{\\\"url\\\":\\\"https:\\\\/\\\\/dl.example.com\\\\/f?code=MADEUP3&x=1\\\"}\"",
+      "out": "unexpected answer: \"{\\\"url\\\":\\\"https:\\\\/\\\\/dl.example.com\\\\/f?***\\\"}\""
+    },
+    {
+      "why": "a user name and password in an escaped address",
+      "in": "{\"href\":\"https:\\/\\/alice:MADEUP@dav.example.com\\/x\"}",
+      "out": "{\"href\":\"https:\\/\\/***@dav.example.com\\/x\"}"
     }
   ]
 }

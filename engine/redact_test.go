@@ -502,7 +502,7 @@ func TestUnreadableAddressNeverLeaks(t *testing.T) {
 // error (rclone quotes a failed request's body), so every shape must take
 // time in proportion to its length. The bound is generous.
 func TestRedactIsLinear(t *testing.T) {
-	for _, shape := range []string{"a.", "a-", "x-x-", "a:", "a@", "a=", "a ", "a/", "%2", `\"`, "https://", "key", "x-a"} {
+	for _, shape := range []string{"a.", "a-", "x-x-", "a:", "a@", "a=", "a ", "a/", "%2", `\"`, "https://", `h:\/\/a\/`, "key", "x-a"} {
 		big := strings.Repeat(shape, 1_000_000/len(shape))
 		t0 := time.Now()
 		redact(big)

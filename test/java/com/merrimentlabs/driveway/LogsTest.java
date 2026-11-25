@@ -70,7 +70,7 @@ public final class LogsTest {
     // (rclone quotes a failed request's body), and redaction runs on the
     // thread that reports it. Every shape must take time in proportion to
     // its length; the bound is generous (a quadratic pattern takes minutes).
-    String[] shapes = {"a.", "a-", "x-x-", "a:", "a@", "a=", "a ", "a/", "%2", "\\\"", "https://", "key", "x-a"};
+    String[] shapes = {"a.", "a-", "x-x-", "a:", "a@", "a=", "a ", "a/", "%2", "\\\"", "https://", "h:\\/\\/a\\/", "key", "x-a"};
     long worst = 0;
     String slowest = "";
     for (String shape : shapes) {

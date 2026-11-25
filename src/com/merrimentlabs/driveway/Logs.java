@@ -69,8 +69,12 @@ final class Logs {
       "[a-z0-9_.-]*?(?:api[_-]?key|key|token|passw(?:or)?d|passphrase|pass|pwd|secret|signature|sig|credential|"
           + "sess(?:ion)?[_-]?id|sid|auth|authorization)";
   private static final Pattern URL = Pattern.compile("(?i)\\b[a-z][a-z0-9+.-]{0,30}://[^\\s\"'<>`\\\\]+");
+  private static final Pattern ESCAPED_START = Pattern.compile("(?i)\\b[a-z][a-z0-9+.-]{0,30}:\\\\\\\\?/\\\\\\\\?/");
   private static final Pattern SCHEME_START = Pattern.compile("(?i)\\b[a-z][a-z0-9+.-]{0,30}://");
-  private static final Pattern INVALID_PORT = Pattern.compile("(invalid port \")(?:[^\"\\\\]|\\\\.)*(\" after host)");
+  // The same language as the engine's patterns, written so that the app's
+  // regex engine doesn't recurse once per character (a long value would
+  // overflow its stack): runs taken whole, without backtracking.
+  private static final Pattern INVALID_PORT = Pattern.compile("(invalid port \")[^\"\\\\]*+(?:\\\\.[^\"\\\\]*+)*+(\" after host)");
   private static final Pattern BARE_PAIR = Pattern.compile(
       "(?i)(^|[\\s\"'(<\\[=,])[^\\s\"'<>/@:=,(\\[]{1,200}:[^\\s\"'<>/]{1,200}@([a-z0-9][a-z0-9.-]*|\\[[0-9a-f:.%]+\\])");
   private static final Pattern NAMED_VALUE =
@@ -104,6 +108,7 @@ final class Logs {
     if (s == null) return null;
     s = INVALID_PORT.matcher(s).replaceAll("$1:***$2");
     s = looseUserinfo(s);
+    s = cleanEscaped(s);
     s = replace(URL, s, m -> cleanUrl(m.group()));
     s = BARE_PAIR.matcher(s).replaceAll("$1***@$2");
     s = NAMED_VALUE.matcher(s).replaceAll("$1$2$3***");
@@ -148,6 +153,38 @@ final class Logs {
     }
     if (user >= 0) authority = "***@" + authority;
     return scheme + authority + tail + trail;
+  }
+
+  /** Each address whose slashes are escaped (https:\\/\\/host), redacted; see engine/redact.go. */
+  private static String cleanEscaped(String s) {
+    Matcher m = ESCAPED_START.matcher(s);
+    StringBuilder b = new StringBuilder();
+    int last = 0;
+    while (m.find()) {
+      if (m.start() < last) continue;
+      int end = escapedEnd(s, m.end());
+      String a = s.substring(m.start(), end);
+      String esc = a.contains("\\\\/") ? "\\\\/" : "\\/";
+      b.append(s, last, m.start()).append(cleanUrl(a.replace(esc, "/")).replace("/", esc));
+      last = end;
+    }
+    if (last == 0) return s;
+    return b.append(s.substring(last)).toString();
+  }
+
+  private static int escapedEnd(String s, int i) {
+    while (i < s.length()) {
+      if (s.startsWith("\\/", i)) {
+        i += 2;
+      } else if (s.startsWith("\\\\/", i)) {
+        i += 3;
+      } else if (" \t\n\r\f\u000B\"'<>`\\".indexOf(s.charAt(i)) >= 0) {
+        return i;
+      } else {
+        i++;
+      }
+    }
+    return i;
   }
 
   /** A user name and password holding a character URL stops at; see engine/redact.go. */

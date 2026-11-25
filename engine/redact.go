@@ -39,6 +39,12 @@ var (
 	// urlPattern: an address with a scheme, up to a space, a quote or a
 	// bracket that can't be part of it.
 	urlPattern = regexp.MustCompile("(?i)\\b[a-z][a-z0-9+.-]{0,30}://[^\\s\"'<>`\\\\]+")
+	// An address in JSON that escapes its slashes (https:\/\/host\/path),
+	// once or, quoted again by Go's %q, twice.
+	// The rest of it is read by escapedEnd: as a regex, a loop over two
+	// alternatives would overflow the app's regex engine's stack on a long
+	// address.
+	escapedStart = regexp.MustCompile(`(?i)\b[a-z][a-z0-9+.-]{0,30}:\\\\?/\\\\?/`)
 	// The start of an address, for userinfo that holds a character
 	// urlPattern stops at (looseUserinfo).
 	schemeStart = regexp.MustCompile(`(?i)\b[a-z][a-z0-9+.-]{0,30}://`)
@@ -96,6 +102,7 @@ var (
 func redact(s string) string {
 	s = invalidPort.ReplaceAllString(s, `${1}:***${2}`)
 	s = looseUserinfo(s)
+	s = redactEscaped(s)
 	s = urlPattern.ReplaceAllStringFunc(s, redactURL)
 	s = barePair.ReplaceAllString(s, "${1}***@${2}")
 	s = namedValue.ReplaceAllString(s, "${1}${2}${3}***")
@@ -117,6 +124,54 @@ func redact(s string) string {
 		s = re.ReplaceAllString(s, "${1}***${2}")
 	}
 	return s
+}
+
+// redactEscaped redacts each address whose slashes are escaped.
+func redactEscaped(s string) string {
+	var b strings.Builder
+	last := 0
+	for _, m := range escapedStart.FindAllStringIndex(s, -1) {
+		if m[0] < last {
+			continue
+		}
+		end := escapedEnd(s, m[1])
+		b.WriteString(s[last:m[0]])
+		b.WriteString(redactEscapedURL(s[m[0]:end]))
+		last = end
+	}
+	if last == 0 {
+		return s
+	}
+	b.WriteString(s[last:])
+	return b.String()
+}
+
+// escapedEnd is where an escaped address that goes on at i ends: at a space,
+// a quote, <, >, a backtick, or a backslash that doesn't escape a slash.
+func escapedEnd(s string, i int) int {
+	for i < len(s) {
+		switch {
+		case strings.HasPrefix(s[i:], `\/`):
+			i += 2
+		case strings.HasPrefix(s[i:], `\\/`):
+			i += 3
+		case strings.IndexByte(" \t\n\r\f\v\"'<>`\\", s[i]) >= 0:
+			return i
+		default:
+			i++
+		}
+	}
+	return i
+}
+
+// redactEscapedURL redacts an address whose slashes are escaped: as one
+// with plain slashes, escaped again afterwards.
+func redactEscapedURL(m string) string {
+	esc := `\/`
+	if strings.Contains(m, `\\/`) {
+		esc = `\\/`
+	}
+	return strings.ReplaceAll(redactURL(strings.ReplaceAll(m, esc, "/")), "/", esc)
 }
 
 // redactURL redacts one address found by urlPattern.
