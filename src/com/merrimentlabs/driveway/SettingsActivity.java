@@ -34,6 +34,7 @@ public final class SettingsActivity extends Activity {
 
   private LinearLayout permissions;
   private TextView updateState;
+  private View updateRow;
   private boolean checking;
 
   @Override
@@ -69,6 +70,7 @@ public final class SettingsActivity extends Activity {
     about.addView(Ui.divider(this));
     LinearLayout update = Ui.cardRow(this, Ui.icon(this, R.drawable.ic_refresh, R.color.muted, 24),
         getString(R.string.update_check), getString(R.string.update_check_sub), null, v -> checkForUpdates());
+    updateRow = update;
     updateState = (TextView) ((LinearLayout) update.getChildAt(1)).getChildAt(1);
     Ui.announces(updateState);
     about.addView(update);
@@ -96,16 +98,22 @@ public final class SettingsActivity extends Activity {
     if (checking) return;
     String version = version();
     checking = true;
-    updateState.setText(R.string.update_checking);
+    showUpdateState(getString(R.string.update_checking));
     new Thread(() -> {
       UpdateCheck.Result r = UpdateCheck.check(version, UpdateCheck.API);
       runOnUiThread(() -> {
         checking = false;
         if (isDestroyed()) return;
-        updateState.setText(updateWords(r));
+        showUpdateState(updateWords(r));
         if (r.outcome == UpdateCheck.Outcome.AVAILABLE) open(UpdateCheck.RELEASES_PAGE);
       });
     }).start();
+  }
+
+  /** The check's state under the row, and in what TalkBack reads for the row. */
+  private void showUpdateState(String words) {
+    updateState.setText(words);
+    updateRow.setContentDescription(getString(R.string.update_check) + ", " + words);
   }
 
   private String updateWords(UpdateCheck.Result r) {
