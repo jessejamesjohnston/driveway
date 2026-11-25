@@ -20,8 +20,11 @@ package engine
 //   - TestRedactGenJSON writes the redactor's inputs and outputs for the app's
 //     LogsTest, so the app's redactor is checked against the same values.
 //
-// Each password holds a marker (genMarkers) on both sides of whatever
-// character makes it hard, so a partial leak counts as a leak.
+// Each password with content holds a marker (genMarkers): after the digits
+// where it starts with digits (2024/QZQb), and elsewhere on both sides of
+// whatever character makes it hard, so a partial leak counts as a leak.
+// The look-alike shapes (a full-width @ or colon, and the like, where a
+// separator goes) carry the marker in the user name, host or path instead.
 
 import (
 	"context"
@@ -64,6 +67,10 @@ var (
 	genUsers = []genShape{
 		{"plain", "alice"}, {"dotted", "alice.smith"}, {"email", "alice@example.com"},
 		{"punct", "a-b_c+d"}, {"empty", ""}, {"encoded", "al%40ice"}, {"unicode", "jürgen"},
+		// Look-alikes (genLookalike): a full-width or modifier-letter colon
+		// where the colon before a password goes, so the "user name" holds
+		// the password.
+		{"fullwidth:", "alice\uff1a2024/QZQd"}, {"modifier:", "alice\ua789/QZQd"},
 	}
 	genPasswords = []genShape{
 		{"none", noPass}, {"empty", ""}, {"plain", "QZQa1"}, {"digits", "73915062"},
@@ -76,16 +83,29 @@ var (
 		{"backslash", `QZQa\QZQb`}, {"encoded", "QZQa%2FQZQb"}, {"digits-encoded", "2024%2FQZQb"},
 		{"long", strings.Repeat("QZQa", 50) + "/" + strings.Repeat("QZQb", 50)},
 		{"digits/long", "2024/" + strings.Repeat("QZQb", 60)},
+		// Look-alikes in a password: a full-width @ and a full-width solidus.
+		{"fullwidth@", "2024/QZQb\uff20QZQc"}, {"fullwidth/", "2024\uff0fQZQb"},
 	}
 	// Hosts nothing answers at: documentation names and addresses
 	// (RFC 2606, 5737, 3849), never the local test servers' ports.
 	genHosts = []genShape{
 		{"name", "nas"}, {"name:port", "nas:5006"}, {"dotted", "h.example.com"}, {"dotted:port", "h.example.com:5006"},
 		{"ipv4", "192.0.2.10"}, {"ipv4:port", "192.0.2.10:5006"}, {"ipv6", "[2001:db8::10]"}, {"ipv6:port", "[2001:db8::10]:5006"},
+		// An international name, which must keep working.
+		{"idn", "b\u00fccher.example"},
+		// Look-alikes: a whole user name and password ahead of the host,
+		// joined to it by a full-width or small @ after a digits or empty
+		// port, so the generated user name and password can be empty.
+		{"fullwidth@login", "alice:2024/QZQe\uff20nas"}, {"small@login", "alice:/QZQe\ufe6bh.example.com"},
 	}
 	genPaths = []genShape{
 		{"none", ""}, {"plain", "/dav"}, {"at", "/f@x/dav"}, {"colon", "/a:b/dav"},
 		{"email-folder", "/remote.php/dav/files/alice@example.com/"}, {"encoded", "/files/x%40y/"},
+		// Folder names in other scripts, which must keep working.
+		{"unicode", "/Fotos/\u65e5\u672c/Gr\u00f6\u00dfe/"},
+		// A look-alike: a full-width @ in a folder, which after a port
+		// reads as a password and a host.
+		{"fullwidth@", "/QZQf\uff20h.example.com/"},
 	}
 )
 
@@ -124,7 +144,15 @@ type genValue struct {
 	v                      string
 }
 
-func (g genValue) secret() bool { return g.pass.v != noPass && hasMarker(g.pass.v) }
+// secret: the value holds a marker, in its password or, for the look-alike
+// shapes that stand where a separator goes, in its user name, host or path.
+func (g genValue) secret() bool { return hasMarker(g.v) }
+
+// genLookalikes: the look-alike characters the shapes above put in a value,
+// listed here on their own so the test doesn't trust the check's own list.
+const genLookalikes = "\uff20\ufe6b\uff1a\ua789\uff0f"
+
+func genLookalike(v string) bool { return strings.ContainsAny(v, genLookalikes) }
 
 // genValues: every combination, with and without a scheme.
 func genValues() []genValue {
@@ -285,6 +313,12 @@ func checkAccepted(t *testing.T, fails *genFailures, r *matrixRun, m map[string]
 	s, val := r.set, r.val
 	exception := loginInAddress[s.String()] != ""
 	addr := fmtValue(m[s.name])
+	// A look-alike of @ : / ? # or . is refused in every setting, the
+	// sign-in exceptions too: the services' errors write it percent-encoded,
+	// where no redactor can tell it from a folder's name.
+	if genLookalike(val.v) {
+		fails.add(t, "accepted with a look-alike character", "%s %q (fields %v)", s, val.v, r.fields)
+	}
 	if hasMarker(addr) {
 		r.dangerous = true
 		if !exception {
@@ -322,6 +356,27 @@ func genTexts(v string) []string {
 	if req, err := http.NewRequest("PROPFIND", v, nil); err == nil {
 		out = append(out, (&url.Error{Op: "Propfind", URL: req.URL.Redacted(), Err: io.ErrUnexpectedEOF}).Error())
 	}
+	return append(out, looseTexts(v)...)
+}
+
+// looseTexts: the address as a service may rebuild it and quote it, with one
+// slash after the scheme (Koofr's client joins its paths into
+// https:/word@host), with // and no scheme, and with no scheme at all.
+// Only for addresses without a space, a quote or a backslash, which no
+// service rebuilds into these forms unescaped.
+func looseTexts(v string) []string {
+	rest, ok := strings.CutPrefix(v, "https://")
+	if !ok || strings.ContainsAny(v, " \t\"'\\") {
+		return nil
+	}
+	forms := []string{"https:/" + rest, "//" + rest, rest}
+	if i := strings.Index(rest, "/"); i >= 0 {
+		forms = append(forms, "https:/"+rest[i+1:])
+	}
+	var out []string
+	for _, f := range forms {
+		out = append(out, (&url.Error{Op: "Get", URL: f, Err: io.ErrUnexpectedEOF}).Error())
+	}
 	return out
 }
 
@@ -331,7 +386,11 @@ func genRedactCases() [][2]string {
 	seen := map[string]bool{}
 	var out [][2]string
 	for _, val := range genValues() {
-		if !val.secret() || !val.scheme {
+		// Values with a look-alike are left out: the check refuses them in
+		// every setting (TestAddressMatrix fails on any it accepts), and Go
+		// writes the look-alike percent-encoded (%EF%BC%A0 for a full-width
+		// @), which the redactor doesn't read as an @.
+		if !val.secret() || !val.scheme || genLookalike(val.v) {
 			continue
 		}
 		for _, txt := range genTexts(val.v) {
