@@ -31,16 +31,25 @@ About) you tested. You will get an answer as soon as I can manage; this is a one
   `https://host:8443/remote.php/dav/files/me%40example.com/`); for a password, User name and
   Password where the service has them, `%2F` for a `/` where its sign-in stays in the address
   (the HTTP kind, a proxy), and otherwise that a user name and password can't go there. An
-  address may not hold a look-alike of `@ : / ? #` (anywhere) or of the dot (in the host part):
-  a character whose NFKC form differs from it and holds one of them, such as a full-width `＠` or
+  address setting may not hold a look-alike of `@` anywhere, a look-alike of `: / ? #` or the
+  dot in its server part (up to the first `/`, `?` or `#` after the scheme's `//`), or a
+  look-alike of `: / ? #` in its path when the address also holds an `@`. A look-alike is a
+  character whose NFKC form differs from it and holds one of those, such as a full-width `＠` or
   `：`, or one of a short list NFKC leaves alone (the modifier-letter colon, the ratio sign, the
   division and fraction slashes, the ideographic full stop). Go reads only the ASCII
   characters, so `https://alice:2024/word＠host` would read as a server, a port and a folder,
-  and the services' errors would repeat the password with the look-alike percent-encoded. The
-  check refuses such an address everywhere, without repeating it, and asks for it to be retyped
-  with ordinary characters; the redaction below doesn't read a percent-encoded look-alike as an
-  `@`, so this case rests on the check. Letters stay: international host names and folders named in any
-  script are accepted. A generated test (`engine/address_matrix_test.go`) puts every combination of user name,
+  and the services' errors would repeat the password with the look-alike percent-encoded; one
+  service also rewrites an address with a look-alike colon in its server part into a form that
+  keeps the password. A password needs an `@` after it, so without one a look-alike in the
+  path ends nothing: folders named with the full-width `：` `？` `＃` `／` that Chinese and
+  Japanese file names use, or with `⁉`, are accepted as typed, and so are dot forms in a
+  folder. With an `@` anywhere in the address (a user name and password typed in it, say),
+  those folders are refused too. A refusal doesn't repeat the address, and says to set the
+  address to the server's top folder and open the folder in Files when the character is part
+  of a folder's name, or to retype it when it was meant as the ordinary character. The
+  redaction below doesn't read a percent-encoded look-alike as an `@`, so this case rests on
+  the check. Letters and digits in any script are accepted, in host names and in folders.
+  A generated test (`engine/address_matrix_test.go`) puts every combination of user name,
   password, host and folder shapes into every address setting rclone has and checks the verdict,
   the redaction of Go's errors, and, with the network cut, what a connection attempt returns and
   logs. Settings the
