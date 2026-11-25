@@ -158,10 +158,7 @@ func TestServersIPv6(t *testing.T) {
 	for p := 21000; p <= 21010; p++ {
 		forward(t, p, p)
 	}
-	pem, err := os.ReadFile("../test/servers/keys/driveway")
-	if err != nil {
-		t.Fatal(err)
-	}
+	pem := testKey(t)
 	for _, host := range []string{"::1", "[::1]"} {
 		t.Run(host, func(t *testing.T) {
 			pin := func(port int) string {

@@ -235,10 +235,7 @@ func TestSSHKey(t *testing.T) {
 	if !strings.HasPrefix(typed["line"], "[127.0.0.1]:2222 "+typed["type"]+" ") {
 		t.Fatalf("key type %q doesn't match the pinned line %q", typed["type"], typed["line"])
 	}
-	pem, err := os.ReadFile("../test/servers/keys/driveway")
-	if err != nil {
-		t.Fatal(err)
-	}
+	pem := testKey(t)
 	var h map[string]string
 	_ = json.Unmarshal([]byte(hk), &h)
 	known := filepath.Join(t.TempDir(), "known_hosts")
@@ -392,4 +389,17 @@ func TestServerCopySlow(t *testing.T) {
 		t.Fatalf("the stopped copy: %v, want [notfound]", err)
 	}
 	t.Logf("stopped after %v: %v", took.Round(100*time.Millisecond), err)
+}
+
+// testKey is the SFTP test server's key pair's private half, which
+// ./build.sh test makes the first time (test_key) and hands to the server it
+// starts. The server checks are run through it: a checkout without the pair
+// can't sign in to servers started from another one.
+func testKey(t *testing.T) []byte {
+	t.Helper()
+	pem, err := os.ReadFile("../test/servers/keys/driveway")
+	if err != nil {
+		t.Fatalf("no SFTP test key (%v): ./build.sh test makes it and starts the servers with it", err)
+	}
+	return pem
 }
