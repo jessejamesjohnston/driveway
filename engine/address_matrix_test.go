@@ -106,6 +106,10 @@ var (
 		// A look-alike: a full-width @ in a folder, which after a port
 		// reads as a password and a host.
 		{"fullwidth@", "/QZQf\uff20h.example.com/"},
+		// Folders named with full-width punctuation (会议：2024, なぜ？,
+		// 第＃1, 上／下, why⁉), which are legitimate and hold no marker:
+		// every user name, password and host shape meets them.
+		{"fullwidth-folder", "/\u4f1a\u8bae\uff1a2024/\u306a\u305c\uff1f/\u7b2c\uff031/\u4e0a\uff0f\u4e0b/why\u2049/"},
 	}
 )
 
@@ -137,6 +141,105 @@ func genSettings(t *testing.T) []genSetting {
 	return out
 }
 
+// intlRow is a legitimate address whose folder or host is named in another
+// script, with the punctuation those names are written with: a full-width
+// colon, question mark, number sign or solidus (the usual way to write
+// those marks in a Chinese or Japanese file name, where Windows bans the
+// ASCII ones), the exclamation-question marks, dot forms in a folder. It
+// holds no @ and no user name or password, so it must be accepted as typed
+// and reach its server. SFTP's address setting is a host alone (the folder
+// is opened in Files), so its rows are international host names.
+type intlRow struct{ backend, setting, value, host string }
+
+func intlRows() []intlRow {
+	const (
+		colon  = "会议：2024" // 会议：2024
+		why    = "なぜ？"     // なぜ？
+		number = "第＃1"     // 第＃1
+		slash  = "上／下"     // 上／下
+		marks  = "why⁉"    // why⁉
+		marks2 = "what⁈"   // what⁈
+		dots   = "終わり。"    // 終わり。
+	)
+	var rows []intlRow
+	add := func(backend, setting, host string, values ...string) {
+		for _, v := range values {
+			rows = append(rows, intlRow{backend, setting, v, host})
+		}
+	}
+	add("webdav", "url", "nas.example",
+		"https://nas.example/dav/"+colon+"/",
+		"https://nas.example/dav/"+why+"/",
+		"https://nas.example/dav/"+number+"/",
+		"https://nas.example/dav/"+slash+"/",
+		"https://nas.example/dav/"+marks+"/",
+		"https://nas.example/dav/"+marks2+"/",
+		"https://nas.example/dav/"+dots+"/",
+		"https://nas.example/dav/Notes…/",
+		"https://nas.example:5006/dav/"+colon+"/"+why+"/"+number+"/",
+		"https://nas.example/remote.php/dav/files/alice/"+colon+" "+slash+"/",
+		"https://nas.example/dav/"+colon+"/?x=1",
+	)
+	add("webdav", "url", "192.0.2.10", "http://192.0.2.10:8080/dav/"+colon+"/"+marks+"/")
+	add("webdav", "url", "例え.example", "https://例え.example/dav/"+colon+"/")
+	add("webdav", "url", "дача.example", "https://дача.example/dav/Фото/")
+	add("webdav", "url", "bücher.example", "https://bücher.example/dav/Größe/"+why+"/")
+	add("http", "url", "files.example",
+		"https://files.example/pub/"+colon+"/",
+		"https://files.example/pub/"+why+number+"/",
+		"https://files.example/pub/"+slash+"/"+marks2+"/",
+	)
+	add("http", "url", "例え.example", "https://例え.example/pub/写真/")
+	add("s3", "endpoint", "minio.example", "https://minio.example:9000/"+colon)
+	add("s3", "endpoint", "例え.example", "https://例え.example:9000")
+	add("s3", "endpoint", "minio.bücher.example", "minio.bücher.example:9000")
+	add("sftp", "host", "例え.example", "例え.example")
+	add("sftp", "host", "дача.example", "дача.example")
+	return rows
+}
+
+// intlTwin: the row with each of its punctuation characters in a name
+// swapped for a plain letter (字). The two must get the same verdict: the
+// punctuation changes nothing.
+func intlTwin(v string) string {
+	return strings.Map(func(r rune) rune {
+		if strings.ContainsRune("：？＃／⁉⁈。…", r) {
+			return '字'
+		}
+		return r
+	}, v)
+}
+
+// TestInternationalFolders: every legitimate row is accepted, kept byte for
+// byte (a full-width colon is not a colon: turning one into the other names
+// a different folder), and gets the verdict its twin gets.
+func TestInternationalFolders(t *testing.T) {
+	refused := 0
+	rows := intlRows()
+	for _, r := range rows {
+		ri, err := fs.Find(r.backend)
+		if err != nil {
+			t.Fatal(err)
+		}
+		m := map[string]any{r.setting: r.value}
+		v := checkSettings(ri, m)
+		tw := map[string]any{r.setting: intlTwin(r.value)}
+		vt := checkSettings(ri, tw)
+		if v.Reason != "" {
+			refused++
+			t.Errorf("%s.%s %q: refused (%s)", r.backend, r.setting, r.value, v.Reason)
+			continue
+		}
+		if got := fmtValue(m[r.setting]); got != r.value {
+			t.Errorf("%s.%s %q: kept as %q", r.backend, r.setting, r.value, got)
+		}
+		if vt.Reason != "" || intlTwin(fmtValue(m[r.setting])) != fmtValue(tw[r.setting]) {
+			t.Errorf("%s.%s %q: its twin reads differently (%q)", r.backend, r.setting, r.value, vt.Reason)
+		}
+	}
+	t.Logf("%d legitimate international addresses: %d accepted, %d refused", len(rows), len(rows)-refused, refused)
+}
+
 // genValue is one generated address and the shapes it was made of.
 type genValue struct {
 	user, pass, host, path genShape
@@ -150,7 +253,7 @@ func (g genValue) secret() bool { return hasMarker(g.v) }
 
 // genLookalikes: the look-alike characters the shapes above put in a value,
 // listed here on their own so the test doesn't trust the check's own list.
-const genLookalikes = "\uff20\ufe6b\uff1a\ua789\uff0f"
+const genLookalikes = "\uff20\ufe6b\uff1a\ua789\uff0f\uff1f\uff03\u2049"
 
 func genLookalike(v string) bool { return strings.ContainsAny(v, genLookalikes) }
 
@@ -187,6 +290,16 @@ type genFailures struct {
 	mu     sync.Mutex
 	counts map[string]int
 	shown  map[string]int
+	tally  map[string]int // what the look-alike values came to (not failures)
+}
+
+func (f *genFailures) count(kind string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.tally == nil {
+		f.tally = map[string]int{}
+	}
+	f.tally[kind]++
 }
 
 func (f *genFailures) add(t *testing.T, kind, format string, args ...any) {
@@ -287,6 +400,17 @@ func runMatrix(t *testing.T, fails *genFailures) (accepted []matrixRun, refused 
 					m[k] = v
 				}
 				v := checkSettings(s.ri, m)
+				if genLookalike(val.v) {
+					kind := "look-alike without a marker"
+					if val.secret() {
+						kind = "look-alike with a marker"
+					}
+					if v.Reason != "" {
+						fails.count(kind + ": refused")
+					} else {
+						fails.count(kind + ": accepted")
+					}
+				}
 				if v.Reason != "" {
 					// What the app shows and SetRemote returns: Driveway's
 					// own words, never the address.
@@ -313,10 +437,11 @@ func checkAccepted(t *testing.T, fails *genFailures, r *matrixRun, m map[string]
 	s, val := r.set, r.val
 	exception := loginInAddress[s.String()] != ""
 	addr := fmtValue(m[s.name])
-	// A look-alike of @ : / ? # or . is refused in every setting, the
-	// sign-in exceptions too: the services' errors write it percent-encoded,
-	// where no redactor can tell it from a folder's name.
-	if genLookalike(val.v) {
+	// A value with a look-alike and a marker is refused in every setting,
+	// the sign-in exceptions too: the services' errors write the look-alike
+	// percent-encoded, where no redactor can tell it from a folder's name.
+	// (Decided from the value's shapes, not from the check's own rule.)
+	if genLookalike(val.v) && val.secret() {
 		fails.add(t, "accepted with a look-alike character", "%s %q (fields %v)", s, val.v, r.fields)
 	}
 	if hasMarker(addr) {
@@ -386,8 +511,9 @@ func genRedactCases() [][2]string {
 	seen := map[string]bool{}
 	var out [][2]string
 	for _, val := range genValues() {
-		// Values with a look-alike are left out: the check refuses them in
-		// every setting (TestAddressMatrix fails on any it accepts), and Go
+		// Values with a look-alike are left out: those with a password are
+		// refused in every setting (TestAddressMatrix fails on any it
+		// accepts), those without one hold nothing to hide, and Go
 		// writes the look-alike percent-encoded (%EF%BC%A0 for a full-width
 		// @), which the redactor doesn't read as an @.
 		if !val.secret() || !val.scheme || genLookalike(val.v) {
@@ -417,6 +543,12 @@ func TestAddressMatrix(t *testing.T) {
 			dangerous++
 		}
 	}
+	var tl []string
+	for k, n := range fails.tally {
+		tl = append(tl, fmt.Sprintf("%s %d", k, n))
+	}
+	sort.Strings(tl)
+	t.Logf("look-alike values: %s", strings.Join(tl, ", "))
 	t.Logf("check: %d settings x %d values (with and without a login in the fields) = %d runs in %v; with a password: %d accepted (%d still in an address, all in a setting whose sign-in stays there), %d refused",
 		len(genSettings(t)), len(genValues()), n, time.Since(t0).Round(time.Millisecond), len(accepted), dangerous, len(refused))
 
@@ -595,6 +727,43 @@ func TestAddressMatrixNetwork(t *testing.T) {
 		}
 		RemoveRemote(id)
 	}
+
+	// Legitimate international folders (intlRows): SetRemote keeps each as
+	// typed, and a connection attempt reaches its host with no refusal.
+	intlReached := 0
+	for i, r := range intlRows() {
+		id := fmt.Sprintf("matrix-intl-%d", i)
+		ri, _ := fs.Find(r.backend)
+		if err := SetRemote(id, r.backend, paramsJSON(ri, map[string]string{r.setting: r.value}, true)); err != nil {
+			fails.add(t, "a legitimate international address was refused", "%s.%s %q: %v", r.backend, r.setting, r.value, err)
+			continue
+		}
+		mu.Lock()
+		kept, _ := store.GetValue(id, r.setting)
+		mu.Unlock()
+		if kept != r.value {
+			fails.add(t, "a legitimate international address was changed", "%s.%s %q -> %q", r.backend, r.setting, r.value, kept)
+		}
+		err := Check(id)
+		RemoveRemote(id)
+		txt := ""
+		if err != nil {
+			txt = rawText(err)
+		}
+		if strings.Contains(txt, "badsettings") || strings.Contains(txt, "lookalike") || strings.Contains(txt, "looks like") {
+			fails.add(t, "a legitimate international address got a refusal", "%s.%s %q: %s", r.backend, r.setting, r.value, txt)
+		}
+		hit := strings.Contains(txt, r.host) || strings.Contains(txt, "xn--")
+		for _, h := range seen() {
+			hit = hit || strings.Contains(h, r.host) || strings.Contains(h, "xn--")
+		}
+		if hit {
+			intlReached++
+		} else {
+			fails.add(t, "a legitimate international address never reached its host", "%s.%s %q: %s", r.backend, r.setting, r.value, txt)
+		}
+	}
+	t.Logf("network: %d legitimate international addresses kept as typed and tried: %d reached their host", len(intlRows()), intlReached)
 
 	// Accepted: a connection attempt, a few at a time.
 	t0 := time.Now()
