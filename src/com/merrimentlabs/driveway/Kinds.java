@@ -241,13 +241,25 @@ final class Kinds {
    * true: a Server field, else a URL): the host, so "nas.local:2222" and
    * "[2001:db8::1]:2222" are named for the host. Text the form refuses
    * ("driveway@nas", a folder, another kind's link) leaves it empty, never
-   * holding what can't be saved.
+   * holding what can't be saved. Of a URL it is the host without a user
+   * name, port or path; an IPv6 address loses its brackets and its zone's
+   * escape ("http://[fe80::1%25wlan0]:8080/" is "fe80::1%wlan0").
    */
   static String followedName(String typed, Kind k, boolean host) {
     Address a = host ? address(typed, k.backend) : null;
     if (a != null && a.problem == 0) return a.host;
     if (a != null && takesPort(k)) return "";
-    return typed.trim().replaceFirst("^https?://", "").replaceFirst("[/:].*$", "");
+    String rest = typed.trim().replaceFirst("(?i)^https?://", "");
+    String authority = rest.split("[/?#]", 2)[0];
+    authority = authority.substring(authority.lastIndexOf('@') + 1);
+    if (authority.startsWith("[")) {
+      int close = authority.indexOf(']');
+      return (close < 0 ? authority.substring(1) : authority.substring(1, close)).replace("%25", "%");
+    }
+    // A bare IPv6 address (two colons or more) has no port to cut.
+    if (authority.indexOf(':') != authority.lastIndexOf(':')) return authority;
+    int colon = authority.indexOf(':');
+    return colon < 0 ? authority : authority.substring(0, colon);
   }
 
   /** Settings that hold an address: a Server or Address field, or a service's own endpoint. */

@@ -144,6 +144,14 @@ public final class KindsTest {
         && Kinds.followedName("nas.local/share", Kinds.SMB, true).isEmpty()
         && Kinds.followedName("https://192.0.2.10", Kinds.SFTP, true).isEmpty()
         && Kinds.followedName("nas.local:99999", Kinds.NFS, true).isEmpty(), "Name in Files: empty for what the form refuses");
+    check(Kinds.followedName("http://[fe80::1%25wlan0]:5005/", Kinds.WEBDAV, false).equals("fe80::1%wlan0")
+        && Kinds.followedName("http://[2001:db8::1]/dav", Kinds.WEBDAV, false).equals("2001:db8::1")
+        && Kinds.followedName("HTTPS://[::1]:8443", Kinds.WEBDAV, false).equals("::1")
+        && Kinds.followedName("http://[fe80::1", Kinds.WEBDAV, false).equals("fe80::1"),
+        "Name in Files: an IPv6 WebDAV address is named for its whole address, without brackets");
+    check(Kinds.followedName("https://alice@dav.example.com:8443/remote.php", Kinds.WEBDAV, false).equals("dav.example.com")
+        && Kinds.followedName("https://dav.example.com?x=1", Kinds.WEBDAV, false).equals("dav.example.com"),
+        "Name in Files: a URL's user name, port and query aren't part of the name");
     check(Kinds.followedName("https://cloud.example.com/dav", Kinds.WEBDAV, false).equals("cloud.example.com"),
         "Name in Files: a URL is named for its host");
 
