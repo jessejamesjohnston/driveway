@@ -253,10 +253,16 @@ final class Logs {
   }
 
   /** Services that put a credential in the path, by the end of the host. */
-  private static final String[] SECRET_PATH_HOSTS = {"opendrive.com", "1drv.com", "1fichier.com"};
+  /** Credentials in a path, on one host's or (when token-like) any host (""); see engine/redact.go. */
+  private static final String[] SECRET_PATH_HOSTS = {"opendrive.com", "1drv.com", "1fichier.com", "", ""};
   private static final Pattern[] SECRET_PATHS = {
-      Pattern.compile("(\\.json/)[^/?#]+"), Pattern.compile("^(/up/)[^/?#]+"), Pattern.compile("^(/dir/)[^/?#]+"),
+      Pattern.compile("(\\.json/)([^/?#]+)"), Pattern.compile("^(/up/)([^/?#]+)"), Pattern.compile("^(/dir/)([^/?#]+)"),
+      Pattern.compile("^(/(?:up|rup)/)([^/?#]+)"), Pattern.compile("(\\.json/)([^/?#]+)"),
   };
+
+  private static boolean tokenLike(String seg) {
+    return seg.length() >= 24 && seg.matches("[A-Za-z0-9_.!~-]+") && seg.matches(".*[0-9].*") && seg.matches(".*[A-Za-z].*");
+  }
 
   private static String cleanPath(String authority, String p) {
     String host = authority.toLowerCase(java.util.Locale.ROOT);
@@ -264,7 +270,9 @@ final class Logs {
     if (c >= 0 && !host.endsWith("]")) host = host.substring(0, c);
     for (int i = 0; i < SECRET_PATHS.length; i++) {
       String h = SECRET_PATH_HOSTS[i];
-      if (host.equals(h) || host.endsWith("." + h)) p = SECRET_PATHS[i].matcher(p).replaceAll("$1***");
+      boolean any = h.isEmpty();
+      if (!any && !host.equals(h) && !host.endsWith("." + h)) continue;
+      p = replace(SECRET_PATHS[i], p, m -> any && !tokenLike(m.group(2)) ? m.group() : m.group(1) + "***");
     }
     return p;
   }

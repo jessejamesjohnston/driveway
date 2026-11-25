@@ -415,6 +415,31 @@
       "why": "a user name and password in an escaped address",
       "in": "{\"href\":\"https:\\/\\/alice:MADEUP@dav.example.com\\/x\"}",
       "out": "{\"href\":\"https:\\/\\/***@dav.example.com\\/x\"}"
+    },
+    {
+      "why": "an upload session under /rup/ on a host other than 1drv.com",
+      "in": "Put \"https://api.onedrive.com/rup/MADEUPSESSION0123456789abcde/content\": EOF",
+      "out": "Put \"https://api.onedrive.com/rup/***/content\": EOF"
+    },
+    {
+      "why": "an upload session under /up/ on any host",
+      "in": "Put \"https://upload.example.net/up/MADEUPSESSION0123456789fghij\": unexpected EOF",
+      "out": "Put \"https://upload.example.net/up/***\": unexpected EOF"
+    },
+    {
+      "why": "an id after a .json segment on any host",
+      "in": "Post \"https://files.example.org/api/v1/upload/open.json/MADEUPSESSION0123456789klmno\": EOF",
+      "out": "Post \"https://files.example.org/api/v1/upload/open.json/***\": EOF"
+    },
+    {
+      "why": "folders named up and dir further down a path, kept",
+      "in": "can't list sftp://nas.local/photos/up/2024 or https://dav.example.com/dir/notes",
+      "out": "can't list sftp://nas.local/photos/up/2024 or https://dav.example.com/dir/notes"
+    },
+    {
+      "why": "a long folder name without a digit after /up/ on another server, kept",
+      "in": "Get \"https://nas.local/up/family-photos-from-the-summer-trip/\": EOF",
+      "out": "Get \"https://nas.local/up/family-photos-from-the-summer-trip/\": EOF"
     }
   ]
 }

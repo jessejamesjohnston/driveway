@@ -326,16 +326,34 @@ func userinfoEnd(rest string) int {
 	return at
 }
 
-// secretPaths are services that put a credential in an address's path, by
-// the end of the host: OpenDrive's session id (after .json/), OneDrive's
-// upload session (/up/...), a 1Fichier shared folder (/dir/...).
+// secretPaths are credentials services put in an address's path: on the
+// service's own host, whatever the segment holds (OpenDrive's session id
+// after .json/, OneDrive's upload session after /up/, a 1Fichier shared
+// folder after /dir/). Upload session addresses come from the service, on
+// whatever host it chooses, so the two shapes distinctive enough to stand
+// alone (host "") also count on any host when the segment looks like a
+// token (tokenLike): a session after a first segment named up or rup, and
+// an id after a segment ending in .json. A folder named up stays ("/up/photos").
 var secretPaths = []struct {
 	host string
 	re   *regexp.Regexp
 }{
-	{"opendrive.com", regexp.MustCompile(`(\.json/)[^/?#]+`)},
-	{"1drv.com", regexp.MustCompile(`^(/up/)[^/?#]+`)},
-	{"1fichier.com", regexp.MustCompile(`^(/dir/)[^/?#]+`)},
+	{"opendrive.com", regexp.MustCompile(`(\.json/)([^/?#]+)`)},
+	{"1drv.com", regexp.MustCompile(`^(/up/)([^/?#]+)`)},
+	{"1fichier.com", regexp.MustCompile(`^(/dir/)([^/?#]+)`)},
+	{"", regexp.MustCompile(`^(/(?:up|rup)/)([^/?#]+)`)},
+	{"", regexp.MustCompile(`(\.json/)([^/?#]+)`)},
+}
+
+// tokenLike: a path segment that looks like a token, not a name: 24
+// characters or more of letters, digits and - _ . ! ~, with both a letter
+// and a digit. A long folder name of that shape is hidden in the log too,
+// which loses nothing a person needs.
+func tokenLike(seg string) bool {
+	if len(seg) < 24 || strings.Trim(seg, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.!~") != "" {
+		return false
+	}
+	return strings.ContainsAny(seg, "0123456789") && strings.Trim(seg, "0123456789-_.!~") != ""
 }
 
 // redactPath hides a credential that a service puts in the path itself.
@@ -345,9 +363,17 @@ func redactPath(authority, p string) string {
 		host = host[:c]
 	}
 	for _, r := range secretPaths {
-		if host == r.host || strings.HasSuffix(host, "."+r.host) {
-			p = r.re.ReplaceAllString(p, "${1}***")
+		anyHost := r.host == ""
+		if !anyHost && host != r.host && !strings.HasSuffix(host, "."+r.host) {
+			continue
 		}
+		p = r.re.ReplaceAllStringFunc(p, func(m string) string {
+			g := r.re.FindStringSubmatch(m)
+			if anyHost && !tokenLike(g[2]) {
+				return m
+			}
+			return g[1] + "***"
+		})
 	}
 	return p
 }
