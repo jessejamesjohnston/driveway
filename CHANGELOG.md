@@ -28,8 +28,10 @@ The first public release.
   out on the form instead of failing as "can't reach".
 - An error says what happened and what to do next, in Driveway's own words, on a server's card,
   in Files and in a failed save's notification. The technical detail from the server or the
-  network goes only to the app's log. A sign-in a service refuses shows what the service
-  said, labeled as the service's.
+  network goes only to the app's log, with passwords, API keys and sign-in tokens taken out. A
+  server that can't be reached names what to check: its address and port when you typed one, the
+  internet connection for a service such as Dropbox. A sign-in a service refuses shows what the
+  service said, labeled as the service's.
 
 ## [0.2.13] - 2026-11-18
 
