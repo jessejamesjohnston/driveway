@@ -183,14 +183,13 @@ final class Kinds {
     }
   }
 
-  /** Whether the kind has a Server (host) setting and a Port setting of its own. */
   /**
    * What the form does with the Server field when focus leaves it (and on
    * Connect): a port typed after the name moves to Port, and wins over a
    * different one already there.
    */
   static final class Split {
-    /** Why what was typed can't be used (an R.string id, see Address), or 0: then nothing changes. */
+    /** What was typed, split; when it has a problem, nothing changes. */
     final Address address;
     /** What Server shows afterwards. */
     final String host;
@@ -237,6 +236,7 @@ final class Kinds {
     return null;
   }
 
+  /** Whether the kind has a Server (host) setting and a Port setting of its own. */
   static boolean takesPort(Kind k) {
     boolean host = false, port = false;
     for (Field f : k.fields) {
@@ -440,7 +440,6 @@ final class Kinds {
     }
   }
 
-  /** rclone's setting name as a label: "chunk_size" is "Chunk size". */
   /**
    * rclone's Title Case hints, in sentence case. Exact text only: a general
    * rule would lowercase product names and acronyms.
@@ -486,6 +485,7 @@ final class Kinds {
     return SENTENCE_CASE.getOrDefault(first, first);
   }
 
+  /** rclone's setting name as a label: "chunk_size" is "Chunk size". */
   static String sentence(String key) {
     switch (key) {
       case "client_id":

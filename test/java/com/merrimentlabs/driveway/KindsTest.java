@@ -81,7 +81,6 @@ public final class KindsTest {
     if (failures > 0) System.exit(1);
   }
 
-  /** Every service the engine lists, as the app builds it. */
   /** One Server field typed into a kind's form: the host, port and problem it splits into. */
   private static void address(String backend, String typed, String host, String port, int problem, String bad) {
     Kinds.Address a = Kinds.address(typed, backend);
@@ -206,6 +205,7 @@ public final class KindsTest {
     address("sftp", "sftp://driveway@nas:2222", null, null, R.string.address_user, "driveway@");
   }
 
+  /** Every service the engine lists, as the app builds it. */
   private static void realCatalog() throws Exception {
     JSONArray engine = new JSONArray(Engine.backends());
     List<Kinds.Kind> others = Kinds.others();
