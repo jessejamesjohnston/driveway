@@ -76,7 +76,13 @@ final class Logs {
   // overflow its stack): runs taken whole, without backtracking.
   private static final Pattern INVALID_PORT = Pattern.compile("(invalid port \")[^\"\\\\]*+(?:\\\\.[^\"\\\\]*+)*+(\" after host)");
   private static final Pattern BARE_PAIR = Pattern.compile(
-      "(?i)(^|[\\s\"'(<\\[=,])[^\\s\"'<>/@:=,(\\[]{1,200}:[^\\s\"'<>/]{1,200}@([a-z0-9][a-z0-9.-]*|\\[[0-9a-f:.%]+\\])");
+      "(?i)(^|[\\s\"'(<\\[=,]|:/+|//)[^\\s\"'<>/@:=,(\\[]{1,200}:[^\\s\"'<>/]{1,200}@([a-z0-9][a-z0-9.-]*|\\[[0-9a-f:.%]+\\])");
+  private static final Pattern MULTI_WORD =
+      Pattern.compile("(?i)(^|[^a-z0-9_.-])([a-z0-9_.-]*?(?:mnemonic|passphrase))[ \\t]*=[ \\t]*");
+  private static final String AUTH_SCHEMES =
+      "(?:bearer|basic|digest|token|oauth|low|sharedkey(?:lite)?|aws4-hmac-sha256|aws|zoho-oauthtoken|negotiate|ntlm|mac)";
+  private static final Pattern AUTH_SETTING = Pattern.compile("(?i)(^|[^a-z0-9_-])((?:proxy-|x-)?authorization)(\\s*=\\s*)(?:"
+      + AUTH_SCHEMES + "[ \\t]+)?[^\\s&\"',;)\\]}]+");
   private static final Pattern NAMED_VALUE =
       Pattern.compile("(?i)(^|[^a-z0-9_.-])(" + SECRET_NAME + ")(\\s*=\\s*)(\"[^\"]*\"|'[^']*'|[^\\s&\"',;)\\]}]+)");
   private static final Pattern JSON_VALUE =
@@ -86,12 +92,11 @@ final class Logs {
   private static final Pattern AUTH_HEADER = Pattern.compile("(?i)(^|[^a-z0-9_-])(pm-storage-token|"
       + "x-[a-z0-9-]*?(?:token|key|auth|auth-data|auth-sign|sign|signature|secret|sess-id|session-id|password)|"
       + "[a-z0-9-]*?(?:api-?key|auth-token|access-token))"
-      + "(\\s*[:=]\\s*\\[?)((?:(?:bearer|basic|digest|token|oauth|low|sharedkey(?:lite)?|aws4-hmac-sha256|aws|zoho-oauthtoken"
-      + "|negotiate|ntlm|mac)[ \\t]+)?[^\\s\"',;\\]]+)");
+      + "(\\s*[:=]\\s*\\[?)((?:" + AUTH_SCHEMES + "[ \\t]+)?[^\\s\"',;\\]]+)");
   private static final Pattern PEM_BLOCK =
       Pattern.compile("(?s)(-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----).*?(-----END [A-Z0-9 ]*PRIVATE KEY-----|\\z)");
   private static final Pattern AUTH_VALUE =
-      Pattern.compile("(?i)(^|[^a-z0-9_-])((?:proxy-)?authorization)([ \\t]*:[ \\t]*\\[?)[^\\r\\n\\]]+");
+      Pattern.compile("(?i)(^|[^a-z0-9_-])((?:proxy-|x-)?authorization)([ \\t]*:[ \\t]*\\[?)[^\\r\\n\\]]+");
   private static final Pattern COOKIE_HEADER = Pattern.compile("(?i)\\b((?:set-)?cookie)(\\s*:\\s*)[^\\r\\n\"]+");
   private static final Pattern BEARER = Pattern.compile("(?i)\\b(bearer)\\s+[a-z0-9._~+/=-]{8,}");
   private static final Pattern[] PATH_TOKENS = {
@@ -117,6 +122,8 @@ final class Logs {
     s = cleanEscaped(s);
     s = replace(URL, s, m -> cleanUrl(m.group()));
     s = BARE_PAIR.matcher(s).replaceAll("$1***@$2");
+    s = multiWord(s);
+    s = AUTH_SETTING.matcher(s).replaceAll("$1$2$3***");
     s = NAMED_VALUE.matcher(s).replaceAll("$1$2$3***");
     s = JSON_VALUE.matcher(s).replaceAll("$1$2***$4");
     s = XML_VALUE.matcher(s).replaceAll("$1***$2");
@@ -160,6 +167,35 @@ final class Logs {
     }
     if (user >= 0) authority = "***@" + authority;
     return scheme + authority + tail + trail;
+  }
+
+  /** A multi-word setting's whole value (a mnemonic, a passphrase); see engine/redact.go. */
+  private static String multiWord(String s) {
+    Matcher m = MULTI_WORD.matcher(s);
+    StringBuilder b = new StringBuilder();
+    int last = 0;
+    while (m.find()) {
+      if (m.start() < last) continue;
+      int end = multiWordEnd(s, m.end());
+      if (end == m.end()) continue;
+      b.append(s, last, m.end()).append("***");
+      last = end;
+    }
+    if (last == 0) return s;
+    return b.append(s.substring(last)).toString();
+  }
+
+  private static int multiWordEnd(String s, int i) {
+    int end = i;
+    for (int j = i; j <= s.length(); ) {
+      int k = j;
+      while (k < s.length() && " \t\r\n\"'&".indexOf(s.charAt(k)) < 0) k++;
+      if (k == j || s.substring(j, k).indexOf('=') >= 0) break;
+      end = k;
+      while (k < s.length() && (s.charAt(k) == ' ' || s.charAt(k) == '\t')) k++;
+      j = k;
+    }
+    return end;
   }
 
   /** Each address whose slashes are escaped (https:\\/\\/host), redacted; see engine/redact.go. */
@@ -255,7 +291,16 @@ final class Logs {
     if (end < 0 || at < end) return rest.substring(0, end < 0 ? rest.length() : end).lastIndexOf('@');
     String host = rest.substring(0, end);
     int c = host.indexOf(':');
-    if (c < 0 || host.contains("[") || host.substring(c + 1).matches("[0-9]*")) return -1;
+    if (c < 0 || host.contains("[")) return -1;
+    if (host.substring(c + 1).matches("[0-9]*")) {
+      if (c == host.length() - 1 || host.substring(0, c).contains(".") || rest.charAt(end) != '/') return -1;
+      String seg = rest.substring(end + 1);
+      int k = indexOfAny(seg, "/?#");
+      if (k >= 0) seg = seg.substring(0, k);
+      int a = seg.lastIndexOf('@');
+      if (a < 0 || !seg.substring(a + 1).contains(".")) return -1;
+      return end + 1 + a;
+    }
     return at;
   }
 

@@ -500,6 +500,76 @@
       "why": "an unreachable host's phrase with a port, kept",
       "in": "[network] dial tcp: lookup nas.local: no such host (port 2222)",
       "out": "[network] dial tcp: lookup nas.local: no such host (port 2222)"
+    },
+    {
+      "in": "[network] couldn't list: Get \"https://HTTPS://alice:pwMADEUP1@H.EXAMPLE.COM/p?x-id=ListObjectsV2\": dial tcp: lookup HTTPS: no such host",
+      "out": "[network] couldn't list: Get \"https://HTTPS://***@H.EXAMPLE.COM/p?***\": dial tcp: lookup HTTPS: no such host",
+      "why": "S3 endpoint typed with an upper-case scheme: rclone adds its own scheme in front"
+    },
+    {
+      "in": "Get \"https://ftp://alice:pwMADEUP2@h.example.com/\": EOF",
+      "out": "Get \"https://ftp://***@h.example.com/\": EOF",
+      "why": "another scheme typed in an endpoint, rclone's https:// in front"
+    },
+    {
+      "in": "Get \"https:////alice:pwMADEUP3@h.example.com/p\": EOF",
+      "out": "Get \"https:////***@h.example.com/p\": EOF",
+      "why": "an endpoint typed starting with //"
+    },
+    {
+      "in": "Get \"https:///alice:pwMADEUP4@h.example.com/p\": EOF",
+      "out": "Get \"https:///***@h.example.com/p\": EOF",
+      "why": "an endpoint typed with one slash after its scheme"
+    },
+    {
+      "in": "parse \"https:/alice:pwMADEUP5@h.example.com/p\": bad",
+      "out": "parse \"https:/***@h.example.com/p\": bad",
+      "why": "the one-slash typo itself"
+    },
+    {
+      "in": "[network] failed to get file id: Post \"https://https//alice:pwMADEUP6@h.example.com/p/api/1.0/file/id\": unexpected EOF",
+      "out": "[network] failed to get file id: Post \"https://https//***@h.example.com/p/api/1.0/file/id\": unexpected EOF",
+      "why": "Quatrix's account address typed as a whole address: its https:// in front"
+    },
+    {
+      "in": "[network] couldn't list files: Propfind \"https://alice:123/MADEUP7w@h.example.com/p/\": unexpected EOF",
+      "out": "[network] couldn't list files: Propfind \"https://***@h.example.com/p/\": unexpected EOF",
+      "why": "a password that starts with digits and holds a /, read as a host and a port"
+    },
+    {
+      "in": "Propfind \"https://nas:8443/alice@example.com/\": EOF",
+      "out": "Propfind \"https://***@example.com/\": EOF",
+      "why": "the same shape with a folder named for an email address: hidden too (log only)"
+    },
+    {
+      "in": "Propfind \"https://nas:8443/team@home/x\": EOF",
+      "out": "Propfind \"https://nas:8443/team@home/x\": EOF",
+      "why": "a host and port with a folder holding an @ and no dotted name after it, kept"
+    },
+    {
+      "in": "Authorization= Bearer abcdefgh12345MADEUP8",
+      "out": "Authorization= ***",
+      "why": "Authorization written as a setting, scheme and all"
+    },
+    {
+      "in": "X-Authorization: MADEUP9 rest of it",
+      "out": "X-Authorization: ***",
+      "why": "X-Authorization as a header"
+    },
+    {
+      "in": "mnemonic=wordone MADEUPtwo wordthree MADEUPfour next=kept",
+      "out": "mnemonic=*** next=kept",
+      "why": "a mnemonic of several words, up to the next setting"
+    },
+    {
+      "in": "key_file_pass_x passphrase = correct horse MADEUPbattery staple\nnext line",
+      "out": "key_file_pass_x passphrase = ***\nnext line",
+      "why": "a passphrase with spaces, up to the end of the line"
+    },
+    {
+      "in": "Get \"https://dav.example.com/files/a:b@c.txt\": EOF",
+      "out": "Get \"https://dav.example.com/files/a:b@c.txt\": EOF",
+      "why": "a colon and an @ in a path after one slash, kept"
     }
   ]
 }

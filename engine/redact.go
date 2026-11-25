@@ -23,7 +23,6 @@ import (
 	"runtime"
 	"strings"
 	"sync"
-	"unicode/utf8"
 
 	"github.com/rclone/rclone/fs"
 )
@@ -35,6 +34,9 @@ import (
 // ...). A few harmless names end the same way; hiding their values costs
 // nothing. TestSecretNamesFromRclone checks every setting rclone marks as a
 // password or as sensitive against it.
+// authSchemes are the schemes an Authorization value starts with.
+const authSchemes = `(?:bearer|basic|digest|token|oauth|low|sharedkey(?:lite)?|aws4-hmac-sha256|aws|zoho-oauthtoken|negotiate|ntlm|mac)`
+
 const secretName = `[a-z0-9_.-]*?(?:api[_-]?key|keys?|key_pem|key_base64|tokens?|passw(?:or)?d|passphrase|pass|pwd|secrets?|` +
 	`signature|sig|credentials?|sess(?:ion)?[_-]?id|sid|auth|authorization|mnemonic|grant|cookies?|connection_string|sas_url)`
 
@@ -54,8 +56,14 @@ var (
 	// Go's url.Parse names the port it couldn't read, which is the start of
 	// a password typed with a / ? or # in it (alice:pass/word@host).
 	invalidPort = regexp.MustCompile(`(invalid port ")(?:[^"\\]|\\.)*(" after host)`)
-	// user:password@host without a scheme (an address typed without one).
-	barePair = regexp.MustCompile(`(?i)(^|[\s"'(<\[=,])[^\s"'<>/@:=,(\[]{1,200}:[^\s"'<>/]{1,200}@([a-z0-9][a-z0-9.-]*|\[[0-9a-f:.%]+\])`)
+	// user:password@host without a scheme (an address typed without one),
+	// or after a scheme spelled in a way urlPattern doesn't read (one slash,
+	// extra slashes, a scheme doubled by a service that adds its own:
+	// https://https//alice:pass@host).
+	barePair = regexp.MustCompile(`(?i)(^|[\s"'(<\[=,]|:/+|//)[^\s"'<>/@:=,(\[]{1,200}:[^\s"'<>/]{1,200}@([a-z0-9][a-z0-9.-]*|\[[0-9a-f:.%]+\])`)
+	// A setting whose value can be several words (a mnemonic, a
+	// passphrase): its start. multiWordEnd finds where the value ends.
+	multiWord = regexp.MustCompile(`(?i)(^|[^a-z0-9_.-])([a-z0-9_.-]*?(?:mnemonic|passphrase))[ \t]*=[ \t]*`)
 	// name=value, as in a query string, a form body or a settings line.
 	// A name starts where a run of the characters a name holds starts (the
 	// character before is kept as it is): starting inside a run would make
@@ -74,19 +82,20 @@ var (
 	authHeader = regexp.MustCompile(`(?i)(^|[^a-z0-9_-])(pm-storage-token|` +
 		`x-[a-z0-9-]*?(?:token|key|auth|auth-data|auth-sign|sign|signature|secret|sess-id|session-id|password)|` +
 		`[a-z0-9-]*?(?:api-?key|auth-token|access-token))` +
-		`(\s*[:=]\s*\[?)((?:(?:bearer|basic|digest|token|oauth|low|sharedkey(?:lite)?|aws4-hmac-sha256|aws|zoho-oauthtoken|negotiate|ntlm|mac)[ \t]+)?[^\s"',;\]]+)`)
+		`(\s*[:=]\s*\[?)((?:` + authSchemes + `[ \t]+)?[^\s"',;\]]+)`)
 	// A private key's PEM block, from its first line to its last (or the
 	// end of the text, when cut before it); rclone keeps SFTP's on one line
 	// with \n escapes. The line-by-line writers carry a block's middle lines
 	// over (lineRedactor).
-	pemBlock     = regexp.MustCompile(`(?s)(-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----).*?(-----END [A-Z0-9 ]*PRIVATE KEY-----|\z)`)
-	pemBegin     = regexp.MustCompile(`-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----`)
-	pemEnd       = regexp.MustCompile(`-----END [A-Z0-9 ]*PRIVATE KEY-----`)
-	// The Authorization and Proxy-Authorization headers: the whole value,
-	// whatever its scheme, quotes included, up to the end of the line (or,
-	// as Go prints http.Header, the closing bracket). As a setting
-	// (authorization=) namedValue has it.
-	authValue    = regexp.MustCompile(`(?i)(^|[^a-z0-9_-])((?:proxy-)?authorization)([ \t]*:[ \t]*\[?)[^\r\n\]]+`)
+	pemBlock = regexp.MustCompile(`(?s)(-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----).*?(-----END [A-Z0-9 ]*PRIVATE KEY-----|\z)`)
+	pemBegin = regexp.MustCompile(`-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----`)
+	pemEnd   = regexp.MustCompile(`-----END [A-Z0-9 ]*PRIVATE KEY-----`)
+	// The Authorization, Proxy-Authorization and X-Authorization headers:
+	// the whole value, whatever its scheme, quotes included, up to the end
+	// of the line (or, as Go prints http.Header, the closing bracket).
+	authValue = regexp.MustCompile(`(?i)(^|[^a-z0-9_-])((?:proxy-|x-)?authorization)([ \t]*:[ \t]*\[?)[^\r\n\]]+`)
+	// The same written as a setting, scheme and all (authorization= Bearer x).
+	authSetting  = regexp.MustCompile(`(?i)(^|[^a-z0-9_-])((?:proxy-|x-)?authorization)(\s*=\s*)(?:` + authSchemes + `[ \t]+)?[^\s&"',;)\]}]+`)
 	cookieHeader = regexp.MustCompile(`(?i)\b((?:set-)?cookie)(\s*:\s*)[^\r\n"]+`)
 	bearer       = regexp.MustCompile(`(?i)\b(bearer)\s+[a-z0-9._~+/=-]{8,}`)
 	// Credentials in a path, wherever it appears (with an address or
@@ -122,6 +131,8 @@ func redact(s string) string {
 	s = redactEscaped(s)
 	s = urlPattern.ReplaceAllStringFunc(s, redactURL)
 	s = barePair.ReplaceAllString(s, "${1}***@${2}")
+	s = redactMultiWord(s)
+	s = authSetting.ReplaceAllString(s, "${1}${2}${3}***")
 	s = namedValue.ReplaceAllString(s, "${1}${2}${3}***")
 	s = jsonValue.ReplaceAllString(s, "${1}${2}***${4}")
 	s = xmlValue.ReplaceAllString(s, "${1}***${2}")
@@ -142,6 +153,50 @@ func redact(s string) string {
 		s = re.ReplaceAllString(s, "${1}***${2}")
 	}
 	return s
+}
+
+// redactMultiWord hides the whole value of each multiWord setting: words up
+// to the end of the line, a quote, an & or the next name=value.
+func redactMultiWord(s string) string {
+	var b strings.Builder
+	last := 0
+	for _, m := range multiWord.FindAllStringIndex(s, -1) {
+		if m[0] < last {
+			continue
+		}
+		end := multiWordEnd(s, m[1])
+		if end == m[1] {
+			continue
+		}
+		b.WriteString(s[last:m[1]])
+		b.WriteString("***")
+		last = end
+	}
+	if last == 0 {
+		return s
+	}
+	b.WriteString(s[last:])
+	return b.String()
+}
+
+// multiWordEnd is where a multi-word value that starts at i ends.
+func multiWordEnd(s string, i int) int {
+	end := i
+	for j := i; j <= len(s); {
+		k := j
+		for k < len(s) && strings.IndexByte(" \t\r\n\"'&", s[k]) < 0 {
+			k++
+		}
+		if k == j || strings.IndexByte(s[j:k], '=') >= 0 {
+			break
+		}
+		end = k
+		for k < len(s) && (s[k] == ' ' || s[k] == '\t') {
+			k++
+		}
+		j = k
+	}
+	return end
 }
 
 // redactEscaped redacts each address whose slashes are escaped.
@@ -323,7 +378,11 @@ func isHostByte(c byte) bool {
 // userinfoEnd is where the user name and password before an address's host
 // end (the @), or -1. A password typed with a / ? or # in it, which a
 // well-formed address escapes, still counts (alice:p/ss@host) unless what
-// follows the colon is a port (host:8080/path/a@b).
+// follows the colon is a port (host:8080/path/a@b). A password that starts
+// with digits reads as a port (alice:2024/Summer@host): when the host is one
+// word with a port and the first folder holds an @ before a dotted name,
+// that counts too (over-redacting a folder named for an email address on
+// such a host, in the log only).
 func userinfoEnd(rest string) int {
 	at := strings.Index(rest, "@")
 	if at < 0 {
@@ -338,8 +397,22 @@ func userinfoEnd(rest string) int {
 	}
 	host := rest[:end]
 	c := strings.Index(host, ":")
-	if c < 0 || strings.Contains(host, "[") || strings.Trim(host[c+1:], "0123456789") == "" {
+	if c < 0 || strings.Contains(host, "[") {
 		return -1
+	}
+	if strings.Trim(host[c+1:], "0123456789") == "" {
+		if c == len(host)-1 || strings.Contains(host[:c], ".") || rest[end] != '/' {
+			return -1
+		}
+		seg := rest[end+1:]
+		if k := strings.IndexAny(seg, "/?#"); k >= 0 {
+			seg = seg[:k]
+		}
+		a := strings.LastIndex(seg, "@")
+		if a < 0 || !strings.Contains(seg[a+1:], ".") {
+			return -1
+		}
+		return end + 1 + a
 	}
 	return at
 }
@@ -418,41 +491,59 @@ func cleanErr(err error) error {
 // with defer scrub(&err), and TestEveryExportScrubs checks that it does.
 func scrub(err *error) { *err = cleanErr(*err) }
 
-// maxLogLine is the most of one line that reaches the log: Android's log
-// keeps about 4 KB of an entry anyway, and a server's answer quoted whole in
-// an error can be megabytes. The cut comes after redaction, so a credential
-// cut in two is never left half-matched.
+// maxLogLine is the most of one line that reaches the log, in characters
+// (as the app's Logs.MAX counts them: UTF-16 units): Android's log keeps
+// about 4 KB of an entry anyway, and a server's answer quoted whole in an
+// error can be megabytes. The cut comes after redaction, so a credential cut
+// in two is never left half-matched.
 const maxLogLine = 8000
 
-// capLine cuts s to maxLogLine bytes (at a character's start), says how
-// much was left out, and keeps a final line break.
+// capLine cuts s to maxLogLine characters (never inside one), says how many
+// were left out, and keeps a final line break.
 func capLine(s string) string {
-	if len(s) <= maxLogLine {
-		return s
-	}
-	end := maxLogLine
-	for end > 0 && !utf8.RuneStart(s[end]) {
-		end--
-	}
 	nl := ""
 	if strings.HasSuffix(s, "\n") {
-		nl = "\n"
+		s, nl = s[:len(s)-1], "\n"
 	}
-	return s[:end] + fmt.Sprintf(" [cut: %d more bytes]", len(s)-end-len(nl)) + nl
+	units, end := 0, -1
+	for i, r := range s {
+		n := utf16Len(r)
+		if units+n > maxLogLine && end < 0 {
+			end = i
+		}
+		units += n
+	}
+	if end < 0 {
+		return s + nl
+	}
+	left := 0
+	for _, r := range s[end:] {
+		left += utf16Len(r)
+	}
+	return s[:end] + fmt.Sprintf(" [cut: %d more characters]", left) + nl
+}
+
+// utf16Len is how many characters r is to Java (and so to the app's cap).
+func utf16Len(r rune) int {
+	if r >= 0x10000 {
+		return 2
+	}
+	return 1
 }
 
 // lineRedactor redacts text that arrives a line at a time. A private key's
 // block printed over several lines would leave its middle lines with
 // nothing to match, so from a line that starts a block to the line that
-// ends it, each line is replaced whole.
-// A block longer than maxKeyLines lines ends the carry: no key is that
-// long, and a block that never ends must not blank the log for good.
+// ends it, each line is replaced whole, however many there are. A line
+// that can't be part of a block (anything but base64, a blank line or a
+// PEM header) ends the carry, so a block that never ends doesn't blank the
+// log for good.
 type lineRedactor struct {
 	inKey bool
-	lines int
 }
 
-const maxKeyLines = 100
+// keyLine: a line that can be inside a PEM block.
+var keyLine = regexp.MustCompile(`^(?:[A-Za-z0-9+/=]*\s*|(?:Proc-Type|DEK-Info): .*)$`)
 
 func (l *lineRedactor) line(s string) string {
 	nl := ""
@@ -461,17 +552,18 @@ func (l *lineRedactor) line(s string) string {
 	}
 	if l.inKey {
 		loc := pemEnd.FindStringIndex(s)
-		if loc == nil {
-			if l.lines++; l.lines >= maxKeyLines {
-				l.inKey = false
-			}
+		switch {
+		case loc != nil:
+			l.inKey = false
+			s = "***" + s[loc[0]:]
+		case keyLine.MatchString(s):
 			return "***" + nl
+		default:
+			l.inKey = false
 		}
-		l.inKey = false
-		s = "***" + s[loc[0]:]
 	}
 	if begins := pemBegin.FindAllStringIndex(s, -1); len(begins) > 0 {
-		l.inKey, l.lines = !pemEnd.MatchString(s[begins[len(begins)-1][1]:]), 0
+		l.inKey = !pemEnd.MatchString(s[begins[len(begins)-1][1]:])
 	}
 	return redact(s) + nl
 }

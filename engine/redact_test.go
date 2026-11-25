@@ -543,8 +543,8 @@ func TestRedactIsLinear(t *testing.T) {
 	}
 }
 
-// TestLogLinesAreCut: what reaches the log is cut to maxLogLine bytes,
-// after redaction, and says so.
+// TestLogLinesAreCut: what reaches the log is cut to maxLogLine characters
+// (the unit the app's Logs.MAX counts), after redaction, and says so.
 func TestLogLinesAreCut(t *testing.T) {
 	var b bytes.Buffer
 	w := &redactWriter{w: &b}
@@ -553,7 +553,7 @@ func TestLogLinesAreCut(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := b.String()
-	if len(got) > maxLogLine+40 || !strings.HasPrefix(got, "listing failed: wörd") || !strings.Contains(got, "[cut:") ||
+	if utf8.RuneCountInString(got) > maxLogLine+40 || utf8.RuneCountInString(got) < maxLogLine || !strings.HasPrefix(got, "listing failed: wörd") || !strings.Contains(got, "[cut:") ||
 		strings.Contains(got, "SECRETTAIL") || !strings.HasSuffix(got, "\n") || !utf8.ValidString(got) {
 		t.Errorf("not cut as it should be (%d bytes): ...%s", len(got), got[len(got)-60:])
 	}
@@ -576,10 +576,10 @@ var notSecret = map[string]string{
 	"user_project": "a cloud project's id", "tenant": "a directory's name or id", "tenant_id": "a directory's id",
 	"tenant_domain": "a directory's domain", "account_id": "an account's id", "user_id": "a user's id",
 	"client_id": "an app's public id", "app_id": "an app's public id", "client_uid": "an app session's public id",
-	"application_credential_id": "the id of a credential, not the credential",
+	"application_credential_id":   "the id of a credential, not the credential",
 	"application_credential_name": "the name of a credential, not the credential",
-	"access_key_id": "the id of a key, not the key (the secret has its own setting)",
-	"sse_kms_key_id": "the id of a key, not the key", "sse_customer_key_md5": "a checksum of a key, not the key",
+	"access_key_id":               "the id of a key, not the key (the secret has its own setting)",
+	"sse_kms_key_id":              "the id of a key, not the key", "sse_customer_key_md5": "a checksum of a key, not the key",
 	"msi_client_id": "a managed identity's id", "msi_object_id": "a managed identity's id",
 	"msi_mi_res_id": "a managed identity's id", "impersonate": "the account to act as",
 	"impersonate_admin": "the account to act as", "device_id": "a device's id", "drive_id": "a drive's id",
@@ -599,7 +599,9 @@ func TestSecretNamesFromRclone(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var file struct{ Cases []struct{ Why, In, Out string } }
+	var file struct {
+		Cases []struct{ Why, In, Out string }
+	}
 	if err := json.Unmarshal(b, &file); err != nil {
 		t.Fatal(err)
 	}
@@ -661,12 +663,17 @@ func TestKeyAcrossLines(t *testing.T) {
 	if b.String() != want {
 		t.Errorf("got %q, want %q", b.String(), want)
 	}
-	// A block that never ends stops blanking lines after maxKeyLines.
+	// A block of any length is blanked to its end (an 8192-bit key is
+	// about a hundred lines; this one is four hundred), PEM headers and
+	// blank lines included.
 	var l lineRedactor
 	l.line("-----BEGIN RSA PRIVATE KEY-----\n")
-	for i := 0; i < maxKeyLines; i++ {
-		l.line("MADEUPKEYLINE\n")
+	for i, kl := range append([]string{"Proc-Type: 4,ENCRYPTED\n", "\n"}, strings.Split(strings.Repeat("MADEUPKEYLINE+/=\n", 400), "\n")...) {
+		if got := l.line(kl); got != "***\n" && got != "***" {
+			t.Fatalf("line %d of a long block reached the log: %q", i, got)
+		}
 	}
+	// A block that never ends stops at the first line that can't be in one.
 	if got := l.line("later line\n"); got != "later line\n" {
 		t.Errorf("an unended block still blanks the log: %q", got)
 	}
