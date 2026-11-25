@@ -95,14 +95,20 @@ func TestHostKeyLineIPv6(t *testing.T) {
 }
 
 // forward listens on IPv6 loopback and passes each connection to the test
-// server on 127.0.0.1:to (the test servers publish their ports on IPv4
-// loopback only). at is the port to listen on, 0 for any. It returns the
-// port it listens on.
+// server on 127.0.0.1:to (Docker may publish the test servers on IPv4 only,
+// as a daemon set to bind 127.0.0.1 does). at is the port to listen on, 0
+// for any. It returns the port it listens on.
 func forward(t *testing.T, at, to int) int {
 	t.Helper()
 	ln, err := net.Listen("tcp", fmt.Sprintf("[::1]:%d", at))
 	if err != nil {
-		t.Skipf("can't listen on IPv6 loopback: %v", err)
+		if at == 0 {
+			t.Skipf("can't listen on IPv6 loopback: %v", err)
+		}
+		// A fixed port already taken: Docker publishing the test server on
+		// IPv6 too (its default) holds it, and the server answers there.
+		t.Logf("[::1]:%d is taken (%v); connections go to whatever holds it", at, err)
+		return at
 	}
 	var wg sync.WaitGroup
 	t.Cleanup(func() {
