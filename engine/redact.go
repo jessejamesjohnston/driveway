@@ -37,6 +37,14 @@ var (
 	// urlPattern: an address with a scheme, up to a space, a quote or a
 	// bracket that can't be part of it.
 	urlPattern = regexp.MustCompile("(?i)\\b[a-z][a-z0-9+.-]*://[^\\s\"'<>`\\\\]+")
+	// The start of an address, for userinfo that holds a character
+	// urlPattern stops at (looseUserinfo).
+	schemeStart = regexp.MustCompile(`(?i)\b[a-z][a-z0-9+.-]*://`)
+	// Go's url.Parse names the port it couldn't read, which is the start of
+	// a password typed with a / ? or # in it (alice:pass/word@host).
+	invalidPort = regexp.MustCompile(`(invalid port ")(?:[^"\\]|\\.)*(" after host)`)
+	// user:password@host without a scheme (an address typed without one).
+	barePair = regexp.MustCompile(`(?i)(^|[\s"'(<\[=,])[^\s"'<>/@:=,(\[]+:[^\s"'<>/]{1,200}@([a-z0-9][a-z0-9.-]*|\[[0-9a-f:.%]+\])`)
 	// name=value, as in a query string, a form body or a settings line.
 	namedValue = regexp.MustCompile(`(?i)\b(` + secretName + `)(\s*=\s*)("[^"]*"|'[^']*'|[^\s&"',;)\]}]+)`)
 	// "name": "value" in JSON, also escaped inside a quoted string.
@@ -80,7 +88,10 @@ var (
 // them. What a person or a developer needs to see stays: the host, the
 // status, the kind of error.
 func redact(s string) string {
+	s = invalidPort.ReplaceAllString(s, `${1}:***${2}`)
+	s = looseUserinfo(s)
 	s = urlPattern.ReplaceAllStringFunc(s, redactURL)
+	s = barePair.ReplaceAllString(s, "${1}***@${2}")
 	s = namedValue.ReplaceAllString(s, "${1}${2}***")
 	s = jsonValue.ReplaceAllString(s, "${1}${2}***${4}")
 	s = xmlValue.ReplaceAllString(s, "${1}***${2}")
@@ -126,10 +137,108 @@ func redactURL(m string) string {
 		tail = tail[:q] + "?***"
 	}
 	tail = redactPath(authority, tail)
+	// What follows a colon in the host part and isn't a port is a password
+	// the address was cut before (Go cuts alice:pass#word@host at the #).
+	if c := strings.LastIndex(authority, ":"); c >= 0 && !strings.Contains(authority, "[") &&
+		strings.Trim(authority[c+1:], "0123456789") != "" {
+		authority = authority[:c+1] + "***"
+	}
 	if user >= 0 {
 		authority = "***@" + authority
 	}
 	return scheme + authority + tail + trail
+}
+
+// looseUserinfo redacts the user name and password of an address when they
+// hold a character urlPattern stops at (a space, a quote, <, >, a backtick
+// or a backslash, as Go's %q prints a quote): Go's url.Parse refuses such an
+// address and repeats it whole in its error. The user name and password are
+// everything from the scheme to the first @ that a host follows (letters,
+// digits, dots, dashes, an IPv6 address in brackets, a port) and then the
+// end of the address, when it reads as user:password (a colon, nothing
+// before it that a user name can't hold, and no port after it). What
+// urlPattern can redact itself is left to it, and so is text with Go's ": "
+// between an address and its error.
+func looseUserinfo(s string) string {
+	var b strings.Builder
+	last := 0
+	for _, m := range schemeStart.FindAllStringIndex(s, -1) {
+		if m[0] < last {
+			continue
+		}
+		start := m[1]
+		end := userinfoAt(s, start)
+		if end < 0 {
+			continue
+		}
+		b.WriteString(s[last:start])
+		b.WriteString("***")
+		last = end
+	}
+	if last == 0 {
+		return s
+	}
+	b.WriteString(s[last:])
+	return b.String()
+}
+
+// userinfoAt is where the loose user name and password that start at i end
+// (their @), or -1 when there are none for looseUserinfo to redact.
+func userinfoAt(s string, i int) int {
+	limit := i + 512
+	if limit > len(s) {
+		limit = len(s)
+	}
+	for j := i; j < limit; j++ {
+		c := s[j]
+		if c == '\n' || c == '\r' {
+			return -1
+		}
+		if c != '@' || !hostFollows(s, j+1) {
+			continue
+		}
+		u := s[i:j]
+		if u == "***" || strings.Contains(u, "://") || strings.Contains(u, `": `) {
+			return -1
+		}
+		// A later @ may end it (a password holding an @ and a space).
+		if strings.ContainsAny(u, " \t\"'<>`\\") && userPass(u) {
+			return j
+		}
+	}
+	return -1
+}
+
+// userPass: u reads as user:password, not as a host and a port or a
+// sentence ("https://host:8443/x and mail help@example.com").
+func userPass(u string) bool {
+	c := strings.Index(u, ":")
+	if c <= 0 || strings.ContainsAny(u[:c], " \t\"'/\\") {
+		return false
+	}
+	p := u[c+1:]
+	if k := strings.IndexAny(p, "/?#"); k >= 0 {
+		p = p[:k]
+	}
+	return strings.Trim(p, "0123456789") != ""
+}
+
+// hostFollows: s[i:] starts with a host (and maybe a port), then the end of
+// the address.
+func hostFollows(s string, i int) bool {
+	j := i
+	for j < len(s) && (isHostByte(s[j])) {
+		j++
+	}
+	if j == i {
+		return false
+	}
+	return j == len(s) || strings.IndexByte("/?#\"'\\ \t\r\n),;>`", s[j]) >= 0
+}
+
+func isHostByte(c byte) bool {
+	return 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' || '0' <= c && c <= '9' ||
+		c == '.' || c == '-' || c == ':' || c == '[' || c == ']' || c == '%' || c == '_'
 }
 
 // userinfoEnd is where the user name and password before an address's host

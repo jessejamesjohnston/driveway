@@ -52,6 +52,10 @@ final class Logs {
       "[a-z0-9_.-]*?(?:api[_-]?key|key|token|passw(?:or)?d|passphrase|pass|pwd|secret|signature|sig|credential|"
           + "sess(?:ion)?[_-]?id|sid|auth|authorization)";
   private static final Pattern URL = Pattern.compile("(?i)\\b[a-z][a-z0-9+.-]*://[^\\s\"'<>`\\\\]+");
+  private static final Pattern SCHEME_START = Pattern.compile("(?i)\\b[a-z][a-z0-9+.-]*://");
+  private static final Pattern INVALID_PORT = Pattern.compile("(invalid port \")(?:[^\"\\\\]|\\\\.)*(\" after host)");
+  private static final Pattern BARE_PAIR = Pattern.compile(
+      "(?i)(^|[\\s\"'(<\\[=,])[^\\s\"'<>/@:=,(\\[]+:[^\\s\"'<>/]{1,200}@([a-z0-9][a-z0-9.-]*|\\[[0-9a-f:.%]+\\])");
   private static final Pattern NAMED_VALUE =
       Pattern.compile("(?i)\\b(" + SECRET_NAME + ")(\\s*=\\s*)(\"[^\"]*\"|'[^']*'|[^\\s&\"',;)\\]}]+)");
   private static final Pattern JSON_VALUE =
@@ -81,7 +85,10 @@ final class Logs {
   /** s without the credentials it may hold; host, status and the kind of error stay. */
   static String clean(String s) {
     if (s == null) return null;
+    s = INVALID_PORT.matcher(s).replaceAll("$1:***$2");
+    s = looseUserinfo(s);
     s = replace(URL, s, m -> cleanUrl(m.group()));
+    s = BARE_PAIR.matcher(s).replaceAll("$1***@$2");
     s = NAMED_VALUE.matcher(s).replaceAll("$1$2***");
     s = JSON_VALUE.matcher(s).replaceAll("$1$2***$4");
     s = XML_VALUE.matcher(s).replaceAll("$1***$2");
@@ -118,8 +125,65 @@ final class Logs {
     int q = indexOfAny(tail, "?#");
     if (q >= 0) tail = tail.substring(0, q) + "?***";
     tail = cleanPath(authority, tail);
+    int c = authority.lastIndexOf(':');
+    if (c >= 0 && !authority.contains("[") && !authority.substring(c + 1).matches("[0-9]*")) {
+      authority = authority.substring(0, c + 1) + "***";
+    }
     if (user >= 0) authority = "***@" + authority;
     return scheme + authority + tail + trail;
+  }
+
+  /** A user name and password holding a character URL stops at; see engine/redact.go. */
+  private static String looseUserinfo(String s) {
+    Matcher m = SCHEME_START.matcher(s);
+    StringBuilder b = new StringBuilder();
+    int last = 0;
+    while (m.find()) {
+      if (m.start() < last) continue;
+      int start = m.end(), end = userinfoAt(s, start);
+      if (end < 0) continue;
+      b.append(s, last, start).append("***");
+      last = end;
+    }
+    if (last == 0) return s;
+    return b.append(s.substring(last)).toString();
+  }
+
+  private static int userinfoAt(String s, int i) {
+    int limit = Math.min(s.length(), i + 512);
+    for (int j = i; j < limit; j++) {
+      char c = s.charAt(j);
+      if (c == '\n' || c == '\r') return -1;
+      if (c != '@' || !hostFollows(s, j + 1)) continue;
+      String u = s.substring(i, j);
+      if (u.equals("***") || u.contains("://") || u.contains("\": ")) return -1;
+      if (containsAny(u, " \t\"'<>`\\") && userPass(u)) return j;
+    }
+    return -1;
+  }
+
+  private static boolean userPass(String u) {
+    int c = u.indexOf(':');
+    if (c <= 0 || containsAny(u.substring(0, c), " \t\"'/\\")) return false;
+    String p = u.substring(c + 1);
+    int k = indexOfAny(p, "/?#");
+    if (k >= 0) p = p.substring(0, k);
+    return !p.matches("[0-9]*");
+  }
+
+  private static boolean hostFollows(String s, int i) {
+    int j = i;
+    while (j < s.length() && isHostChar(s.charAt(j))) j++;
+    if (j == i) return false;
+    return j == s.length() || "/?#\"'\\ \t\r\n),;>`".indexOf(s.charAt(j)) >= 0;
+  }
+
+  private static boolean isHostChar(char c) {
+    return c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || ".-:[]%_".indexOf(c) >= 0;
+  }
+
+  private static boolean containsAny(String s, String chars) {
+    return indexOfAny(s, chars) >= 0;
   }
 
   /** Where the user name and password before the host end (the @), or -1; see engine/redact.go. */

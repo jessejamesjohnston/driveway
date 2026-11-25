@@ -315,6 +315,91 @@
       "why": "headers as Go prints them, with cookies",
       "in": "map[Content-Type:[text/html] Set-Cookie:[sid=abc; Path=/]]",
       "out": "map[Content-Type:[text/html] Set-Cookie:***"
+    },
+    {
+      "why": "a password with a space, which Go's address parser refuses and repeats whole",
+      "in": "[network] parse \"https://alice:pa ssMADEUP1@dav.example.com/x/\": net/url: invalid userinfo",
+      "out": "[network] parse \"https://***@dav.example.com/x/\": net/url: invalid userinfo"
+    },
+    {
+      "why": "a password with a quote, escaped as Go quotes it",
+      "in": "[network] parse \"https://alice:pa\\\"MADEUP2@dav.example.com/x/\": net/url: invalid userinfo",
+      "out": "[network] parse \"https://***@dav.example.com/x/\": net/url: invalid userinfo"
+    },
+    {
+      "why": "a password with a <",
+      "in": "[network] parse \"https://alice:pa<MADEUP3@dav.example.com/x/\": net/url: invalid userinfo",
+      "out": "[network] parse \"https://***@dav.example.com/x/\": net/url: invalid userinfo"
+    },
+    {
+      "why": "a password with a >",
+      "in": "[network] parse \"https://alice:pa>MADEUP4@dav.example.com/x/\": net/url: invalid userinfo",
+      "out": "[network] parse \"https://***@dav.example.com/x/\": net/url: invalid userinfo"
+    },
+    {
+      "why": "a password with a backslash, doubled as Go quotes it",
+      "in": "[network] parse \"https://alice:pa\\\\MADEUP5@dav.example.com/x/\": net/url: invalid userinfo",
+      "out": "[network] parse \"https://***@dav.example.com/x/\": net/url: invalid userinfo"
+    },
+    {
+      "why": "a password with a backtick",
+      "in": "[network] parse \"https://alice:pa`MADEUP6@dav.example.com/x/\": net/url: invalid userinfo",
+      "out": "[network] parse \"https://***@dav.example.com/x/\": net/url: invalid userinfo"
+    },
+    {
+      "why": "an HTTP address with a spaced password and no path",
+      "in": "[network] parse \"https://alice:pa ssMADEUP8@files.example.com\": net/url: invalid userinfo",
+      "out": "[network] parse \"https://***@files.example.com\": net/url: invalid userinfo"
+    },
+    {
+      "why": "a password with a /, whose first part Go reports as a port",
+      "in": "[network] parse \"https://alice:hunterMADEUP/abc@dav.example.com/x/\": invalid port \":hunterMADEUP\" after host",
+      "out": "[network] parse \"https://***@dav.example.com/x/\": invalid port \":***\" after host"
+    },
+    {
+      "why": "a password with a ?, whose first part Go reports as a port",
+      "in": "[network] parse \"https://alice:hunterMADEUP?abc@dav.example.com/x/\": invalid port \":hunterMADEUP\" after host",
+      "out": "[network] parse \"https://***@dav.example.com/x/\": invalid port \":***\" after host"
+    },
+    {
+      "why": "a password with a #, where Go cuts the address and reports the first part as a port",
+      "in": "[network] parse \"https://alice:hunterMADEUP\": invalid port \":hunterMADEUP\" after host",
+      "out": "[network] parse \"https://alice:***\": invalid port \":***\" after host"
+    },
+    {
+      "why": "an address typed without a scheme, which Go's HTTP client repeats",
+      "in": "[network] couldn't list files: Propfind \"alice:MADEUPNS@dav.example.com/x/\": unsupported protocol scheme \"alice\"",
+      "out": "[network] couldn't list files: Propfind \"***@dav.example.com/x/\": unsupported protocol scheme \"alice\""
+    },
+    {
+      "why": "a user name and password without a scheme in a sentence",
+      "in": "connecting to alice:MADEUPNS2@[2001:db8::7]/dav failed",
+      "out": "connecting to ***@[2001:db8::7]/dav failed"
+    },
+    {
+      "why": "a bad escape in a password",
+      "in": "[network] parse \"https://alice:pa%zzMADEUP@dav.example.com/x/\": invalid URL escape \"%zz\"",
+      "out": "[network] parse \"https://***@dav.example.com/x/\": invalid URL escape \"%zz\""
+    },
+    {
+      "why": "a password with a space and an @, in a line rclone logs",
+      "in": "NOTICE: webdav root '': https://alice:p@ss wordMADEUP@dav.example.com:8443/x: can't connect",
+      "out": "NOTICE: webdav root '': https://***@dav.example.com:8443/x: can't connect"
+    },
+    {
+      "why": "an address and, later in the sentence, an email address, both kept",
+      "in": "see https://dav.example.com:8443/x and write to help@example.com",
+      "out": "see https://dav.example.com:8443/x and write to help@example.com"
+    },
+    {
+      "why": "an address with a path holding an email address, kept",
+      "in": "Propfind \"https://cloud.example.com/remote.php/dav/files/bob@example.com/\": 401 Unauthorized",
+      "out": "Propfind \"https://cloud.example.com/remote.php/dav/files/bob@example.com/\": 401 Unauthorized"
+    },
+    {
+      "why": "an address, Go's separator, and an email address in the error, kept",
+      "in": "Get \"https://dav.example.com/x\": dial tcp: lookup for help@example.com failed",
+      "out": "Get \"https://dav.example.com/x\": dial tcp: lookup for help@example.com failed"
     }
   ]
 }
