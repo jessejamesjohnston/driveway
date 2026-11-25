@@ -835,10 +835,10 @@
    "why": "a Storj satellite address: a node ID, an @, a host and a port",
    "backend": "storj",
    "settings": {
-    "satellite_address": "12EayRS2V1kEsWESU9QMRseFhdxYxKicsiFmxrsLZHeLUtdps3S@us1.storj.io:7777"
+    "satellite_address": "1MadeUpNodeID0us1@us1.storj.io:7777"
    },
    "settings_out": {
-    "satellite_address": "12EayRS2V1kEsWESU9QMRseFhdxYxKicsiFmxrsLZHeLUtdps3S@us1.storj.io:7777"
+    "satellite_address": "1MadeUpNodeID0us1@us1.storj.io:7777"
    },
    "note": null
   },

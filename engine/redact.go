@@ -388,9 +388,9 @@ func isHostByte(c byte) bool {
 // userinfoEnd is where the user name and password before an address's host
 // end (the @), or -1. An address that reads two ways (ambiguousAt, the same
 // rule the address check refuses by) ends at its last @, however far down:
-// https://alice:2024/word@host and https://host:8443/files/me@x.com/ both
-// lose everything before that @ (a folder's name lost in the log, never a
-// password). A password typed with a / ? or # in it after anything but a
+// https://alice:2024/word@host and a folder named for an email address
+// after a port both lose everything before that @ (a folder's name lost in
+// the log, never a password). A password typed with a / ? or # in it after anything but a
 // port (alice:p/ss@host), which Go can't read and repeats whole, also ends
 // at the last @.
 func userinfoEnd(rest string) int {

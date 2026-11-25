@@ -142,8 +142,8 @@ func validRows() []validRow {
 	add("smb", "host", "", "nas.local", "192.168.1.12", "NAS", "[2001:db8::12]")
 	add("hdfs", "namenode", "", "namenode-1:8020", "namenode-1:8020,namenode-2:8020", "192.168.1.13:8020")
 	add("storj", "satellite_address", "",
-		"us1.storj.io", "12EayRS2V1kEsWESU9QMRseFhdxYxKicsiFmxrsLZHeLUtdps3S@us1.storj.io:7777",
-		"121RTSDpyNZVcEU84Ticf2L1ntiuUimbWgfATz21tuvgk3vzoA6@ap1.storj.io:7777")
+		"us1.storj.io", "1MadeUpNodeID0us1@us1.storj.io:7777",
+		"1MadeUpNodeID0ap1@ap1.storj.io:7777")
 	add("filescom", "site", "", "mysite", "files.example.com")
 	add("filescom", "site", reasonHostOnly, "https://mysite.files.com")
 	add("quatrix", "host", "", "yourcompany.quatrix.it")
