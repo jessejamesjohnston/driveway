@@ -106,7 +106,7 @@ public final class Harness extends BroadcastReceiver {
       try {
         Action action = ACTIONS.get(String.valueOf(intent.getAction()));
         if (action == null) {
-          Log.w(TAG, "HARNESS unknown action " + intent.getAction());
+          Log.w(TAG, Logs.clean("HARNESS unknown action " + intent.getAction()));
         } else {
           action.run(context, id, intent);
         }
@@ -129,51 +129,51 @@ public final class Harness extends BroadcastReceiver {
     String hostkey = intent.getStringExtra("hostkey");
     if (hostkey != null) Servers.get(context).pinHostKey(id, hostkey);
     Servers.get(context).save(s);
-    Log.i(TAG, "HARNESS ADDED " + id);
+    Log.i(TAG, Logs.clean("HARNESS ADDED " + id));
   }
 
   static void remove(Context context, String id, Intent intent) throws Exception {
     Servers.get(context).remove(id);
-    Log.i(TAG, "HARNESS REMOVED " + id);
+    Log.i(TAG, Logs.clean("HARNESS REMOVED " + id));
   }
 
   static void runAction(Context context, String id, Intent intent) throws Exception {
     run(context, id);
-    Log.i(TAG, "HARNESS PASS " + id);
+    Log.i(TAG, Logs.clean("HARNESS PASS " + id));
   }
 
   /** Every saved server: id, kind, name, setting names (no values). */
   static void servers(Context context, String id, Intent intent) throws Exception {
     for (Servers.Server srv : Servers.get(context).all()) {
-      Log.i(TAG, "HARNESS SERVER " + srv.id + " " + srv.backend + " \"" + srv.label + "\" " + srv.params.names());
+      Log.i(TAG, Logs.clean("HARNESS SERVER " + srv.id + " " + srv.backend + " \"" + srv.label + "\" " + srv.params.names()));
     }
-    Log.i(TAG, "HARNESS PASS " + id);
+    Log.i(TAG, Logs.clean("HARNESS PASS " + id));
   }
 
   static void namesAction(Context context, String id, Intent intent) throws Exception {
     names(context, id);
-    Log.i(TAG, "HARNESS PASS " + id);
+    Log.i(TAG, Logs.clean("HARNESS PASS " + id));
   }
 
   static void failedSavesAction(Context context, String id, Intent intent) throws Exception {
     failedSaves(context, id);
-    Log.i(TAG, "HARNESS PASS " + id);
+    Log.i(TAG, Logs.clean("HARNESS PASS " + id));
   }
 
   static void unreachableAction(Context context, String id, Intent intent) throws Exception {
     unreachable(context, id);
-    Log.i(TAG, "HARNESS PASS " + id);
+    Log.i(TAG, Logs.clean("HARNESS PASS " + id));
   }
 
   /** Every server goes (an emulator's state before a screen walk). */
   static void clear(Context context, String id, Intent intent) throws Exception {
     for (Servers.Server srv : Servers.get(context).all()) Servers.get(context).remove(srv.id);
-    Log.i(TAG, "HARNESS PASS " + id);
+    Log.i(TAG, Logs.clean("HARNESS PASS " + id));
   }
 
   static void openAction(Context context, String id, Intent intent) throws Exception {
     open(context, intent);
-    Log.i(TAG, "HARNESS PASS " + id);
+    Log.i(TAG, Logs.clean("HARNESS PASS " + id));
   }
 
   /**
@@ -191,10 +191,10 @@ public final class Harness extends BroadcastReceiver {
     boolean ok = true;
     if (ask != null) {
       boolean now = NewLabels.isNew(store, ask);
-      Log.i(TAG, "HARNESS NEWLABEL " + id + " " + ask + " isnew=" + now);
+      Log.i(TAG, Logs.clean("HARNESS NEWLABEL " + id + " " + ask + " isnew=" + now));
       ok = String.valueOf(now).equals(intent.getStringExtra("expect"));
     }
-    Log.i(TAG, (ok ? "HARNESS PASS " : "HARNESS FAIL ") + id + (ok ? "" : ": label state differs"));
+    Log.i(TAG, Logs.clean((ok ? "HARNESS PASS " : "HARNESS FAIL ") + id + (ok ? "" : ": label state differs")));
   }
 
   static void found(Context context, String id, Intent intent) throws Exception {
@@ -211,14 +211,14 @@ public final class Harness extends BroadcastReceiver {
       }
       Discovery.standIn = f;
     }
-    Log.i(TAG, "HARNESS PASS " + id);
+    Log.i(TAG, Logs.clean("HARNESS PASS " + id));
   }
 
   static void problem(Context context, String id, Intent intent) throws Exception {
     String code = intent.getStringExtra("code");
     if (code == null || code.equals("none")) Problems.clear(context, id);
     else Problems.note(context, id, code);
-    Log.i(TAG, "HARNESS PASS " + id);
+    Log.i(TAG, Logs.clean("HARNESS PASS " + id));
   }
 
   static void failSave(Context context, String id, Intent intent) throws Exception {
@@ -226,32 +226,32 @@ public final class Harness extends BroadcastReceiver {
     overwrite(context, id, name, 1);
     lastGen = 0;
     waitFailed(context, id, name, Uploads.unsent(context, id) + 0);
-    Log.i(TAG, "HARNESS PASS " + id);
+    Log.i(TAG, Logs.clean("HARNESS PASS " + id));
   }
 
   static void staleFlagAction(Context context, String id, Intent intent) throws Exception {
     staleFlag(context, id);
-    Log.i(TAG, "HARNESS PASS " + id);
+    Log.i(TAG, Logs.clean("HARNESS PASS " + id));
   }
 
   static void oldMoveAction(Context context, String id, Intent intent) throws Exception {
     oldMove(context, id);
-    Log.i(TAG, "HARNESS PASS " + id);
+    Log.i(TAG, Logs.clean("HARNESS PASS " + id));
   }
 
   static void moveKillAction(Context context, String id, Intent intent) throws Exception {
     moveKill(context, id, intent);
-    Log.i(TAG, "HARNESS PASS " + id);
+    Log.i(TAG, Logs.clean("HARNESS PASS " + id));
   }
 
   static void readOnlyAction(Context context, String id, Intent intent) throws Exception {
     readOnly(context, id);
-    Log.i(TAG, "HARNESS PASS " + id);
+    Log.i(TAG, Logs.clean("HARNESS PASS " + id));
   }
 
   static void connectAction(Context context, String id, Intent intent) throws Exception {
     connect(context, id, intent);
-    Log.i(TAG, "HARNESS PASS " + id);
+    Log.i(TAG, Logs.clean("HARNESS PASS " + id));
   }
 
   static void check(boolean ok, String what) {
@@ -537,7 +537,7 @@ public final class Harness extends BroadcastReceiver {
     DocumentsContract.deleteDocument(cr, copy);
     if (!deleted) DocumentsContract.deleteDocument(cr, src);
     check(!deleted, "the original went while its copy was still being written");
-    Log.i(TAG, "HARNESS oldmove: the original stayed: " + result);
+    Log.i(TAG, Logs.clean("HARNESS oldmove: the original stayed: " + result));
   }
 
   /**
@@ -621,7 +621,7 @@ public final class Harness extends BroadcastReceiver {
         // walk's) would hold this move's original too, rightly: start clean.
         for (Servers.Server any : Servers.get(ctx).all()) {
           for (Uploads.Failed f : Uploads.failedFor(any.id)) {
-            Log.i(TAG, "HARNESS movekill: discarding a leftover failed save of " + f.path + " on " + any.id);
+            Log.i(TAG, Logs.clean("HARNESS movekill: discarding a leftover failed save of " + f.path + " on " + any.id));
             Uploads.discard(ctx, f.serverId, f.path, f.file);
           }
         }
@@ -729,7 +729,7 @@ public final class Harness extends BroadcastReceiver {
     } catch (Exception e) {
       why = String.valueOf(e.getMessage());
     }
-    Log.i(TAG, "HARNESS movekill: delete answered: " + why);
+    Log.i(TAG, Logs.clean("HARNESS movekill: delete answered: " + why));
     return why.equals(ctx.getString(R.string.err_copy_pending));
   }
 
@@ -808,8 +808,8 @@ public final class Harness extends BroadcastReceiver {
       steps.append(' ').append(st.id).append('=').append(st.state);
       if (st.state == Connection.State.FAILED) stopped = st.id;
     }
-    Log.i(TAG, "HARNESS CONNECT " + id + " " + run.outcome + steps + " in " + (System.currentTimeMillis() - t0) + " ms"
-        + (run.error != null ? ": " + run.error : ""));
+    Log.i(TAG, Logs.clean("HARNESS CONNECT " + id + " " + run.outcome + steps + " in " + (System.currentTimeMillis() - t0) + " ms"
+        + (run.error != null ? ": " + run.error : "")));
     String expect = in.getStringExtra("expect") == null ? "ok" : in.getStringExtra("expect");
     check(expect.equals(stopped), "stopped at " + stopped + ", expected " + expect);
     if (expect.equals("ok")) check(run.outcome == Connection.Outcome.CONNECTED, "outcome " + run.outcome);

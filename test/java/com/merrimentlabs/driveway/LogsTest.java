@@ -23,15 +23,66 @@ public final class LogsTest {
     if (!ok) failures++;
   }
 
-  /** A log call that bypasses Logs is fine only with text the app wrote itself, whole on one line. */
-  private static final Pattern LOG_CALL = Pattern.compile("\\bLog\\.(v|d|i|w|e|wtf)\\(");
-  private static final Pattern CONSTANT_LOG =
-      Pattern.compile("^\\s*(android\\.util\\.)?Log\\.[vdiwe]\\((TAG|\"[^\"]*\"), \"[^\"\\\\]*\"\\);\\s*$");
+  /**
+   * Every way to write to Android's log or the console: android.util.Log's
+   * calls (spaced or not), its stack trace text, a statically imported Log
+   * method, printStackTrace(), System.out and System.err.
+   */
+  private static final Pattern LOG_CALL = Pattern.compile("\\bLog\\s*\\.\\s*(v|d|i|w|e|wtf|println|getStackTraceString)\\s*\\("
+      + "|\\.\\s*printStackTrace\\s*\\(\\s*\\)|\\bSystem\\s*\\.\\s*(out|err)\\b"
+      + "|(?<![\\w.])(v|d|i|w|e|wtf|println)\\s*\\(\\s*TAG\\b|^\\s*import\\s+static\\s+android\\.util\\.Log\\b");
+  /** Fine: a Log call with the app's own constant text whole on one line, or with text through Logs.clean. */
+  private static final Pattern ALLOWED_LOG = Pattern.compile(
+      "^\\s*(android\\.util\\.)?Log\\.[vdiwe]\\((TAG|\"[^\"]*\"), (\"[^\"\\\\]*\"\\);\\s*$|Logs\\.clean\\()");
 
-  static boolean bypasses(String line) {
-    String t = line.trim();
-    if (t.startsWith("//") || t.startsWith("*")) return false;
-    return LOG_CALL.matcher(t).find() && !CONSTANT_LOG.matcher(line).matches();
+  /** A line of code (comments already taken out, see code()) that logs around Logs. */
+  static boolean bypasses(String code) {
+    return LOG_CALL.matcher(code).find() && !ALLOWED_LOG.matcher(code).find();
+  }
+
+  /**
+   * The lines with their comments blanked (// to the end, and /* ... *\/
+   * across lines), and the text inside quotes blanked too, so neither a
+   * comment nor a string that mentions a log call counts as one.
+   */
+  static java.util.List<String> code(java.util.List<String> lines) {
+    java.util.List<String> out = new java.util.ArrayList<>();
+    boolean block = false;
+    for (String line : lines) {
+      StringBuilder b = new StringBuilder();
+      char quote = 0;
+      for (int i = 0; i < line.length(); i++) {
+        char c = line.charAt(i), next = i + 1 < line.length() ? line.charAt(i + 1) : 0;
+        if (block) {
+          if (c == '*' && next == '/') {
+            block = false;
+            i++;
+          }
+          b.append(' ');
+        } else if (quote != 0) {
+          if (c == '\\') {
+            b.append("  ");
+            i++;
+          } else if (c == quote) {
+            b.append(c);
+            quote = 0;
+          } else {
+            b.append(' ');
+          }
+        } else if (c == '/' && next == '/') {
+          break;
+        } else if (c == '/' && next == '*') {
+          block = true;
+          i++;
+          b.append(' ');
+        } else {
+          if (c == '"' || c == '\'') quote = c;
+          b.append(c);
+        }
+      }
+      out.add(b.toString());
+    }
+    return out;
   }
 
   public static void main(String[] args) throws Exception {
@@ -116,16 +167,43 @@ public final class LogsTest {
     check(android.util.Log.lastMessage.equals("short"), "a short line is whole");
 
     // The scan.
-    check(bypasses("      Log.w(TAG, \"upload failed: \" + last);"), "scan: dynamic text is caught");
-    check(bypasses("    android.util.Log.w(\"Driveway\", \"can't make a key\", e);"), "scan: an exception is caught");
+    String[][] caught = {
+        {"      Log.w(TAG, \"upload failed: \" + last);", "dynamic text"},
+        {"    android.util.Log.w(\"Driveway\", \"can't make a key\", e);", "an exception"},
+        {"      e.printStackTrace();", "printStackTrace()"},
+        {"      System.err.println(\"failed: \" + e);", "System.err"},
+        {"      System.out.print(s);", "System.out"},
+        {"      Log.println(Log.WARN, TAG, msg);", "Log.println"},
+        {"import static android.util.Log.w;", "a static import of Log"},
+        {"      w(TAG, msg);", "a statically imported call"},
+        {"      Log .w(TAG, msg);", "a spaced call"},
+        {"      Log.\tw (TAG, msg);", "a call spaced with a tab"},
+        {"      String s = Log.getStackTraceString(e);", "Log.getStackTraceString"},
+        {"      *Log.w(TAG, msg);", "a code line that starts with *"},
+        {"      x = 1; /* note */ Log.w(TAG, msg);", "code after a closed comment"},
+    };
+    for (String[] c : caught) {
+      check(bypasses(code(java.util.Collections.singletonList(c[0])).get(0)), "scan: " + c[1] + " is caught");
+    }
     check(!bypasses("      Log.i(TAG, \"no servers yet\");"), "scan: the app's own constant text is fine");
-    check(!bypasses("    // Log.w(TAG, e.getMessage()) would leak"), "scan: a comment is fine");
-    File[] files = new File("src/com/merrimentlabs/driveway").listFiles((d, n) -> n.endsWith(".java"));
-    check(files != null && files.length > 20, "the app's code is read");
+    check(!bypasses("      Log.i(TAG, Logs.clean(\"HARNESS PASS \" + id));"), "scan: text through Logs.clean is fine");
+    check(!bypasses(code(java.util.Collections.singletonList("    // Log.w(TAG, e.getMessage()) would leak")).get(0)),
+        "scan: a comment is fine");
+    check(!bypasses(code(java.util.Arrays.asList("  /*", "   * Log.w(TAG, e.getMessage()) would leak", "   */")).get(1)),
+        "scan: a block comment's line is fine");
+    check(!bypasses(code(java.util.Collections.singletonList("    String s = \"// Log.w(TAG, x) in a string\";")).get(0)),
+        "scan: a string that mentions it is fine");
+    // The app and the debug-only test harness.
+    java.util.List<File> files = new java.util.ArrayList<>();
+    for (String dir : new String[] {"src/com/merrimentlabs/driveway", "src-debug/com/merrimentlabs/driveway"}) {
+      File[] in = new File(dir).listFiles((d, n) -> n.endsWith(".java"));
+      if (in != null) files.addAll(java.util.Arrays.asList(in));
+    }
+    check(files.size() > 23, "the app's and the harness's code is read (" + files.size() + " files)");
     int lines = 0;
     for (File f : files) {
       if (f.getName().equals("Logs.java")) continue;
-      for (String line : Files.readAllLines(f.toPath(), StandardCharsets.UTF_8)) {
+      for (String line : code(Files.readAllLines(f.toPath(), StandardCharsets.UTF_8))) {
         if (bypasses(line)) check(false, "a log line that bypasses Logs: " + f.getName() + ": " + line.trim());
         if (line.contains("Logs.")) lines++;
       }

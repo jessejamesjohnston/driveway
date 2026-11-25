@@ -42,8 +42,8 @@ final class HarnessDocs {
     } catch (Exception e) {
       result = e.toString();
     }
-    Log.i(TAG, "HARNESS CREATE " + id + " took " + (System.currentTimeMillis() - t0) + " ms: " + Logs.clean(result));
-    Log.i(TAG, (ok ? "HARNESS PASS " : "HARNESS FAIL ") + id + (ok ? "" : ": create failed"));
+    Log.i(TAG, Logs.clean("HARNESS CREATE " + id + " took " + (System.currentTimeMillis() - t0) + " ms: " + Logs.clean(result)));
+    Log.i(TAG, Logs.clean((ok ? "HARNESS PASS " : "HARNESS FAIL ") + id + (ok ? "" : ": create failed")));
   }
 
   /**
@@ -103,8 +103,8 @@ final class HarnessDocs {
       ok = false;
       result = e.toString();
     }
-    Log.i(TAG, "HARNESS DOC " + id + " " + op + " " + path + " took " + (System.currentTimeMillis() - t0) + " ms: " + Logs.clean(result));
-    Log.i(TAG, (ok ? "HARNESS PASS " : "HARNESS FAIL ") + id + (ok ? "" : ": " + Logs.clean(result)));
+    Log.i(TAG, Logs.clean("HARNESS DOC " + id + " " + op + " " + path + " took " + (System.currentTimeMillis() - t0) + " ms: " + Logs.clean(result)));
+    Log.i(TAG, Logs.clean((ok ? "HARNESS PASS " : "HARNESS FAIL ") + id + (ok ? "" : ": " + Logs.clean(result))));
   }
 
   /** Saves NAME (MB megabytes, contents fixed by the name) into the server's top folder; doesn't wait for the upload. */
@@ -115,8 +115,8 @@ final class HarnessDocs {
     // overwrite=1: write over the file's document as an app with it open would, without looking it up.
     Uri doc = "1".equals(intent.getStringExtra("overwrite"))
         ? overwrite(context, id, name, mb) : saveFile(context, id, name, mb);
-    Log.i(TAG, "HARNESS SAVED " + id + " " + name + " " + mb + " MB locally in " + (System.currentTimeMillis() - t0) + " ms: " + doc);
-    Log.i(TAG, "HARNESS PASS " + id);
+    Log.i(TAG, Logs.clean("HARNESS SAVED " + id + " " + name + " " + mb + " MB locally in " + (System.currentTimeMillis() - t0) + " ms: " + doc));
+    Log.i(TAG, Logs.clean("HARNESS PASS " + id));
   }
 
   /** Reads NAME back and compares it with what "save" wrote; logs throughput. */
@@ -127,8 +127,8 @@ final class HarnessDocs {
     long t0 = System.currentTimeMillis();
     checkFile(context, id, name, mb);
     long ms = System.currentTimeMillis() - t0;
-    Log.i(TAG, "HARNESS READ " + id + " " + name + " " + mb + " MB in " + ms + " ms (" + (mb * 1000L / Math.max(ms, 1)) + " MB/s)");
-    Log.i(TAG, "HARNESS PASS " + id);
+    Log.i(TAG, Logs.clean("HARNESS READ " + id + " " + name + " " + mb + " MB in " + ms + " ms (" + (mb * 1000L / Math.max(ms, 1)) + " MB/s)"));
+    Log.i(TAG, Logs.clean("HARNESS PASS " + id));
   }
 
   /** Save MB megabytes, wait for the upload, read it all back, compare. */
@@ -148,11 +148,11 @@ final class HarnessDocs {
     long uploaded = System.currentTimeMillis();
     checkFile(context, id, name, mb);
     long read = System.currentTimeMillis();
-    Log.i(TAG, "HARNESS BIGIO " + id + " " + mb + " MB: local save " + (saved - t0) + " ms, upload "
+    Log.i(TAG, Logs.clean("HARNESS BIGIO " + id + " " + mb + " MB: local save " + (saved - t0) + " ms, upload "
         + (uploaded - saved) + " ms (" + (mb * 1000L / Math.max(uploaded - saved, 1)) + " MB/s), read back "
-        + (read - uploaded) + " ms (" + (mb * 1000L / Math.max(read - uploaded, 1)) + " MB/s)");
+        + (read - uploaded) + " ms (" + (mb * 1000L / Math.max(read - uploaded, 1)) + " MB/s)"));
     DocumentsContract.deleteDocument(context.getContentResolver(), doc);
-    Log.i(TAG, "HARNESS PASS " + id);
+    Log.i(TAG, Logs.clean("HARNESS PASS " + id));
   }
 
   /** Times a listing of PATH until it has loaded. */
@@ -167,8 +167,8 @@ final class HarnessDocs {
       Bundle x = c.getExtras();
       error = x == null ? null : x.getString(DocumentsContract.EXTRA_ERROR);
     }
-    Log.i(TAG, "HARNESS LIST " + id + " " + path + ": " + n + " entries in " + (System.currentTimeMillis() - t0) + " ms" + (error == null ? "" : ", error: " + Logs.clean(error)));
-    Log.i(TAG, (error == null ? "HARNESS PASS " : "HARNESS FAIL ") + id + (error == null ? "" : ": the listing has an error"));
+    Log.i(TAG, Logs.clean("HARNESS LIST " + id + " " + path + ": " + n + " entries in " + (System.currentTimeMillis() - t0) + " ms" + (error == null ? "" : ", error: " + Logs.clean(error))));
+    Log.i(TAG, Logs.clean((error == null ? "HARNESS PASS " : "HARNESS FAIL ") + id + (error == null ? "" : ": the listing has an error")));
   }
 
   /** Copies NAME to "NAME copy" in the same folder through copyDocument, timing it. */
@@ -192,8 +192,8 @@ final class HarnessDocs {
       result = "copy failed: " + e;
       ok = false;
     }
-    Log.i(TAG, "HARNESS COPY " + id + " " + Logs.clean(result));
-    Log.i(TAG, (ok ? "HARNESS PASS " : "HARNESS FAIL ") + id + (ok ? "" : ": " + Logs.clean(result)));
+    Log.i(TAG, Logs.clean("HARNESS COPY " + id + " " + Logs.clean(result)));
+    Log.i(TAG, Logs.clean((ok ? "HARNESS PASS " : "HARNESS FAIL ") + id + (ok ? "" : ": " + Logs.clean(result))));
   }
 
   /**
@@ -225,10 +225,10 @@ final class HarnessDocs {
         refused = true;
       }
       check(refused, "a read-only open accepted a write");
-      Log.i(TAG, "HARNESS STREAM " + id + " " + name + ": opened in " + opened + " ms, last MB of " + mb
-          + " read by " + readEnd + " ms, write refused");
+      Log.i(TAG, Logs.clean("HARNESS STREAM " + id + " " + name + ": opened in " + opened + " ms, last MB of " + mb
+          + " read by " + readEnd + " ms, write refused"));
     }
-    Log.i(TAG, "HARNESS PASS " + id);
+    Log.i(TAG, Logs.clean("HARNESS PASS " + id));
   }
 
   /**
@@ -242,8 +242,8 @@ final class HarnessDocs {
     FileOutputStream out = new FileOutputStream(pfd.getFileDescriptor());
     out.write(new byte[1 << 20]);
     out.flush();
-    Log.i(TAG, "HARNESS HALFWRITE " + id + " holding " + name + " open");
-    Log.i(TAG, "HARNESS PASS " + id);
+    Log.i(TAG, Logs.clean("HARNESS HALFWRITE " + id + " holding " + name + " open"));
+    Log.i(TAG, Logs.clean("HARNESS PASS " + id));
     Thread.sleep(600_000);
   }
 
@@ -273,6 +273,6 @@ final class HarnessDocs {
     now = readAll(cr, doc);
     check(now.equals(want), "after the upload read \"" + now + "\"");
     DocumentsContract.deleteDocument(cr, doc);
-    Log.i(TAG, "HARNESS PASS " + id);
+    Log.i(TAG, Logs.clean("HARNESS PASS " + id));
   }
 }

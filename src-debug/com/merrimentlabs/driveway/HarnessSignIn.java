@@ -61,14 +61,14 @@ final class HarnessSignIn {
         String kind = Errors.kind(e);
         Log.i(TAG, Logs.clean("HARNESS ENDED " + id + " " + kind + ": " + Errors.explain(context, shown, e)));
         boolean ok = expect.equals(kind) || (expect.equals("cancelled") && String.valueOf(e.getMessage()).contains("cancelled"));
-        Log.i(TAG, (ok ? "HARNESS PASS " : "HARNESS FAIL ") + id + (ok ? "" : ": ended " + kind + ", expected " + expect));
+        Log.i(TAG, Logs.clean((ok ? "HARNESS PASS " : "HARNESS FAIL ") + id + (ok ? "" : ": ended " + kind + ", expected " + expect)));
         return;
       }
       if (!expect.equals("ok")) failed = "signed in, expected " + expect;
       while (failed == null) {
         JSONObject q = new JSONObject(out);
         if (q.optBoolean("done")) break;
-        Log.i(TAG, "HARNESS QUESTION " + id + " " + q.optString("name") + " -> " + q.optString("default"));
+        Log.i(TAG, Logs.clean("HARNESS QUESTION " + id + " " + q.optString("name") + " -> " + q.optString("default")));
         if (noQuestion) {
           failed = "asked " + q.optString("name");
           break;
@@ -89,9 +89,9 @@ final class HarnessSignIn {
       Kinds.dropSetupAnswers(Kinds.of(backend), srv.params);
       Servers.get(context).save(srv);
       JSONObject tok = new JSONObject(srv.params.optString("token", "{}"));
-      Log.i(TAG, "HARNESS SIGNEDIN " + id + " token " + (srv.params.has("token") ? "stored" : "MISSING")
+      Log.i(TAG, Logs.clean("HARNESS SIGNEDIN " + id + " token " + (srv.params.has("token") ? "stored" : "MISSING")
           + " fields " + tok.names() + " client_id " + srv.params.optString("client_id", "(rclone's)")
-          + " secret " + (srv.params.has("client_secret") ? "PRESENT" : "none"));
+          + " secret " + (srv.params.has("client_secret") ? "PRESENT" : "none")));
       if (failed == null && (tok.optString("access_token").isEmpty() || tok.optString("refresh_token").isEmpty()
           || tok.optString("expiry").isEmpty())) {
         failed = "token incomplete: " + tok.names();
@@ -106,13 +106,13 @@ final class HarnessSignIn {
     } finally {
       SessionService.release(context);
     }
-    Log.i(TAG, failed == null ? "HARNESS PASS " + id : "HARNESS FAIL " + id + ": " + failed);
+    Log.i(TAG, Logs.clean(failed == null ? "HARNESS PASS " + id : "HARNESS FAIL " + id + ": " + failed));
   }
 
   /** Cancel sign-in, as the screen's button does. */
   static void cancelSignIn(Context context, String id, Intent intent) throws Exception {
     com.merrimentlabs.driveway.engine.Engine.configCancel();
-    Log.i(TAG, "HARNESS PASS " + id);
+    Log.i(TAG, Logs.clean("HARNESS PASS " + id));
   }
 
   /**
@@ -127,14 +127,14 @@ final class HarnessSignIn {
     try {
       com.merrimentlabs.driveway.engine.Engine.check(id);
     } catch (Exception e) {
-      Log.i(TAG, "HARNESS CHECK " + id + " " + Errors.kind(e));
+      Log.i(TAG, Logs.clean("HARNESS CHECK " + id + " " + Errors.kind(e)));
     }
     srv = Servers.get(context).find(id);
     JSONObject after = new JSONObject(srv.params.optString("token", "{}"));
     boolean ok = !after.optString("access_token").isEmpty() && !after.optString("access_token").equals(before)
         && !after.optString("refresh_token").isEmpty();
-    Log.i(TAG, "HARNESS REFRESHED " + id + (ok ? " to a new token" : " to no new token"));
-    Log.i(TAG, (ok ? "HARNESS PASS " : "HARNESS FAIL ") + id + (ok ? "" : ": the token wasn't refreshed and kept"));
+    Log.i(TAG, Logs.clean("HARNESS REFRESHED " + id + (ok ? " to a new token" : " to no new token")));
+    Log.i(TAG, Logs.clean((ok ? "HARNESS PASS " : "HARNESS FAIL ") + id + (ok ? "" : ": the token wasn't refreshed and kept")));
   }
 
   /** The saved server's setting names (values left out), after a restart. */
@@ -142,9 +142,9 @@ final class HarnessSignIn {
     Servers.Server srv = Servers.get(context).find(id);
     String token = srv == null ? "" : srv.params.optString("token");
     // The access token's fingerprint, never the token: enough to tell two apart.
-    Log.i(TAG, "HARNESS SHOW " + id + " " + (srv == null ? "none" : srv.params.names()) + " token "
-        + (token.contains("access_token") ? fingerprint(token.replaceAll(".*\"access_token\":\"([^\"]*)\".*", "$1")) : "none"));
-    Log.i(TAG, "HARNESS PASS " + id);
+    Log.i(TAG, Logs.clean("HARNESS SHOW " + id + " " + (srv == null ? "none" : srv.params.names()) + " token "
+        + (token.contains("access_token") ? fingerprint(token.replaceAll(".*\"access_token\":\"([^\"]*)\".*", "$1")) : "none")));
+    Log.i(TAG, Logs.clean("HARNESS PASS " + id));
   }
 
   static String fingerprint(String secret) {
