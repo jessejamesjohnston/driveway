@@ -30,8 +30,17 @@ About) you tested. You will get an answer as soon as I can manage; this is a one
   sentence gives both ways out: for an `@` in a folder's name, `%40` (as in
   `https://host:8443/remote.php/dav/files/me%40example.com/`); for a password, User name and
   Password where the service has them, `%2F` for a `/` where its sign-in stays in the address
-  (the HTTP kind, a proxy), and otherwise that a user name and password can't go there. A
-  generated test (`engine/address_matrix_test.go`) puts every combination of user name,
+  (the HTTP kind, a proxy), and otherwise that a user name and password can't go there. An
+  address may not hold a look-alike of `@ : / ? #` (anywhere) or of the dot (in the host part):
+  a character whose NFKC form differs from it and holds one of them, such as a full-width `＠` or
+  `：`, or one of a short list NFKC leaves alone (the modifier-letter colon, the ratio sign, the
+  division and fraction slashes, the ideographic full stop). Go reads only the ASCII
+  characters, so `https://alice:2024/word＠host` would read as a server, a port and a folder,
+  and the services' errors would repeat the password with the look-alike percent-encoded. The
+  check refuses such an address everywhere, without repeating it, and asks for it to be retyped
+  with ordinary characters; the redaction below doesn't read a percent-encoded look-alike as an
+  `@`, so this case rests on the check. Letters stay: international host names and folders named in any
+  script are accepted. A generated test (`engine/address_matrix_test.go`) puts every combination of user name,
   password, host and folder shapes into every address setting rclone has and checks the verdict,
   the redaction of Go's errors, and, with the network cut, what a connection attempt returns and
   logs. Settings the
@@ -46,9 +55,13 @@ About) you tested. You will get an answer as soon as I can manage; this is a one
   the app's and the harness's code for any log call or console write that goes around it.
   Redaction keeps an address's scheme, host, port and path and drops its query string and
   fragment, and its user name and password in the shapes the cases file covers (among them an
-  address Go couldn't read and a scheme typed twice or with one slash). An address that reads two
-  ways (the same rule, for text the check never saw) loses everything from its `//` to its last
-  `@`, host and port included, and an address with an `@` in its path loses the path up to that
+  address Go couldn't read and a scheme typed twice). An address that reads two ways (the same
+  rule, for text the check never saw) loses everything from its `//` to its last `@`, host and
+  port included; so does one written with `//` and no scheme or with no scheme at all
+  (`alice:2024/word@host`). An address with one slash after its scheme, as a service may
+  rebuild one (Koofr's client turns an address into `https:/word@host`), loses everything before
+  its last `@`. An address with an `@` after a `?` or `#` in its path loses the path with the
+  query. An address with an `@` in its path loses the path up to that
   `@` but keeps its host (Go's HTTP client drops an empty port, and with it the colon a password
   followed); it replaces with `***` the values of settings, JSON and XML fields
   and HTTP headers named like credentials (the whole value of `Authorization`, also written as a

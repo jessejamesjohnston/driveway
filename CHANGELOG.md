@@ -36,7 +36,10 @@ The first public release.
   instead of failing as "can't reach". So is one that reads two ways, like a password with a `/`
   in it typed after the user name, which looks like a server, a port and a folder with an `@`:
   the form says to type the login in User name and Password, or to write an `@` in a folder's
-  name as `%40`. A saved server whose address can't be used
+  name as `%40`. So is one with a character that only looks like `@`, `:`, `/`, `?`, `#` or a
+  dot, such as a full-width `＠`: the form asks for it to be retyped with ordinary characters,
+  while international server names and folder names in any language are accepted. A saved
+  server whose address can't be used
   says so on its card and in Files, naming the setting to change.
 - An error says what happened and what to do next, in Driveway's own words, on a server's card,
   in Files and in a failed save's notification. The technical detail from the server or the

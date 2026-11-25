@@ -30,25 +30,35 @@ them:
   the engine, and `KindsTest` runs the same cases through the form's side, answered with the real
   engine's verdicts (written by `TestAddressVerdictsJSON`). `TestEveryAddressSettingClassified`
   fails on any setting rclone describes as an address that the check doesn't know.
-- `engine/address_matrix_test.go` generates the addresses instead of listing them: 7 user name
-  shapes, 33 password shapes (each with a marker on both sides of what makes it hard), 8 hosts
-  and 6 folders, with and without `https://`, in every address setting of every service rclone
-  has, with and without a login in User name and Password. `TestAddressMatrix` runs the check on
-  all of them (about 1.8 million runs) and asserts that a refusal never repeats the password, an
-  accepted address keeps no password except where the service's own sign-in stays in it (the
-  HTTP kind, a proxy), and a login moves whole or not at all; it then runs the redactor on every error Go writes about them (its parse
-  error, and a request's error as the HTTP client prints it). `TestAddressMatrixNetwork` calls
+- `engine/address_matrix_test.go` generates the addresses instead of listing them: 9 user name
+  shapes, 35 password shapes, 11 hosts and 8 folders, with and without `https://`, in every
+  address setting of every service rclone has, with and without a login in User name and
+  Password. Among the shapes are look-alikes (a full-width or small `@`, a full-width or
+  modifier-letter colon, a full-width solidus, standing where a separator goes), an
+  international host name and folders named in other scripts. Each password with content holds
+  a marker: after the digits where it starts with digits (`2024/QZQb`), and elsewhere on both
+  sides of what makes it hard; the look-alike shapes carry it in the user name, host or folder.
+  `TestAddressMatrix` runs the check on all of them (about 4.6 million runs) and asserts that a
+  refusal never repeats the password, an accepted address keeps no password except where the
+  service's own sign-in stays in it (the HTTP kind, a proxy), a login moves whole or not at all,
+  and no value with a look-alike is accepted in any setting; it then runs the redactor on every
+  error Go writes about them (its parse error, a request's error as the HTTP client prints it,
+  and the address with one slash after its scheme, with `//` and no scheme, and with no scheme,
+  as a service may rebuild and quote it). Values with a look-alike are left out of that step:
+  the check refuses them everywhere, and Go writes the look-alike percent-encoded, which the
+  redactor doesn't read as an `@`. `TestAddressMatrixNetwork` calls
   SetRemote and Check, with the network cut, for a pairwise sample of the accepted ones (every
   pair of a setting and a shape, or of two shapes, at least once; `DRIVEWAY_MATRIX_FULL=1` runs
   every accepted value that keeps the password in an address) and of the refused ones, and
   asserts that no returned error, log line or request holds the password. It also names the
   settings a connection attempt doesn't reach (a service that stops first for want of a key or a
-  sign-in): for those, the check's own assertion is what stands. `TestValidAddresses` holds 155
-  realistic addresses with the verdict each must get, and `TestPercent40OnServer` lists a folder
-  named for an email address through a `%40` address on the WebDAV test server. It runs itself inside
+  sign-in): for those, the check's own assertion is what stands. It runs itself inside
   a namespace with no network (`bwrap --unshare-net`) when it can, and otherwise in-process with
   requests sent to a proxy that answers none, name lookups failing and connections bound to the
-  loopback address. `TestRedactGenJSON` writes the redactor's output for every generated error,
+  loopback address. `TestValidAddresses` holds 175 realistic addresses with the verdict each
+  must get (international host names and folders in other scripts among those accepted), and
+  `TestPercent40OnServer` lists a folder named for an email address through a `%40` address on
+  the WebDAV test server. `TestRedactGenJSON` writes the redactor's output for every generated error,
   and `LogsTest` requires the app's redactor to give the same.
 - `TestRefusedReplace` checks that settings SetRemote refuses leave nothing of the server's
   earlier settings working, and `TestServerTextIsNoSettingsError` that a server's own answer is
