@@ -431,3 +431,68 @@ func TestSecretSettingsNeverLogged(t *testing.T) {
 		"blocked proxy); %d put a value in their error before redaction: %s",
 		checked, options, len(secrets), setFailed, len(reached), len(leakedRaw), strings.Join(leakedRaw, ", "))
 }
+
+// addressRows are addresses with a password typed in them that Go's url
+// package can't read (or, without a scheme, its HTTP client can't use). Each
+// holds MADEUP, which must never reach the error or the log.
+var addressRows = []struct{ backend, url string }{
+	{"webdav", "https://alice:pa ssMADEUP1@dav.example.com/x"},
+	{"webdav", `https://alice:pa"MADEUP2@dav.example.com/x`},
+	{"webdav", "https://alice:pa<MADEUP3@dav.example.com/x"},
+	{"webdav", "https://alice:pa>MADEUP4@dav.example.com/x"},
+	{"webdav", `https://alice:pa\MADEUP5@dav.example.com/x`},
+	{"webdav", "https://alice:pa`MADEUP6@dav.example.com/x"},
+	{"http", "https://alice:pa ssMADEUP8@files.example.com/"},
+	{"webdav", "https://alice:hunterMADEUP/abc@dav.example.com/x"},
+	{"webdav", "https://alice:hunterMADEUP?abc@dav.example.com/x"},
+	{"webdav", "https://alice:hunterMADEUP#abc@dav.example.com/x"},
+	{"webdav", "alice:MADEUPNS@dav.example.com/x"},
+	{"webdav", "https://alice:pa%zzMADEUP@dav.example.com/x"},
+}
+
+// TestUnreadableAddressNeverLeaks puts each of addressRows straight into the
+// settings, past SetRemote's own check, so the error path and the redaction
+// are what stand between the password and the log: Check's error is
+// Driveway's own bad-settings sentence, the log holds no part of the
+// password, and Go's raw text, which does, comes out of redact without it.
+func TestUnreadableAddressNeverLeaks(t *testing.T) {
+	seen := blockedNetwork(t)
+	logs := captureLogs(t)
+	for i, r := range addressRows {
+		id := fmt.Sprintf("redact-addr-%d", i)
+		mu.Lock()
+		dropRemote(id)
+		store.DeleteSection(id)
+		store.setQuiet(id, "type", r.backend)
+		store.setQuiet(id, "url", r.url)
+		mu.Unlock()
+		err := Check(id)
+		RemoveRemote(id)
+		if err == nil {
+			t.Errorf("%s: Check worked", r.url)
+			continue
+		}
+		if want := "[badsettings] bad settings: an address in the settings can't be read"; err.Error() != want {
+			t.Errorf("%s: got %q, want %q", r.url, err, want)
+		}
+		var ae *addressError
+		if !errors.As(err, &ae) {
+			t.Errorf("%s: not an address error: %v", r.url, err)
+			continue
+		}
+		raw := ae.err.Error()
+		if !strings.Contains(raw, "MADEUP") {
+			t.Errorf("%s: Go's text doesn't reproduce the leak: %s", r.url, raw)
+		}
+		if got := redact(raw); strings.Contains(got, "MADEUP") || strings.Contains(got, "hunter") {
+			t.Errorf("%s: redact leaves the password in Go's text: %s", r.url, got)
+		}
+		fs.Errorf(nil, "check failed: %s", raw)
+	}
+	if all := logs.all(); strings.Contains(all, "MADEUP") || strings.Contains(all, "hunter") {
+		t.Errorf("the password reached the log: %s", all)
+	}
+	if got := seen(); len(got) != 0 {
+		t.Errorf("requests went out: %v", got)
+	}
+}

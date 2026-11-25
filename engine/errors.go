@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/url"
 	"os"
 	"strings"
 
@@ -34,6 +35,11 @@ func classify(err error) error {
 	s := strings.ToLower(err.Error())
 	var ne net.Error
 	switch {
+	// An address in the settings that Go can't read is the settings' fault,
+	// not the network's (a url.Error is a net.Error too), and Go's text
+	// repeats the address, password and all, so none of it is kept.
+	case unreadableAddress(err):
+		return tag("badsettings", &addressError{err})
 	// A service that refused to refresh the sign-in answered: an HTTP call
 	// carries that answer inside a url.Error, which is a net.Error too.
 	case strings.Contains(s, "invalid_grant"):
@@ -72,4 +78,62 @@ func classify(err error) error {
 		return tag("denied", err)
 	}
 	return tag("other", err)
+}
+
+// addressError stands for an error about an address in the settings that Go
+// couldn't read, in Driveway's own words; the error stays reachable for
+// errors.Is and errors.As inside the engine.
+type addressError struct{ err error }
+
+func (e *addressError) Error() string {
+	return "bad settings: an address in the settings can't be read"
+}
+func (e *addressError) Unwrap() error { return e.err }
+
+// parseWords are the endings of Go's url.Parse errors, for an error whose
+// chain was cut by %v.
+var parseWords = []string{"invalid userinfo", "invalid port", "invalid url escape", "invalid character",
+	"missing protocol scheme", "first path segment in url cannot contain colon", "invalid control character in url"}
+
+// unreadableAddress: err comes from an address Go couldn't read (url.Parse
+// failed, or the HTTP client found no scheme it knows).
+func unreadableAddress(err error) bool {
+	found := false
+	eachWrapped(err, func(e error) {
+		if ue, ok := e.(*url.Error); ok && (ue.Op == "parse" || strings.HasPrefix(ue.Err.Error(), "unsupported protocol scheme")) {
+			found = true
+		}
+	})
+	if found {
+		return true
+	}
+	s := strings.ToLower(err.Error())
+	if strings.Contains(s, "unsupported protocol scheme") {
+		return true
+	}
+	if !strings.Contains(s, `parse "`) {
+		return false
+	}
+	for _, w := range parseWords {
+		if strings.Contains(s, w) {
+			return true
+		}
+	}
+	return false
+}
+
+// eachWrapped calls f on err and every error it wraps.
+func eachWrapped(err error, f func(error)) {
+	if err == nil {
+		return
+	}
+	f(err)
+	switch u := err.(type) {
+	case interface{ Unwrap() error }:
+		eachWrapped(u.Unwrap(), f)
+	case interface{ Unwrap() []error }:
+		for _, e := range u.Unwrap() {
+			eachWrapped(e, f)
+		}
+	}
 }
