@@ -1366,10 +1366,10 @@ public final class ServerActivity extends Activity implements Connection.Listene
         byte[] buf = new byte[8192];
         for (int n; (n = in.read(buf)) > 0; ) {
           out.write(buf, 0, n);
-          if (out.size() > MAX_FILE) throw new IllegalArgumentException(getString(R.string.file_too_big));
+          if (out.size() > MAX_FILE) throw new Errors.Worded(getString(R.string.file_too_big));
         }
         got = new JSONObject(Engine.checkCredential(backend, key, out.toString("UTF-8")));
-      } catch (IllegalArgumentException e) {
+      } catch (Errors.Worded e) {
         error = e.getMessage();
       } catch (java.io.IOException | SecurityException e) {
         error = getString(R.string.file_unreadable);
@@ -1588,6 +1588,13 @@ public final class ServerActivity extends Activity implements Connection.Listene
    * as typed (Connect points to the field). On Connect a problem stops it.
    */
   private void splitAddress(boolean leaving) {
+    // On Connect the note starts empty: it is kept below only while it still holds.
+    String kept = leaving ? null : addressNote;
+    String keptPort = leaving ? null : addressNotePort;
+    if (!leaving) {
+      addressNote = null;
+      addressNotePort = null;
+    }
     if (!Kinds.takesPort(kind)) return;
     View hv = inputs.get("host"), pv = inputs.get("port");
     if (!(hv instanceof EditText) || !(pv instanceof EditText)) return;
@@ -1608,7 +1615,6 @@ public final class ServerActivity extends Activity implements Connection.Listene
         leftSaid = problem;
         return;
       }
-      addressNote = null;
       throw new Missing(problem, hostField);
     }
     if (!sp.host.equals(hostField.getText().toString().trim())) hostField.setText(sp.host);
@@ -1627,10 +1633,9 @@ public final class ServerActivity extends Activity implements Connection.Listene
     }
     if (sp.note == R.string.address_port_moved) {
       addressNote = note;
-    } else if (sp.note != 0 || addressNotePort == null || !addressNotePort.equals(portField.getText().toString().trim())) {
-      addressNote = null;
+    } else if (sp.note == 0 && keptPort != null && keptPort.equals(portField.getText().toString().trim())) {
+      addressNote = kept;
     }
-    addressNotePort = null;
   }
 
   private Servers.Server collect() throws IllegalArgumentException {

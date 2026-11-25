@@ -300,11 +300,11 @@
   <string name="err_retry">The settings for %1$s changed while Driveway was connecting. Try again.</string>
   <string name="err_no_size">This file has no fixed size, because the service makes it when it\'s downloaded. Open it in the service\'s own app.</string>
   <string name="err_changed">The file changed on the server while Driveway was reading it. Open it again.</string>
-  <string name="err_no_rename">%1$s can\'t rename files. Make a copy with the new name instead.</string>
+  <string name="err_no_rename">%1$s can\'t rename files. Copy it under the new name, then delete the original.</string>
   <string name="err_both_names">Driveway copied it to the new name but couldn\'t check that the original was removed. Both names may now hold it, so look in the folder before deleting either.</string>
   <string name="err_part_way">The rename stopped part way: some files are in the new folder and the rest are still in the old one. Move them across to finish.</string>
-  <string name="err_kept_old">Couldn\'t replace the file on %1$s, and couldn\'t put the old one back. The old one is in the same folder, with a name that starts with .driveway-old-, so nothing is lost.</string>
-  <string name="err_short">%1$s didn\'t store the whole file. Save it again.</string>
+  <string name="err_kept_old">Couldn\'t replace the file on %1$s, and couldn\'t put the old one back. The old one is in the same folder, with a name that starts with .driveway-old-, and your new version is safe on this device.</string>
+  <string name="err_short">%1$s didn\'t store the file as it was sent. Save it again.</string>
   <string name="err_other">Couldn\'t finish that on %1$s. Try again, and if it keeps happening, open Driveway and check its settings.</string>
   <string name="err_other_form">Driveway couldn\'t finish connecting to %1$s. Check the details and try again.</string>
 

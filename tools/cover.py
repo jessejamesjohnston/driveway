@@ -9,15 +9,16 @@
       lists each file's uncovered lines.
   cover.py java REPORT.xml
       line and branch coverage from JaCoCo's XML report: NewLabels, Kinds
-      and UpdateCheck whole, and the part of Errors that runs without Android.
+      and UpdateCheck whole, and Errors but for explain(), which needs Android.
 """
 import collections
 import sys
 import xml.etree.ElementTree as ET
 
-# Errors' methods that need an Android Context (explain() and its helper
-# service()): covered on the emulator, not by the JVM checks.
-ERRORS_ANDROID = {"explain", "service"}
+# Errors' methods that need an Android Context (explain(), which fills in
+# message()'s sentence, and its lambda): covered on the emulator, not by the
+# JVM checks.
+ERRORS_ANDROID = {"explain", "lambda$explain$0"}
 
 
 def go(profile, merged, verbose):
@@ -86,7 +87,7 @@ def java(report):
         add(both, {k: tuple(v) for k, v in groups[g].items()})
     show("NewLabels + Kinds", both)
     show("UpdateCheck", groups["UpdateCheck"])
-    show("Errors (kind, detail, isNotFound; not explain)", groups["Errors"])
+    show("Errors (all but explain)", groups["Errors"])
 
 
 if __name__ == "__main__":

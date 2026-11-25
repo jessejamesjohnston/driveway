@@ -22,7 +22,7 @@ separate runs.
 `./build.sh cover` starts and stops the servers the way `test` does (and leaves them up if they
 were already running), then prints the engine's statement coverage over both its
 packages and JaCoCo's line and branch coverage of the plain Java (NewLabels,
-Kinds, UpdateCheck, and Errors without explain()'s last step, which needs Android); the screens and
+Kinds, UpdateCheck, and Errors but for explain(), which fills in message()'s sentence on Android); the screens and
 the documents provider are covered by the harness below, not by a number.
 The Java checks run against AOSP's org.json and read the engine's real
 catalog, so Kinds can't drift from forms.go. They are plain `main()` programs
