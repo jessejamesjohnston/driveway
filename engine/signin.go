@@ -191,8 +191,17 @@ func ConfigStart(id, backend, params string) (_ string, err error) {
 	ConfigCancel()
 	if ri, err := fs.Find(backend); err == nil {
 		if err := checkAddresses(ri, m); err != nil {
+			// As in SetRemote: the settings it had before go too.
+			mu.Lock()
+			dropRemote(id)
+			store.DeleteSection(id)
+			refused[id] = err
+			mu.Unlock()
 			return "", err
 		}
+		mu.Lock()
+		delete(refused, id)
+		mu.Unlock()
 		applyDefaults(ri, m)
 	}
 	applyPresets(forms[backend], m)

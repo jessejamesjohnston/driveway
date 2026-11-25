@@ -1,0 +1,673 @@
+{
+ "about": "The address check (engine/address.go CheckSettings), read by engine/address_test.go and the app's KindsTest. Each refused row gives the setting and the reason the engine names, and the sentence the form shows (an R.string name). Each accepted row gives the settings the engine would use and, for a user name and password typed in an address, what became of them and the note the form shows. MADEUP marks made-up passwords, which must never reach an error or the log.",
+ "cases": [
+  {
+   "why": "a character a password can't hold as typed",
+   "backend": "webdav",
+   "settings": {
+    "url": "https://alice:pa ssMADEUP1@dav.example.com/x"
+   },
+   "field": "url",
+   "reason": "login",
+   "message": "address_url_login"
+  },
+  {
+   "why": "a character a password can't hold as typed",
+   "backend": "webdav",
+   "settings": {
+    "url": "https://alice:pa\"MADEUP2@dav.example.com/x"
+   },
+   "field": "url",
+   "reason": "login",
+   "message": "address_url_login"
+  },
+  {
+   "why": "a character a password can't hold as typed",
+   "backend": "webdav",
+   "settings": {
+    "url": "https://alice:pa<MADEUP3@dav.example.com/x"
+   },
+   "field": "url",
+   "reason": "login",
+   "message": "address_url_login"
+  },
+  {
+   "why": "a character a password can't hold as typed",
+   "backend": "webdav",
+   "settings": {
+    "url": "https://alice:pa>MADEUP4@dav.example.com/x"
+   },
+   "field": "url",
+   "reason": "login",
+   "message": "address_url_login"
+  },
+  {
+   "why": "a character a password can't hold as typed",
+   "backend": "webdav",
+   "settings": {
+    "url": "https://alice:pa\\MADEUP5@dav.example.com/x"
+   },
+   "field": "url",
+   "reason": "login",
+   "message": "address_url_login"
+  },
+  {
+   "why": "a character a password can't hold as typed",
+   "backend": "webdav",
+   "settings": {
+    "url": "https://alice:pa`MADEUP6@dav.example.com/x"
+   },
+   "field": "url",
+   "reason": "login",
+   "message": "address_url_login"
+  },
+  {
+   "why": "a broken % escape in the password",
+   "backend": "webdav",
+   "settings": {
+    "url": "https://alice:pa%zzMADEUP@dav.example.com/x"
+   },
+   "field": "url",
+   "reason": "login",
+   "message": "address_url_login"
+  },
+  {
+   "why": "HTTP keeps its sign-in in the address, so it says how to write the character",
+   "backend": "http",
+   "settings": {
+    "url": "https://alice:pa ssMADEUP8@files.example.com/"
+   },
+   "field": "url",
+   "reason": "escape",
+   "message": "address_url_escape"
+  },
+  {
+   "why": "a / in the password reads as a port",
+   "backend": "webdav",
+   "settings": {
+    "url": "https://alice:hunterMADEUP/abc@dav.example.com/x"
+   },
+   "field": "url",
+   "reason": "port",
+   "message": "address_url_port"
+  },
+  {
+   "why": "a ? in the password reads as a port",
+   "backend": "webdav",
+   "settings": {
+    "url": "https://alice:hunterMADEUP?abc@dav.example.com/x"
+   },
+   "field": "url",
+   "reason": "port",
+   "message": "address_url_port"
+  },
+  {
+   "why": "a # in the password reads as a port",
+   "backend": "webdav",
+   "settings": {
+    "url": "https://alice:hunterMADEUP#abc@dav.example.com/x"
+   },
+   "field": "url",
+   "reason": "port",
+   "message": "address_url_port"
+  },
+  {
+   "why": "a port that isn't a number",
+   "backend": "webdav",
+   "settings": {
+    "url": "https://nas.example.com:80a/dav"
+   },
+   "field": "url",
+   "reason": "port",
+   "message": "address_url_port"
+  },
+  {
+   "why": "a second colon (review 2)",
+   "backend": "webdav",
+   "settings": {
+    "url": "https://nas.local:5006:/dav"
+   },
+   "field": "url",
+   "reason": "port",
+   "message": "address_url_port"
+  },
+  {
+   "why": "no scheme, and a sign-in",
+   "backend": "webdav",
+   "settings": {
+    "url": "alice:MADEUPNS@dav.example.com/x"
+   },
+   "field": "url",
+   "reason": "scheme",
+   "message": "address_url_scheme"
+  },
+  {
+   "why": "no scheme",
+   "backend": "webdav",
+   "settings": {
+    "url": "dav.example.com/x"
+   },
+   "field": "url",
+   "reason": "scheme",
+   "message": "address_url_scheme"
+  },
+  {
+   "why": "the form once took it and Go's url package refuses it (review 2)",
+   "backend": "webdav",
+   "settings": {
+    "url": "http://127.0.0.1:8080/50%off"
+   },
+   "field": "url",
+   "reason": "unreadable",
+   "message": "address_unreadable"
+  },
+  {
+   "why": "the form once took it and Go's url package refuses it (review 2)",
+   "backend": "webdav",
+   "settings": {
+    "url": "https://nas.local/dav/100%"
+   },
+   "field": "url",
+   "reason": "unreadable",
+   "message": "address_unreadable"
+  },
+  {
+   "why": "the form once took it and Go's url package refuses it (review 2)",
+   "backend": "webdav",
+   "settings": {
+    "url": "https://[fe80::1%eth0]:5006/"
+   },
+   "field": "url",
+   "reason": "unreadable",
+   "message": "address_unreadable"
+  },
+  {
+   "why": "the form once took it and Go's url package refuses it (review 2)",
+   "backend": "webdav",
+   "settings": {
+    "url": "http://my nas.local/dav"
+   },
+   "field": "url",
+   "reason": "unreadable",
+   "message": "address_unreadable"
+  },
+  {
+   "why": "the form once took it and Go's url package refuses it (review 2)",
+   "backend": "webdav",
+   "settings": {
+    "url": "https://cloud.example.com/dav/a%2"
+   },
+   "field": "url",
+   "reason": "unreadable",
+   "message": "address_unreadable"
+  },
+  {
+   "why": "the form once took it and Go's url package refuses it (review 2)",
+   "backend": "webdav",
+   "settings": {
+    "url": "https://alice:MADEUP@[fe80::1%wlan0]/dav"
+   },
+   "field": "url",
+   "reason": "unreadable",
+   "message": "address_unreadable"
+  },
+  {
+   "why": "an IPv6 address without its closing bracket",
+   "backend": "http",
+   "settings": {
+    "url": "http://[2001:db8::1/x"
+   },
+   "field": "url",
+   "reason": "unreadable",
+   "message": "address_unreadable"
+  },
+  {
+   "why": "a sign-in in an endpoint without a scheme",
+   "backend": "s3",
+   "settings": {
+    "provider": "Other",
+    "endpoint": "alice:MADEUP@s3.example.com"
+   },
+   "field": "endpoint",
+   "reason": "credentials",
+   "message": "address_credentials"
+  },
+  {
+   "why": "an upper-case scheme and a sign-in (review 2)",
+   "backend": "s3",
+   "settings": {
+    "provider": "Other",
+    "endpoint": "HTTPS://alice:MADEUP@H.EXAMPLE.COM/p"
+   },
+   "field": "endpoint",
+   "reason": "credentials",
+   "message": "address_credentials"
+  },
+  {
+   "why": "a scheme that isn't http or https",
+   "backend": "s3",
+   "settings": {
+    "provider": "Other",
+    "endpoint": "ftp://alice:MADEUP@h.example.com/"
+   },
+   "field": "endpoint",
+   "reason": "scheme",
+   "message": "address_url_scheme"
+  },
+  {
+   "why": "// with no scheme, and a sign-in",
+   "backend": "s3",
+   "settings": {
+    "provider": "Other",
+    "endpoint": "//alice:MADEUP@h.example.com/p"
+   },
+   "field": "endpoint",
+   "reason": "credentials",
+   "message": "address_credentials"
+  },
+  {
+   "why": "one slash after the scheme",
+   "backend": "s3",
+   "settings": {
+    "provider": "Other",
+    "endpoint": "https:/alice:MADEUP@h.example.com/p"
+   },
+   "field": "endpoint",
+   "reason": "unreadable",
+   "message": "address_unreadable"
+  },
+  {
+   "why": "a password starting with digits and holding a /",
+   "backend": "s3",
+   "settings": {
+    "provider": "Other",
+    "endpoint": "https://alice:2024/SummerMADEUP@h.example.com"
+   },
+   "field": "endpoint",
+   "reason": "ambiguous",
+   "message": "address_ambiguous"
+  },
+  {
+   "why": "an address where only a host goes (review 2)",
+   "backend": "quatrix",
+   "settings": {
+    "host": "https://alice:MADEUP@h.example.com/p"
+   },
+   "field": "host",
+   "reason": "hostonly",
+   "message": "address_hostonly"
+  },
+  {
+   "why": "a sign-in in a host",
+   "backend": "quatrix",
+   "settings": {
+    "host": "alice:MADEUP@h.example.com"
+   },
+   "field": "host",
+   "reason": "credentials",
+   "message": "address_credentials"
+  },
+  {
+   "why": "one slash after the scheme",
+   "backend": "b2",
+   "settings": {
+    "endpoint": "https:/alice:MADEUP@h.example.com"
+   },
+   "field": "endpoint",
+   "reason": "unreadable",
+   "message": "address_unreadable"
+  },
+  {
+   "why": "one slash after the scheme",
+   "backend": "swift",
+   "settings": {
+    "storage_url": "https:/alice:MADEUP@h.example.com"
+   },
+   "field": "storage_url",
+   "reason": "unreadable",
+   "message": "address_unreadable"
+  },
+  {
+   "why": "a sign-in with a / and no scheme",
+   "backend": "qingstor",
+   "settings": {
+    "endpoint": "alice:p/wMADEUP@h.example.com"
+   },
+   "field": "endpoint",
+   "reason": "credentials",
+   "message": "address_credentials"
+  },
+  {
+   "why": "one slash after the scheme",
+   "backend": "box",
+   "settings": {
+    "token_url": "https:/alice:MADEUP@h.example.com"
+   },
+   "field": "token_url",
+   "reason": "unreadable",
+   "message": "address_unreadable"
+  },
+  {
+   "why": "a password starting with digits and holding a / (review 2)",
+   "backend": "webdav",
+   "settings": {
+    "url": "https://alice:123/MADEUPw@h.example.com/p"
+   },
+   "field": "url",
+   "reason": "ambiguous",
+   "message": "address_ambiguous_login"
+  },
+  {
+   "why": "the same on HTTP",
+   "backend": "http",
+   "settings": {
+    "url": "https://alice:123/MADEUPw@h.example.com/p"
+   },
+   "field": "url",
+   "reason": "ambiguous",
+   "message": "address_ambiguous"
+  },
+  {
+   "why": "reads the same as a password with a /: the @ written %40 passes (next row)",
+   "backend": "webdav",
+   "settings": {
+    "url": "https://nas:8443/alice@example.com/"
+   },
+   "field": "url",
+   "reason": "ambiguous",
+   "message": "address_ambiguous_login"
+  },
+  {
+   "why": "a sign-in in a Server field",
+   "backend": "sftp",
+   "settings": {
+    "host": "alice:MADEUP@nas.local"
+   },
+   "field": "host",
+   "reason": "credentials",
+   "message": "address_credentials"
+  },
+  {
+   "why": "a user name in a Server field",
+   "backend": "smb",
+   "settings": {
+    "host": "alice@nas.local"
+   },
+   "field": "host",
+   "reason": "credentials",
+   "message": "address_credentials"
+  },
+  {
+   "why": "a scheme where only a host goes (the form takes it off first)",
+   "backend": "sftp",
+   "settings": {
+    "host": "sftp://nas.local"
+   },
+   "field": "host",
+   "reason": "hostonly",
+   "message": "address_hostonly"
+  },
+  {
+   "why": "a folder named for an email address, its @ written %40",
+   "backend": "webdav",
+   "settings": {
+    "url": "https://nas:8443/alice%40example.com/"
+   },
+   "settings_out": {
+    "url": "https://nas:8443/alice%40example.com/"
+   },
+   "note": null
+  },
+  {
+   "why": "moved to empty fields, escapes decoded, the path's @ kept",
+   "backend": "webdav",
+   "settings": {
+    "url": "https://alice:s3cr%40t%20x@dav.example.com:8443/remote.php/dav/files/alice@example.com/"
+   },
+   "settings_out": {
+    "url": "https://dav.example.com:8443/remote.php/dav/files/alice@example.com/",
+    "user": "alice",
+    "pass": "s3cr@t x"
+   },
+   "login": "moved",
+   "login_field": "url",
+   "note": "address_url_moved"
+  },
+  {
+   "why": "a user name alone",
+   "backend": "webdav",
+   "settings": {
+    "url": "https://alice@dav.example.com/x"
+   },
+   "settings_out": {
+    "url": "https://dav.example.com/x",
+    "user": "alice"
+   },
+   "login": "moveduser",
+   "login_field": "url",
+   "note": "address_url_user_moved"
+  },
+  {
+   "why": "fields that hold a login win, and the address loses its copy",
+   "backend": "webdav",
+   "settings": {
+    "url": "http://u:p@[2001:db8::1]:2222/files/",
+    "user": "bob",
+    "pass": "theirs"
+   },
+   "settings_out": {
+    "url": "http://[2001:db8::1]:2222/files/",
+    "user": "bob",
+    "pass": "theirs"
+   },
+   "login": "dropped",
+   "login_field": "url",
+   "note": "address_url_dropped"
+  },
+  {
+   "why": "a user name in the address and a password in the field: the fields win, and the form says so",
+   "backend": "webdav",
+   "settings": {
+    "url": "https://bob@dav.example.com/x",
+    "pass": "alices"
+   },
+   "settings_out": {
+    "url": "https://dav.example.com/x",
+    "pass": "alices"
+   },
+   "login": "dropped",
+   "login_field": "url",
+   "note": "address_url_dropped"
+  },
+  {
+   "why": "User name set, Password empty: still the fields, never a mix of the two logins",
+   "backend": "webdav",
+   "settings": {
+    "url": "https://alice:MADEUP@dav.example.com/x",
+    "user": "bob"
+   },
+   "settings_out": {
+    "url": "https://dav.example.com/x",
+    "user": "bob"
+   },
+   "login": "dropped",
+   "login_field": "url",
+   "note": "address_url_dropped"
+  },
+  {
+   "why": "HTTP signs in with the address, as rclone's help for it says",
+   "backend": "http",
+   "settings": {
+    "url": "https://alice:s3cret@files.example.com/"
+   },
+   "settings_out": {
+    "url": "https://alice:s3cret@files.example.com/"
+   },
+   "note": null
+  },
+  {
+   "why": "an endpoint may be a bare host",
+   "backend": "s3",
+   "settings": {
+    "provider": "Other",
+    "endpoint": "s3.example.com"
+   },
+   "settings_out": {
+    "provider": "Other",
+    "endpoint": "s3.example.com"
+   },
+   "note": null
+  },
+  {
+   "why": "a bare host and port",
+   "backend": "s3",
+   "settings": {
+    "provider": "Other",
+    "endpoint": "s3.example.com:9000"
+   },
+   "settings_out": {
+    "provider": "Other",
+    "endpoint": "s3.example.com:9000"
+   },
+   "note": null
+  },
+  {
+   "why": "the test server's endpoint",
+   "backend": "s3",
+   "settings": {
+    "provider": "Other",
+    "endpoint": "http://127.0.0.1:9000"
+   },
+   "settings_out": {
+    "provider": "Other",
+    "endpoint": "http://127.0.0.1:9000"
+   },
+   "note": null
+  },
+  {
+   "why": "an upper-case scheme, written in lower case",
+   "backend": "s3",
+   "settings": {
+    "provider": "Other",
+    "endpoint": "HTTPS://S3.EXAMPLE.COM"
+   },
+   "settings_out": {
+    "provider": "Other",
+    "endpoint": "https://S3.EXAMPLE.COM"
+   },
+   "note": null
+  },
+  {
+   "why": "a plain address as typed",
+   "backend": "webdav",
+   "settings": {
+    "url": "https://dav.example.com/x?y=1#z"
+   },
+   "settings_out": {
+    "url": "https://dav.example.com/x?y=1#z"
+   },
+   "note": null
+  },
+  {
+   "why": "a link-local address with its zone written %25",
+   "backend": "webdav",
+   "settings": {
+    "url": "http://[fe80::1%25wlan0]:8080/"
+   },
+   "settings_out": {
+    "url": "http://[fe80::1%25wlan0]:8080/"
+   },
+   "note": null
+  },
+  {
+   "why": "an email address in the first folder after a dotted host",
+   "backend": "webdav",
+   "settings": {
+    "url": "https://nas.local:5006/alice@example.com/"
+   },
+   "settings_out": {
+    "url": "https://nas.local:5006/alice@example.com/"
+   },
+   "note": null
+  },
+  {
+   "why": "the emulator's test server",
+   "backend": "webdav",
+   "settings": {
+    "url": "http://10.0.2.2:8080/",
+    "user": "driveway"
+   },
+   "settings_out": {
+    "url": "http://10.0.2.2:8080/",
+    "user": "driveway"
+   },
+   "note": null
+  },
+  {
+   "why": "spaces around it go",
+   "backend": "webdav",
+   "settings": {
+    "url": "  https://dav.example.com/x  "
+   },
+   "settings_out": {
+    "url": "https://dav.example.com/x"
+   },
+   "note": null
+  },
+  {
+   "why": "a Server field",
+   "backend": "sftp",
+   "settings": {
+    "host": "nas.local"
+   },
+   "settings_out": {
+    "host": "nas.local"
+   },
+   "note": null
+  },
+  {
+   "why": "a link-local Server field",
+   "backend": "sftp",
+   "settings": {
+    "host": "fe80::1%wlan0"
+   },
+   "settings_out": {
+    "host": "fe80::1%wlan0"
+   },
+   "note": null
+  },
+  {
+   "why": "Storj's documented nodeid@address:port",
+   "backend": "storj",
+   "settings": {
+    "satellite_address": "12abc@us1.storj.io:7777"
+   },
+   "settings_out": {
+    "satellite_address": "12abc@us1.storj.io:7777"
+   },
+   "note": null
+  },
+  {
+   "why": "a proxy's own sign-in, as rclone's help gives it",
+   "backend": "sftp",
+   "settings": {
+    "socks_proxy": "myUser:myPass@localhost:9005"
+   },
+   "settings_out": {
+    "socks_proxy": "myUser:myPass@localhost:9005"
+   },
+   "note": null
+  },
+  {
+   "why": "a proxy's own sign-in, as rclone's help gives it",
+   "backend": "sftp",
+   "settings": {
+    "http_proxy": "http://myUser:myPass@proxy.example.com:8000"
+   },
+   "settings_out": {
+    "http_proxy": "http://myUser:myPass@proxy.example.com:8000"
+   },
+   "note": null
+  }
+ ]
+}

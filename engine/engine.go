@@ -29,6 +29,7 @@ var (
 	store   = newMemStore()
 	remotes = map[string]fs.Fs{} // id -> the remote's root, made on first use
 	gens    = map[string]int{}   // id -> bumped whenever its settings or connections change
+	refused = map[string]error{} // id -> why SetRemote refused its settings (until it is set again or removed)
 	ready   sync.Once
 )
 
@@ -101,19 +102,44 @@ func ctx() context.Context { return context.Background() }
 // ("sftp", "smb", "webdav", "nfs", ...); params is a JSON object of its
 // options, with passwords in the clear (they're obscured here, as rclone
 // expects).
+//
+// It replaces the settings whole or not at all: settings it refuses (an
+// address that can't be used, settings it can't read) take the server's
+// previous settings away too, and until the next SetRemote or RemoveRemote
+// every call for the server returns the refusal, so nothing keeps working on
+// settings the person has changed.
 func SetRemote(id, backend, params string) (err error) {
 	defer scrub(&err)
 	setup()
+	values, err := settingsFor(backend, params)
+	mu.Lock()
+	defer mu.Unlock()
+	dropRemote(id)
+	store.DeleteSection(id)
+	if err != nil {
+		refused[id] = err
+		return err
+	}
+	delete(refused, id)
+	for _, kv := range values {
+		store.setQuiet(id, kv[0], kv[1])
+	}
+	return nil
+}
+
+// settingsFor is the server's section as SetRemote stores it ([key, value]
+// pairs, type first, passwords obscured), or why it can't be stored.
+func settingsFor(backend, params string) ([][2]string, error) {
 	ri, err := fs.Find(backend)
 	if err != nil {
-		return tag("other", fmt.Errorf("unknown service %q", backend))
+		return nil, tag("other", fmt.Errorf("unknown service %q", backend))
 	}
 	var m map[string]any
 	if err := json.Unmarshal([]byte(params), &m); err != nil {
-		return tag("badsettings", fmt.Errorf("bad settings: %w", err))
+		return nil, tag("badsettings", fmt.Errorf("bad settings: %w", err))
 	}
 	if err := checkAddresses(ri, m); err != nil {
-		return err
+		return nil, err
 	}
 	secret := map[string]bool{}
 	for _, o := range ri.Options {
@@ -129,11 +155,7 @@ func SetRemote(id, backend, params string) (err error) {
 		fmtValue(m["client_id"]) == reg.ClientID && fmtValue(m["client_secret"]) == "" {
 		m["client_secret"] = reg.Secret
 	}
-	mu.Lock()
-	defer mu.Unlock()
-	dropRemote(id)
-	store.DeleteSection(id)
-	store.setQuiet(id, "type", backend)
+	values := [][2]string{{"type", backend}}
 	for k, v := range m {
 		s := fmt.Sprint(v)
 		if s == "" {
@@ -150,12 +172,12 @@ func SetRemote(id, backend, params string) (err error) {
 		}
 		if secret[k] {
 			if s, err = obscure.Obscure(s); err != nil {
-				return tag("other", err)
+				return nil, tag("other", err)
 			}
 		}
-		store.setQuiet(id, k, s)
+		values = append(values, [2]string{k, s})
 	}
-	return nil
+	return values, nil
 }
 
 // defaults are settings Driveway needs that rclone leaves off, unless the
@@ -180,6 +202,7 @@ func RemoveRemote(id string) {
 	mu.Lock()
 	defer mu.Unlock()
 	dropRemote(id)
+	delete(refused, id)
 	store.DeleteSection(id)
 }
 
@@ -227,6 +250,10 @@ func remote(c context.Context, id string) (fs.Fs, error) {
 		if f, ok := remotes[id]; ok {
 			mu.Unlock()
 			return f, nil
+		}
+		if err, ok := refused[id]; ok {
+			mu.Unlock()
+			return nil, err
 		}
 		if !store.HasSection(id) {
 			mu.Unlock()

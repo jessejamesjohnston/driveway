@@ -2,14 +2,19 @@
 
 package engine
 
-// Addresses in the settings (a WebDAV or HTTP server's url, a service's
-// endpoint), checked before rclone sees them, with the same rules as the
-// app's form (Kinds.urlParts). Go's url package repeats an address it can't
-// read in its error, password and all, and a user name and password typed
-// in an address would otherwise ride along in every error that names it.
+// The address check: the one place that decides whether an address in a
+// server's settings (a WebDAV or HTTP server's url, a service's endpoint or
+// host) can be used. The app's form calls it through CheckSettings (as focus
+// leaves an address, and on Connect and Save), and SetRemote and ConfigStart
+// run it before rclone sees the settings, so the form and the engine can't
+// disagree about an address. Go's url package is the judge: an address it
+// can't read is refused here, because its error repeats the address,
+// password and all, and a user name and password typed in an address would
+// otherwise ride along in every error that names it.
 
 import (
-	"errors"
+	"encoding/json"
+	"fmt"
 	"net/url"
 	"regexp"
 	"strings"
@@ -17,27 +22,121 @@ import (
 	"github.com/rclone/rclone/fs"
 )
 
-// urlSettings hold a whole address. Only url needs its scheme: an endpoint
-// may be a bare host.
-var urlSettings = []string{"url", "endpoint", "api_url", "auth_url", "token_url"}
+// addressName is the name of a setting that holds an address, as rclone's
+// catalog names them: a URL (url, auth_url, an endpoint, swift's auth, a
+// proxy) or a host (host, hostname, a satellite address).
+// TestEveryAddressSettingClassified checks every setting rclone describes as
+// a URL, an endpoint, a host or an address against it.
+var addressName = regexp.MustCompile(`^(url|auth|endpoint|host|hostname|server|site|namenode)$|_(url|endpoint|address|proxy)$`)
 
-var urlScheme = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9+.-]*://`)
+// hostName: of the settings above, those that hold a host (and maybe a port
+// or a path) without a scheme.
+var hostName = regexp.MustCompile(`^(host|hostname|server|site|namenode)$|_address$|^socks_proxy$`)
 
-// errAddress is what SetRemote says about an address it refuses: Driveway's
-// own words, never the address.
-var errAddress = errors.New("bad settings: an address in the settings can't be read")
+// loginInAddress are the settings whose own help in rclone gives
+// user:pass@ in the address as the way to sign in, so a user name and
+// password there are kept where they are.
+var loginInAddress = map[string]string{
+	"http.url":         "the HTTP kind's only sign-in (https://user:pass@example.com)",
+	"ftp.http_proxy":   "a proxy's own sign-in (http://user:pass@host:port)",
+	"sftp.http_proxy":  "a proxy's own sign-in (http://user:pass@host:port)",
+	"ftp.socks_proxy":  "a proxy's own sign-in (user:pass@host:port)",
+	"sftp.socks_proxy": "a proxy's own sign-in (user:pass@host:port)",
+}
 
-// checkAddresses refuses an address Go can't read, or a url without a
-// scheme, and, for a service with user and pass settings of its own (WebDAV,
-// Seafile), moves a user name and password typed in an address there: into
-// a setting that is empty (the form has already moved what was typed; this
-// is for settings saved before it did), and out of the address either way
-// (where both are set, rclone sends the settings' and ignores the
-// address's). A service without them (HTTP) keeps them in the address.
+// atInAddress are settings whose documented form holds an @ that is no
+// sign-in.
+var atInAddress = map[string]string{
+	"storj.satellite_address":      "<nodeid>@<address>:<port>",
+	"tardigrade.satellite_address": "<nodeid>@<address>:<port>",
+}
+
+// Why an address is refused. The app turns each into a sentence that names
+// the field (Kinds.addressProblem); none of them repeats what was typed.
+const (
+	reasonScheme      = "scheme"      // no scheme where one is needed, or one that isn't http or https
+	reasonHostOnly    = "hostonly"    // a scheme or a path in a setting that takes only a host
+	reasonLogin       = "login"       // a user name or password that can't be read, on a kind with User name and Password
+	reasonPort        = "port"        // what follows a colon isn't a port (a password typed with a / in it looks like this)
+	reasonEscape      = "escape"      // a user name or password that can't be read, on a kind without those settings
+	reasonCredentials = "credentials" // a user name or password in a setting that has no use for one
+	reasonUnreadable  = "unreadable"  // anything else Go's url package can't read
+	reasonAmbiguous   = "ambiguous"   // a host, a port and an @ in the first folder: a password with a / in it, or a folder's name with an @
+)
+
+// What became of a user name and password typed in an address, on a kind
+// with User name and Password settings. One rule, here only: when User name
+// and Password are both empty, they move there; when either holds
+// something, those settings are what signs in, and the address's copy is
+// taken out (rclone sends the settings and ignores the address's anyway).
+const (
+	loginMoved     = "moved"     // a user name and password moved to User name and Password
+	loginMovedUser = "moveduser" // a user name alone moved to User name
+	loginDropped   = "dropped"   // taken out of the address; User name and Password sign in
+)
+
+// settingsError is SetRemote's refusal of an address: Driveway's own words,
+// the setting it is in and why, never the address.
+type settingsError struct{ field, reason string }
+
+func (e *settingsError) Error() string {
+	return fmt.Sprintf("bad settings: the address in %s can't be used (%s)", e.field, e.reason)
+}
+
+// verdict is what checkSettings decides.
+type verdict struct {
+	// Refused: the setting, and why (a reason above).
+	Field  string `json:"field,omitempty"`
+	Reason string `json:"reason,omitempty"`
+	// Accepted: the settings to use (an address's scheme in lower case,
+	// a user name and password moved or taken out), and what became of a
+	// user name and password typed in an address, and where.
+	Login      string `json:"login,omitempty"`
+	LoginField string `json:"login_field,omitempty"`
+}
+
+// CheckSettings checks the addresses in a server's settings (params, JSON)
+// for the service backend, as SetRemote will, and changes nothing: the app's
+// form calls it. It returns JSON: {"category":"badsettings","field":...,
+// "reason":...} for an address that can't be used, or {"settings":{...},
+// "login":...,"login_field":...} with the settings SetRemote would use.
+func CheckSettings(backend, params string) string {
+	out := map[string]any{}
+	ri, err := fs.Find(backend)
+	var m map[string]any
+	if err == nil {
+		err = json.Unmarshal([]byte(params), &m)
+	}
+	if err != nil {
+		out["category"] = "badsettings"
+	} else if v := checkSettings(ri, m); v.Reason != "" {
+		out["category"], out["field"], out["reason"] = "badsettings", v.Field, v.Reason
+	} else {
+		out["settings"], out["login"], out["login_field"] = m, v.Login, v.LoginField
+	}
+	b, _ := json.Marshal(out)
+	return string(b)
+}
+
+// checkAddresses runs checkSettings for SetRemote and ConfigStart: an
+// address that can't be used is a settings error.
 func checkAddresses(ri *fs.RegInfo, m map[string]any) error {
+	if v := checkSettings(ri, m); v.Reason != "" {
+		return tag("badsettings", &settingsError{v.Field, v.Reason})
+	}
+	return nil
+}
+
+// checkSettings checks every address setting the service has, in m, and
+// changes m into the settings to use. Pure: no store, no lock, no network.
+func checkSettings(ri *fs.RegInfo, m map[string]any) verdict {
 	login := hasOption(ri, "user") && hasOption(ri, "pass")
-	for _, k := range urlSettings {
-		v, ok := m[k]
+	var out verdict
+	for _, o := range ri.Options {
+		if !isAddress(o) {
+			continue
+		}
+		v, ok := m[o.Name]
 		if !ok {
 			continue
 		}
@@ -45,22 +144,53 @@ func checkAddresses(ri *fs.RegInfo, m map[string]any) error {
 		if s == "" {
 			continue
 		}
-		addr, user, pass, hasUser, hasPass, ok := urlParts(s, k == "url")
-		if !ok {
-			return tag("badsettings", errAddress)
+		name := ri.Name + "." + o.Name
+		a := readAddress(s, o.Name)
+		if a.reason == "" && a.hasUser {
+			switch {
+			case loginInAddress[name] != "":
+				a.addr = a.whole
+			case !login:
+				a.reason = reasonCredentials
+			}
 		}
-		if !hasUser || !login {
+		if a.reason == "" && a.at && !a.hasUser && atInAddress[name] == "" && loginInAddress[name] == "" {
+			a.reason = reasonCredentials
+		}
+		if a.reason == reasonLogin && !login {
+			a.reason = reasonEscape
+		}
+		if a.reason != "" {
+			return verdict{Field: o.Name, Reason: a.reason}
+		}
+		if a.addr != fmtValue(v) {
+			m[o.Name] = a.addr
+		}
+		if !a.hasUser || !login || loginInAddress[name] != "" {
 			continue
 		}
-		m[k] = addr
-		if fmtValue(m["user"]) == "" {
-			m["user"] = user
-		}
-		if hasPass && fmtValue(m["pass"]) == "" {
-			m["pass"] = pass
+		out.LoginField = o.Name
+		if fmtValue(m["user"]) == "" && fmtValue(m["pass"]) == "" {
+			m["user"] = a.user
+			out.Login = loginMovedUser
+			if a.hasPass {
+				m["pass"] = a.pass
+				out.Login = loginMoved
+			}
+		} else {
+			out.Login = loginDropped
 		}
 	}
-	return nil
+	return out
+}
+
+// isAddress: the setting holds an address (and isn't a switch about one,
+// like use_accelerate_endpoint).
+func isAddress(o fs.Option) bool {
+	if _, isBool := o.Default.(bool); isBool {
+		return false
+	}
+	return addressName.MatchString(o.Name)
 }
 
 func hasOption(ri *fs.RegInfo, name string) bool {
@@ -72,87 +202,89 @@ func hasOption(ri *fs.RegInfo, name string) bool {
 	return false
 }
 
-// urlParts takes an address apart as Kinds.urlParts does: the address
-// without its user name and password, and those decoded. ok is false for
-// what Go can't read: no scheme where one is needed (or a user name without
-// one), a user name or password with a character an address can't hold or
-// a broken % escape, or a port that isn't a number.
-func urlParts(s string, needScheme bool) (addr, user, pass string, hasUser, hasPass, ok bool) {
-	scheme := urlScheme.FindString(s)
-	if scheme == "" {
-		authority, _, _ := strings.Cut(s, "/")
-		authority = strings.SplitN(strings.SplitN(authority, "?", 2)[0], "#", 2)[0]
-		return s, "", "", false, false, !needScheme && !strings.Contains(authority, "@")
+// readAddress is what an address typed in the setting named name comes to.
+type address struct {
+	reason string // why it can't be used, or ""
+	whole  string // as typed, with its scheme in lower case
+	addr   string // and without a user name and password
+	// A user name and password in it, decoded.
+	user, pass       string
+	hasUser, hasPass bool
+	// An @ in an address without a scheme (where one is a sign-in, or a typo).
+	at bool
+}
+
+// schemeAhead is a scheme and at least one slash: https://, or a typo with
+// one slash (https:/). host:port has no slash after its colon.
+var schemeAhead = regexp.MustCompile(`^([A-Za-z][A-Za-z0-9+.-]*):/`)
+
+func readAddress(s, name string) address {
+	hostOnly := hostName.MatchString(name)
+	m := schemeAhead.FindStringSubmatch(s)
+	if m == nil {
+		switch {
+		case name == "url":
+			return address{reason: reasonScheme}
+		case strings.HasPrefix(s, "/"):
+			// //alice:pw@host, or a path: rclone would put https:// before it.
+			if strings.Contains(s, "@") {
+				return address{reason: reasonCredentials}
+			}
+			return address{reason: reasonScheme}
+		}
+		return address{whole: s, addr: s, at: strings.Contains(s, "@")}
 	}
-	rest := s[len(scheme):]
+	if hostOnly {
+		return address{reason: reasonHostOnly}
+	}
+	scheme := strings.ToLower(m[1])
+	rest := s[len(m[1])+1:]
+	if !strings.HasPrefix(rest, "//") {
+		// https:/host: rclone checks for "https://" and would add another.
+		return address{reason: reasonUnreadable}
+	}
+	if scheme != "http" && scheme != "https" {
+		return address{reason: reasonScheme}
+	}
+	whole := scheme + ":" + rest
+	rest = rest[2:]
 	end := strings.IndexAny(rest, "/?#")
 	if end < 0 {
 		end = len(rest)
 	}
 	authority, after := rest[:end], rest[end:]
 	at := strings.LastIndex(authority, "@")
-	host := authority[at+1:]
-	if at >= 0 && !cleanUserinfo(authority[:at]) || !cleanHostPort(host) {
-		return s, "", "", false, false, false
-	}
-	u, err := url.Parse(s)
+	bare := scheme + "://" + authority[at+1:] + after
+	u, err := url.Parse(whole)
 	if err != nil {
-		return s, "", "", false, false, false
+		// Without the user name and password, does it read? Then they are
+		// the trouble.
+		if _, err2 := url.Parse(bare); at >= 0 && err2 == nil {
+			return address{reason: reasonLogin}
+		}
+		if strings.Contains(err.Error(), "invalid port") {
+			return address{reason: reasonPort}
+		}
+		return address{reason: reasonUnreadable}
 	}
-	if at < 0 || u.User == nil {
-		return s, "", "", false, false, true
+	if u.Host == "" || u.Hostname() == "" {
+		return address{reason: reasonUnreadable}
 	}
-	pass, hasPass = u.User.Password()
-	return scheme + host + after, u.User.Username(), pass, true, hasPass, true
-}
-
-// cleanUserinfo: the characters Go's url package reads in a user name and
-// password, and % escapes.
-func cleanUserinfo(u string) bool {
-	for i := 0; i < len(u); i++ {
-		c := u[i]
-		switch {
-		case c == '%':
-			if i+2 >= len(u) || !isHex(u[i+1]) || !isHex(u[i+2]) {
-				return false
-			}
-			i += 2
-		case 'a' <= c && c <= 'z', 'A' <= c && c <= 'Z', '0' <= c && c <= '9',
-			strings.IndexByte("-._:~!$&'()*+,;=@", c) >= 0:
-		default:
-			return false
-		}
+	// A password that starts with digits and holds a / reads as a host and
+	// a port (https://alice:2024/Summer@host/dav): one word for a host, a
+	// port, and an @ in the first folder. A folder named for an email
+	// address right after such a host reads the same; written %40, its @
+	// passes.
+	if first, _, _ := strings.Cut(strings.TrimPrefix(u.EscapedPath(), "/"), "/"); u.Port() != "" &&
+		!strings.ContainsAny(u.Hostname(), ".:") && strings.Contains(first, "@") {
+		return address{reason: reasonAmbiguous}
 	}
-	return true
-}
-
-func isHex(c byte) bool {
-	return '0' <= c && c <= '9' || 'a' <= c && c <= 'f' || 'A' <= c && c <= 'F'
-}
-
-// cleanHostPort: a host, then a port that is a number if there is one; an
-// IPv6 address in brackets.
-func cleanHostPort(h string) bool {
-	var port string
-	if strings.HasPrefix(h, "[") {
-		close := strings.Index(h, "]")
-		if close < 0 {
-			return false
-		}
-		port = h[close+1:]
-		if port == "" {
-			return true
-		}
-		if !strings.HasPrefix(port, ":") {
-			return false
-		}
-		port = port[1:]
-	} else {
-		c := strings.LastIndex(h, ":")
-		if c < 0 {
-			return true
-		}
-		port = h[c+1:]
+	a := address{whole: whole, addr: whole}
+	if u.User != nil {
+		a.addr = bare
+		a.user = u.User.Username()
+		a.pass, a.hasPass = u.User.Password()
+		a.hasUser = true
 	}
-	return strings.Trim(port, "0123456789") == ""
+	return a
 }
