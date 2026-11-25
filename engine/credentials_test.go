@@ -259,13 +259,28 @@ func TestCheckCredentialNoKey(t *testing.T) {
 	}
 	sa, _ := json.Marshal(map[string]string{"type": "service_account", "client_email": "a@b", "private_key": "not a key"})
 	if _, err := CheckCredential("drive", "service_account_credentials", string(sa)); err == nil ||
-		!strings.HasPrefix(err.Error(), "That file isn't a service account key.") {
+		!strings.HasPrefix(err.Error(), "[credential] That file isn't a service account key.") {
 		t.Errorf("a service account with no key: %v", err)
 	}
 	box, _ := json.Marshal(map[string]any{"enterpriseID": "1", "boxAppSettings": map[string]any{"clientID": "c",
 		"appAuth": map[string]string{"privateKey": "not a key", "passphrase": "p"}}})
 	if _, err := CheckCredential("box", "config_credentials", string(box)); err == nil ||
-		!strings.HasPrefix(err.Error(), "The private key in that file can't be read.") {
+		!strings.HasPrefix(err.Error(), "[credential] The private key in that file can't be read.") {
 		t.Errorf("a Box file with no key: %v", err)
+	}
+}
+
+// A file that isn't the right one is refused in Driveway's own words, tagged
+// [credential]: the one engine text the app shows as it is.
+func TestCredentialRefusalsTagged(t *testing.T) {
+	for _, c := range []struct{ backend, key, value string }{
+		{"drive", "service_account_credentials", "{}"},
+		{"box", "config_credentials", "not json"},
+		{"jottacloud", "config_login_token", "hunter2"},
+	} {
+		_, err := CheckCredential(c.backend, c.key, c.value)
+		if err == nil || !strings.HasPrefix(err.Error(), "[credential] ") || strings.HasPrefix(err.Error(), "[credential] [") {
+			t.Errorf("%s %s: %v", c.backend, c.key, err)
+		}
 	}
 }

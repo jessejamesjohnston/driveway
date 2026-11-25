@@ -30,7 +30,8 @@ type checked struct {
 // CheckCredential looks at a key file or token before connecting, on the
 // device, without sending it anywhere: that it is the kind of file the
 // service needs and that its private key can be read. It returns JSON
-// (checked), or an error saying in plain words what is wrong.
+// (checked), or an error tagged [credential] saying in plain words what is
+// wrong (the one engine error the app shows as it is).
 func CheckCredential(backend, key, value string) (string, error) {
 	var c checked
 	var err error
@@ -45,7 +46,7 @@ func CheckCredential(backend, key, value string) (string, error) {
 		return "", tag("other", fmt.Errorf("nothing to check for %s", key))
 	}
 	if err != nil {
-		return "", err
+		return "", tag("credential", err)
 	}
 	c.Value = oneLine(strings.TrimSpace(value))
 	b, _ := json.Marshal(c)

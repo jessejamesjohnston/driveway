@@ -18,6 +18,13 @@ public final class Log {
     return 0;
   }
 
+  public static int w(String tag, String msg, Throwable tr) {
+    lastTag = tag;
+    lastMessage = msg;
+    lastError = tr;
+    return 0;
+  }
+
   public static int w(String tag, String msg) {
     lastTag = tag;
     lastMessage = msg;

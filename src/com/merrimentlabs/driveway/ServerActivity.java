@@ -1374,16 +1374,9 @@ public final class ServerActivity extends Activity implements Connection.Listene
       } catch (java.io.IOException | SecurityException e) {
         error = getString(R.string.file_unreadable);
       } catch (Exception e) {
-        // Driveway's own sentences from the engine's file check (untagged):
-        // what the file is not, and where to get the right one. Anything
-        // else goes to the log.
-        String m = e.getMessage();
-        if (e instanceof org.json.JSONException || m == null || m.startsWith("[")) {
-          android.util.Log.w("Driveway", "can't check the chosen file", e);
-          error = getString(R.string.file_unreadable);
-        } else {
-          error = m;
-        }
+        // The engine's file check's own sentence, or the plain one.
+        String said = Errors.credential(e);
+        error = said != null ? said : getString(R.string.file_unreadable);
       }
       String err = error;
       JSONObject result = got;

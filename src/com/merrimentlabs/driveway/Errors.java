@@ -40,6 +40,17 @@ final class Errors {
     return !t.isEmpty() && Character.isLetterOrDigit(t.charAt(t.length() - 1)) ? t + "." : t;
   }
 
+  /**
+   * The engine's file check's own sentence (tagged [credential]): what the
+   * chosen file is not and where to get the right one, the one engine text
+   * shown as it is. Null for anything else, which goes to the log.
+   */
+  static String credential(Throwable e) {
+    if (!(e instanceof org.json.JSONException) && kind(e).equals("credential") && !detail(e).isEmpty()) return detail(e);
+    android.util.Log.w("Driveway", "can't check the chosen file", e);
+    return null;
+  }
+
   static boolean isNotFound(Throwable e) {
     return kind(e).equals("notfound");
   }

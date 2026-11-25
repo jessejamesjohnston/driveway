@@ -59,6 +59,16 @@ public final class ErrorsTest {
     check(Errors.closed("Try again.").equals("Try again.") && Errors.closed("(Dropbox said: no)").equals("(Dropbox said: no)")
         && Errors.closed("").isEmpty(), "closed: leaves an ended sentence alone");
 
+    // credential(): only the file check's own tagged sentence is shown as it is.
+    check("That file isn't a service account key".equals(Errors.credential(err("[credential] That file isn't a service account key"))),
+        "credential: the file check's sentence");
+    android.util.Log.lastError = null;
+    check(Errors.credential(err("[other] " + RAW)) == null && android.util.Log.lastError != null,
+        "credential: another category goes to the log");
+    check(Errors.credential(err(RAW)) == null && Errors.credential(err("[credential]")) == null
+        && Errors.credential(err(null)) == null && Errors.credential(new org.json.JSONException("[credential] x")) == null,
+        "credential: untagged, empty, no message or unreadable JSON is not shown");
+
     try {
       userTextNeverCarriesRawDetail();
       noScreenTextFromAnExceptionsMessage();
@@ -100,7 +110,8 @@ public final class ErrorsTest {
     servers.put("none", null);
     List<String> kinds = List.of("network", "auth", "declined", "expired", "background", "nobrowser", "port", "signin",
         "signinfailed", "setup", "setupended", "badsettings", "notfound", "exists", "notempty", "bucketname", "denied", "full", "retry", "nosize",
-        "changed", "norename", "bothnames", "partway", "keptold", "short", "other", "unsupported", "a-kind-from-later");
+        "changed", "norename", "bothnames", "partway", "keptold", "short", "other", "unsupported", "credential",
+        "a-kind-from-later");
     List<Throwable> errors = new java.util.ArrayList<>();
     for (String k : kinds) errors.add(err("[" + k + "] " + RAW));
     errors.add(err("[auth] knownhosts: key mismatch " + RAW));
@@ -165,17 +176,18 @@ public final class ErrorsTest {
   }
 
   /**
-   * Exceptions' messages put on screen in the app's code, line by line: a
-   * message, or the engine's detail, passed to something that shows text.
-   * Errors.java is checked above, case by case.
+   * Exceptions' messages in the app's code, line by line: every line that
+   * reads one (getMessage(), or the engine's detail) either only logs it or
+   * is listed below with why its text is Driveway's own or never shown. So a
+   * message kept in a variable and shown a few lines later (String m =
+   * e.getMessage(); ... error = m;) is caught where it is read. Errors.java
+   * is checked above, case by case.
    */
   private static final java.util.regex.Pattern RAW_SOURCE = java.util.regex.Pattern.compile("getMessage\\(\\)|\\bdetail\\(");
-  private static final java.util.regex.Pattern SHOWS = java.util.regex.Pattern.compile(
-      "setText\\(|setMessage\\(|setError\\(|setTitle\\(|getString\\(|setContentText\\(|bigText\\(|Toast|"
-          + "new (FileNotFoundException|IllegalStateException|Errors\\.Worded|UnsupportedOperationException)\\(");
+  private static final java.util.regex.Pattern LOGS_ONLY = java.util.regex.Pattern.compile("^(android\\.util\\.)?Log\\.[ewid]\\(");
   /**
-   * Lines allowed to pass a message on, each with how many times it appears
-   * and why its text is Driveway's own or never shown.
+   * Lines allowed to read a message, each with how many times it appears and
+   * why its text is Driveway's own or never shown.
    */
   private static final Map<String, String> ALLOWED_LINES = Map.of(
       "ServerActivity.java: formStatus.setText(e.getMessage());",
@@ -183,22 +195,37 @@ public final class ErrorsTest {
           + "needs_login, form_failed, the address problems)",
       "ServerActivity.java: field.setError(e.getMessage());",
       "1: the same collect() exception, on the field it names",
+      "ServerActivity.java: error = e.getMessage();",
+      "1: e is an Errors.Worded (the catch above it), Driveway's own sentence",
       "DrivewayProvider.java: throw new UnsupportedOperationException(Errors.detail(e));",
       "2: Files takes UnsupportedOperationException from a move or copy as a sign to do it itself, and never shows "
-          + "its message");
+          + "its message",
+      "Problems.java: String d = Errors.detail(e);",
+      "1: only compared with known words to choose which problem to remember, never shown");
+
+  /** The line as an ALLOWED_LINES key when it reads an exception's message for more than the log, else null. */
+  static String readsMessage(String file, String line) {
+    String t = line.trim();
+    if (t.startsWith("//") || t.startsWith("*") || !RAW_SOURCE.matcher(t).find() || LOGS_ONLY.matcher(t).find()) return null;
+    return file + ": " + t;
+  }
 
   private static void noScreenTextFromAnExceptionsMessage() throws Exception {
+    // The scan itself: the two-line hop is caught where the message is read.
+    check(readsMessage("A.java", "        String m = e.getMessage();") != null, "scan: a message kept in a variable is caught");
+    check(readsMessage("A.java", "  Log.w(TAG, \"x: \" + e.getMessage());") == null
+        && readsMessage("A.java", "android.util.Log.w(\"Driveway\", e.getMessage());") == null, "scan: logging a message is fine");
+    check(readsMessage("A.java", "    // e.getMessage() is never shown") == null, "scan: a comment is fine");
     Map<String, Integer> used = new HashMap<>();
     File[] files = new File("src/com/merrimentlabs/driveway").listFiles((d, n) -> n.endsWith(".java"));
     check(files != null && files.length > 20, "the app's code is read");
     for (File f : files) {
       if (f.getName().equals("Errors.java")) continue;
       for (String line : Files.readAllLines(f.toPath(), StandardCharsets.UTF_8)) {
-        String t = line.trim();
-        if (t.startsWith("//") || t.startsWith("*") || !RAW_SOURCE.matcher(t).find() || !SHOWS.matcher(t).find()) continue;
-        String key = f.getName() + ": " + t;
+        String key = readsMessage(f.getName(), line);
+        if (key == null) continue;
         if (ALLOWED_LINES.containsKey(key)) used.merge(key, 1, Integer::sum);
-        else check(false, "an exception's message on screen: " + key);
+        else check(false, "an exception's message read for more than the log: " + key);
       }
     }
     for (Map.Entry<String, String> a : ALLOWED_LINES.entrySet()) {
