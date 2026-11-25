@@ -20,7 +20,7 @@ func tag(kind string, err error) error {
 	if err == nil {
 		return nil
 	}
-	return fmt.Errorf("[%s] %w", kind, err)
+	return cleanErr(fmt.Errorf("[%s] %w", kind, err))
 }
 
 // classify adds the category the app needs to report the error properly.

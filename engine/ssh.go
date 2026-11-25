@@ -20,7 +20,8 @@ import (
 // NewKey makes an Ed25519 key for SFTP: {"private": PEM, "public":
 // authorized_keys line}. The app keeps the private half; the person adds the
 // public half to the server.
-func NewKey(comment string) (string, error) {
+func NewKey(comment string) (_ string, err error) {
+	defer scrub(&err)
 	pub, priv, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
 		return "", tag("other", err)
@@ -44,7 +45,8 @@ func NewKey(comment string) (string, error) {
 // the key's type, such as ssh-ed25519 or ssh-rsa}. The app
 // shows the fingerprint the first time and pins the line afterwards. An
 // IPv6 host may come with or without brackets.
-func HostKey(host string, port int) (string, error) {
+func HostKey(host string, port int) (_ string, err error) {
+	defer scrub(&err)
 	if port == 0 {
 		port = 22
 	}

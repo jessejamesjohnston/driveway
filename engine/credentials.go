@@ -32,9 +32,9 @@ type checked struct {
 // service needs and that its private key can be read. It returns JSON
 // (checked), or an error tagged [credential] saying in plain words what is
 // wrong (the one engine error the app shows as it is).
-func CheckCredential(backend, key, value string) (string, error) {
+func CheckCredential(backend, key, value string) (_ string, err error) {
+	defer scrub(&err)
 	var c checked
-	var err error
 	switch {
 	case key == "service_account_credentials":
 		c, err = checkServiceAccount(value)

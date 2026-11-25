@@ -176,7 +176,8 @@ type choice struct {
 // questions the service asks, returned one at a time as JSON. Services that
 // sign in through a web page open the browser here and wait for the person
 // to finish (ConfigCancel stops the wait).
-func ConfigStart(id, backend, params string) (string, error) {
+func ConfigStart(id, backend, params string) (_ string, err error) {
+	defer scrub(&err)
 	setup()
 	var m map[string]any
 	if err := json.Unmarshal([]byte(params), &m); err != nil {
@@ -236,7 +237,8 @@ func ConfigStart(id, backend, params string) (string, error) {
 }
 
 // ConfigAnswer answers the question in state and returns the next one.
-func ConfigAnswer(id, state, answer string) (string, error) {
+func ConfigAnswer(id, state, answer string) (_ string, err error) {
+	defer scrub(&err)
 	if state == oneDrivePickState {
 		endRun(id)
 		return answerOneDrive(id, answer)
@@ -327,7 +329,8 @@ func next(id string, out *fs.ConfigOut, err error) (string, error) {
 	}
 	q := question{Done: out == nil || out.State == ""}
 	if out != nil {
-		q.State, q.Error = out.State, out.Error
+		// The app shows and logs the error: no credential in it.
+		q.State, q.Error = out.State, redact(out.Error)
 		if o := out.Option; o != nil {
 			q.Name, q.Help, q.Required, q.Password, q.Exclusive = o.Name, o.Help, o.Required, o.IsPassword, o.Exclusive
 			if o.Default != nil {

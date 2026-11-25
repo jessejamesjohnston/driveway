@@ -25,7 +25,8 @@ import (
 // Upload writes the local file src to p on the server, without ever leaving
 // p half-written: it uploads to a temporary name beside p, checks the size,
 // then renames it over p. If anything fails, p is as it was.
-func Upload(id, p, src string) error {
+func Upload(id, p, src string) (err error) {
+	defer scrub(&err)
 	return UploadWithProgress(id, p, src, nil)
 }
 
@@ -54,7 +55,8 @@ func (c *counter) Read(b []byte) (int, error) {
 }
 
 // UploadWithProgress is Upload, reporting progress to prog (which may be nil).
-func UploadWithProgress(id, p, src string, prog Progress) error {
+func UploadWithProgress(id, p, src string, prog Progress) (err error) {
+	defer scrub(&err)
 	in, err := os.Open(src)
 	if err != nil {
 		return tag("other", err)
@@ -72,7 +74,8 @@ func UploadWithProgress(id, p, src string, prog Progress) error {
 
 // Create makes an empty file at p (a save dialog's new document) within one
 // call's deadline: Files is waiting for the answer.
-func Create(id, p string) error {
+func Create(id, p string) (err error) {
+	defer scrub(&err)
 	_, c, done, err := begin(id)
 	if err != nil {
 		return err
@@ -95,7 +98,8 @@ const createLimit = 15 * time.Second
 // step, connecting included, shares one deadline. A name that turns out to
 // be taken after all (the listing was out of date) is never written over:
 // dir is listed again and another name picked.
-func CreateNew(id, dir, name string, folder bool, taken string) (string, error) {
+func CreateNew(id, dir, name string, folder bool, taken string) (_ string, err error) {
+	defer scrub(&err)
 	f, call, done, err := begin(id)
 	if err != nil {
 		return "", err

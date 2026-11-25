@@ -19,7 +19,8 @@ import (
 )
 
 // Mkdir makes the folder p and any missing parents.
-func Mkdir(id, p string) error {
+func Mkdir(id, p string) (err error) {
+	defer scrub(&err)
 	f, c, done, err := begin(id)
 	if err != nil {
 		return err
@@ -31,12 +32,14 @@ func Mkdir(id, p string) error {
 }
 
 // Delete removes the file or folder p; a folder goes with everything in it.
-func Delete(id, p string) error {
+func Delete(id, p string) (err error) {
+	defer scrub(&err)
 	return DeleteWithin(id, p, 0)
 }
 
 // DeleteWithin is Delete within what is left of Files' wait (beginWithin).
-func DeleteWithin(id, p string, budgetMs int64) error {
+func DeleteWithin(id, p string, budgetMs int64) (err error) {
+	defer scrub(&err)
 	f, call, done, err := beginWithin(id, budgetMs)
 	if err != nil {
 		return err
@@ -105,12 +108,14 @@ func free(c context.Context, f fs.Fs, p string) error {
 // at once with [unsupported]: Files then moves what's inside one by one
 // (each file on the server, by Move) and deletes the emptied folder, so no
 // single call has to move a whole folder inside Files' time limit.
-func Move(id, from, to string) error {
+func Move(id, from, to string) (err error) {
+	defer scrub(&err)
 	return move(id, from, to, false, 0)
 }
 
 // MoveWithin is Move within what is left of Files' wait (beginWithin).
-func MoveWithin(id, from, to string, budgetMs int64) error {
+func MoveWithin(id, from, to string, budgetMs int64) (err error) {
+	defer scrub(&err)
 	return move(id, from, to, false, budgetMs)
 }
 
@@ -119,12 +124,14 @@ func MoveWithin(id, from, to string, budgetMs int64) error {
 // object at a time on the server, but only when it is small enough to
 // finish well inside Files' time limit: a bigger one fails with [toobig]
 // before anything moves, rather than stopping half way.
-func Rename(id, from, to string) error {
+func Rename(id, from, to string) (err error) {
+	defer scrub(&err)
 	return move(id, from, to, true, 0)
 }
 
 // RenameWithin is Rename within what is left of Files' wait (beginWithin).
-func RenameWithin(id, from, to string, budgetMs int64) error {
+func RenameWithin(id, from, to string, budgetMs int64) (err error) {
+	defer scrub(&err)
 	return move(id, from, to, true, budgetMs)
 }
 

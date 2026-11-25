@@ -33,7 +33,8 @@ type Reader struct {
 const readAhead = 4 << 20
 
 // Open starts reading the file p.
-func Open(id, p string) (*Reader, error) {
+func Open(id, p string) (_ *Reader, err error) {
+	defer scrub(&err)
 	f, c, done, err := begin(id)
 	if err != nil {
 		return nil, err
@@ -62,7 +63,8 @@ func (r *Reader) Size() int64 { return r.size }
 const skipLimit = 512 << 10
 
 // ReadAt returns up to n bytes from offset off; fewer only at the end of the file.
-func (r *Reader) ReadAt(off int64, n int) ([]byte, error) {
+func (r *Reader) ReadAt(off int64, n int) (_ []byte, err error) {
+	defer scrub(&err)
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if off >= r.size || n <= 0 {

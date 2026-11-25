@@ -40,7 +40,8 @@ func toEntry(e fs.DirEntry) entry {
 }
 
 // List returns the folder dir ("" for the top) as a JSON array of entries.
-func List(id, dir string) (string, error) {
+func List(id, dir string) (_ string, err error) {
+	defer scrub(&err)
 	f, err := remote(ctx(), id)
 	if err != nil {
 		return "", err
@@ -60,7 +61,8 @@ func List(id, dir string) (string, error) {
 
 // ListNow is List within one call's deadline, for the app's synchronous
 // calls (picking a free name while Files waits for an answer).
-func ListNow(id, dir string) (string, error) {
+func ListNow(id, dir string) (_ string, err error) {
+	defer scrub(&err)
 	f, c, done, err := begin(id)
 	if err != nil {
 		return "", err
@@ -82,7 +84,8 @@ func ListNow(id, dir string) (string, error) {
 }
 
 // Stat returns one entry as JSON.
-func Stat(id, p string) (string, error) {
+func Stat(id, p string) (_ string, err error) {
+	defer scrub(&err)
 	f, c, done, err := begin(id)
 	if err != nil {
 		return "", err

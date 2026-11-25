@@ -24,7 +24,8 @@ const copyLimit = 512 << 20
 // Copy copies the file from to to on the server itself, without the bytes
 // passing through the device. It fails with [unsupported] when the service
 // can't (SMB, FTP, NFS, folders); the app then copies the ordinary way.
-func Copy(id, from, to string) error {
+func Copy(id, from, to string) (err error) {
+	defer scrub(&err)
 	f, call, done, err := begin(id)
 	if err != nil {
 		return err
@@ -39,7 +40,8 @@ func Copy(id, from, to string) error {
 // copying are one call, within what is left of Files' wait (beginWithin). A
 // name the listing missed is never written over: dir is listed again and
 // another name picked.
-func CopyNew(id, from, dir, name string, budgetMs int64) (string, error) {
+func CopyNew(id, from, dir, name string, budgetMs int64) (_ string, err error) {
+	defer scrub(&err)
 	f, call, done, err := beginWithin(id, budgetMs)
 	if err != nil {
 		return "", err

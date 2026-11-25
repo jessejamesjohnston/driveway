@@ -91,6 +91,7 @@ func setup() {
 		ci.LowLevelRetries = 2
 		ci.UserAgent = "Driveway"
 		ci.LogLevel = fs.LogLevelNotice
+		redactLogs()
 	})
 }
 
@@ -100,7 +101,8 @@ func ctx() context.Context { return context.Background() }
 // ("sftp", "smb", "webdav", "nfs", ...); params is a JSON object of its
 // options, with passwords in the clear (they're obscured here, as rclone
 // expects).
-func SetRemote(id, backend, params string) error {
+func SetRemote(id, backend, params string) (err error) {
+	defer scrub(&err)
 	setup()
 	ri, err := fs.Find(backend)
 	if err != nil {
@@ -278,7 +280,8 @@ func connect(id string, gen int) connected {
 
 // Check connects to the server id and lists its top folder: the app's
 // "Test connection".
-func Check(id string) error {
+func Check(id string) (err error) {
+	defer scrub(&err)
 	mu.Lock()
 	dropRemote(id)
 	mu.Unlock()
