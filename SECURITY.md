@@ -11,12 +11,19 @@ About) you tested. You will get an answer as soon as I can manage; this is a one
 
 - **Stored sign-ins** (`Servers.java`): passwords, keys, key files and tokens are kept in the
   server list, encrypted under an Android Keystore key and excluded from backup (`allowBackup` is
-  off). The app never writes them to its log. A user name and password typed into a server's
-  address (`https://you:password@host/...`) move to the server's own User name and Password
-  settings, in the form and again in the engine (`Kinds.urlParts`, `engine/address.go`); the HTTP
-  kind, which has no such settings, keeps them in the address. An address Go can't read (a
-  password with a space or a quote in it, a missing `https://`) is refused in Driveway's own
-  words before it reaches rclone, because Go's own error repeats the address whole.
+  off). The app never writes them to its log. One address check (`engine/address.go`), which
+  the form calls as you leave a field and on Connect and Save, and which the engine runs again
+  before rclone sees the settings, covers every setting rclone declares as an address (a URL, an
+  endpoint, a host). A user name and password typed into an address
+  (`https://you:password@host/...`) move to the server's own User name and Password settings when
+  those are empty; when they hold a login, that login is used and the address's copy is taken
+  out, and the form says which. A service without such settings refuses a user name and password
+  in an address, except where rclone documents the address as the way to sign in (the HTTP kind,
+  a proxy). An address Go's url package can't read (a password with a space or a quote in it, a
+  stray `%`, a missing `https://`) is refused before it reaches rclone, naming the setting and
+  never repeating the address, because Go's own error repeats the address whole. Settings the
+  engine refuses replace the server's earlier ones, so nothing goes on working on the settings
+  the person changed.
 - **What reaches the log.** An error's text can carry a credential: some services put an API key
   or token in the request address (premiumize.me, Mail.ru, Linkbox), and Go includes the address
   in a network error. The engine redacts every error it returns and every line it logs (rclone's
@@ -24,14 +31,18 @@ About) you tested. You will get an answer as soon as I can manage; this is a one
   appears under the `GoLog` tag), and the app redacts each line it logs again (`Logs.java`, the
   `Driveway` tag). The debug-only test harness logs through the same redaction; `LogsTest` scans
   the app's and the harness's code for any log call or console write that goes around it.
-  Redaction keeps an address's scheme, host, port and path and drops its user name, password
-  (also when the address is one Go couldn't read), query string and fragment; it replaces with
-  `***` the values of settings, JSON and XML fields and HTTP headers named like credentials (the
-  whole value of `Authorization`), private key blocks, and the tokens some services put in an
+  Redaction keeps an address's scheme, host, port and path and drops its query string and
+  fragment, and its user name and password in the shapes the cases file covers (among them an
+  address Go couldn't read, a scheme typed twice or with one slash, and a password that starts
+  with digits and holds a `/`); it replaces with `***` the values of settings, JSON and XML fields
+  and HTTP headers named like credentials (the whole value of `Authorization`, also written as a
+  setting, and of a mnemonic or passphrase of several words), private key blocks of any length,
+  and the tokens some services put in an
   address's path (`engine/redact.go`, with its cases in `test/redact_cases.json`). The setting
   names are checked against every setting rclone marks as a password or as sensitive, so a new
-  one fails the tests until it is classified. A line the app or the engine logs is cut to 8,000
-  characters, after redaction. It works by pattern: a credential in a shape it doesn't know, such as a field printed
+  one fails the tests until it is classified. Each line the engine logs, and each entry the app
+  logs (a stack trace is one entry), is cut to 8,000 characters, counted the same way in both,
+  after redaction. It works by pattern: a credential in a shape it doesn't know, such as a field printed
   as `Name:value`, would pass, so the contributing guide asks people to read a log before sharing
   it. The log does name servers, their addresses, user names and files. A
   crash of the engine (a Go panic) is written by Go's runtime straight to the system log under

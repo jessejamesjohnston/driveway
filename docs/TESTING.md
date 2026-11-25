@@ -22,8 +22,17 @@ them:
   no shared case covers.
 - `TestUnreadableAddressNeverLeaks` puts addresses with a password Go can't parse straight into
   the settings, past the check at the door, and asserts that the error, the log and the redacted
-  raw text hold none of it. `TestAddressAtTheDoor` and `KindsTest` check that door itself, in the
-  engine and in the form.
+  raw text hold none of it.
+- The address check (`engine/address.go`) has its own shared cases, `test/address_cases.json`:
+  each gives a server's settings and either the setting refused and why, with the sentence the
+  form shows, or the settings used and the note. `TestAddressCases` and `TestAddressAtTheDoor`
+  check the engine and SetRemote against them. The form has no address rules of its own: it asks
+  the engine, and `KindsTest` runs the same cases through the form's side, answered with the real
+  engine's verdicts (written by `TestAddressVerdictsJSON`). `TestEveryAddressSettingClassified`
+  fails on any setting rclone describes as an address that the check doesn't know.
+- `TestRefusedReplace` checks that settings SetRemote refuses leave nothing of the server's
+  earlier settings working, and `TestServerTextIsNoSettingsError` that a server's own answer is
+  never taken for a settings error.
 - Both suites redact a megabyte of each of a dozen shapes, and of a long value inside each rule,
   within a generous time bound (a pattern that backtracks would take minutes, or overflow the
   app's stack).
